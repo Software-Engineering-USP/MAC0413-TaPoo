@@ -22,3 +22,13 @@ npm run dev
 ```
 
 API health check: `http://localhost:8000/health`.
+
+## SonarQube
+
+The GitHub Actions workflow runs a SonarQube scan after the backend and frontend
+checks. Configure these in the repository settings before enabling the workflow:
+
+- Secret: `SONAR_TOKEN`
+
+The project name and key are defined in `sonar-project.properties`. Coverage is
+intentionally excluded for the initial project phase.
