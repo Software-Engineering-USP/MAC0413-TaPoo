@@ -32,3 +32,18 @@ checks. Configure these in the repository settings before enabling the workflow:
 
 The project name and key are defined in `sonar-project.properties`. Coverage is
 intentionally excluded for the initial project phase.
+
+## CI/CD
+
+Pull requests and pushes to `main` run the backend checks, frontend build, and
+SonarCloud analysis. Docker images are published to GHCR only when a version
+tag is pushed or the workflow is started manually.
+
+To publish a versioned image:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow can also be started from GitHub Actions using **Run workflow**.
