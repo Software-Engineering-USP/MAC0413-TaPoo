@@ -18,149 +18,165 @@ body {
   display: flex;
 }
 
-        /* Modern subtle scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
-        }
+/* Modern subtle scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
 
-        /* Map pulsing animations for risk hotspots */
-        @keyframes pulse-red {
-            0%, 100% { fill-opacity: 0.35; stroke-opacity: 0.8; }
-            50% { fill-opacity: 0.6; stroke-opacity: 1; }
-        }
-        .pulse-zone-high {
-            animation: pulse-red 2.5s infinite ease-in-out;
-        }
+/* Map pulsing animations for risk hotspots */
+@keyframes pulse-red {
+  0%,
+  100% {
+    fill-opacity: 0.35;
+    stroke-opacity: 0.8;
+  }
+  50% {
+    fill-opacity: 0.6;
+    stroke-opacity: 1;
+  }
+}
+.pulse-zone-high {
+  animation: pulse-red 2.5s infinite ease-in-out;
+}
 
-        /* Glassmorphic effect */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
+/* Glassmorphic effect */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 
-        #interactiveMap {
-            width: 100%;
-            height: 100%;
-            min-height: 400px;
-            background: #eaf4f8;
-            z-index: 0;
-        }
+#interactiveMap {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background: #eaf4f8;
+  z-index: 0;
+}
 
-        .leaflet-tooltip.city-label {
-            border: 0;
-            border-radius: 6px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
-            color: #334155;
-            font: 600 11px Inter, sans-serif;
-            padding: 3px 6px;
-        }
+.leaflet-tooltip.city-label {
+  border: 0;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  color: #334155;
+  font:
+    600 11px Inter,
+    sans-serif;
+  padding: 3px 6px;
+}
 
-        .leaflet-tooltip.city-label::before {
-            display: none;
-        }
+.leaflet-tooltip.city-label::before {
+  display: none;
+}
 
-        .leaflet-tooltip.river-label {
-            background: rgba(255, 255, 255, 0.9);
-            border: 0;
-            border-radius: 6px;
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
-            color: #0369a1;
-            font: 600 10px Inter, sans-serif;
-            padding: 3px 6px;
-        }
+.leaflet-tooltip.river-label {
+  background: rgba(255, 255, 255, 0.9);
+  border: 0;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  color: #0369a1;
+  font:
+    600 10px Inter,
+    sans-serif;
+  padding: 3px 6px;
+}
 
-        .leaflet-tooltip.river-label::before {
-            display: none;
-        }
+.leaflet-tooltip.river-label::before {
+  display: none;
+}
 
-        .leaflet-marker-icon.city-marker {
-            background: #dc2626;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 1px 5px rgba(15, 23, 42, 0.45);
-        }
+.leaflet-marker-icon.city-marker {
+  background: #dc2626;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 1px 5px rgba(15, 23, 42, 0.45);
+}
 
-        .leaflet-marker-icon.city-marker.moderate {
-            background: #f97316;
-        }
+.leaflet-marker-icon.city-marker.moderate {
+  background: #f97316;
+}
 
-        .leaflet-marker-icon.city-marker.selected {
-            background: #dc2626;
-            box-shadow: 0 0 0 7px rgba(220, 38, 38, 0.25), 0 1px 5px rgba(15, 23, 42, 0.45);
-        }
+.leaflet-marker-icon.city-marker.selected {
+  background: #dc2626;
+  box-shadow:
+    0 0 0 7px rgba(220, 38, 38, 0.25),
+    0 1px 5px rgba(15, 23, 42, 0.45);
+}
 
-        .leaflet-marker-icon.city-marker.moderate.selected {
-            background: #f97316;
-            box-shadow: 0 0 0 7px rgba(249, 115, 22, 0.25), 0 1px 5px rgba(15, 23, 42, 0.45);
-        }
+.leaflet-marker-icon.city-marker.moderate.selected {
+  background: #f97316;
+  box-shadow:
+    0 0 0 7px rgba(249, 115, 22, 0.25),
+    0 1px 5px rgba(15, 23, 42, 0.45);
+}
 
-        .leaflet-marker-icon.saved-place-marker {
-            background: #0284c7;
-            box-sizing: border-box;
-            border-width: 3px;
-        }
+.leaflet-marker-icon.saved-place-marker {
+  background: #0284c7;
+  box-sizing: border-box;
+  border-width: 3px;
+}
 
-        .leaflet-marker-icon.saved-place-marker.risk-low {
-            background: #eab308;
-        }
+.leaflet-marker-icon.saved-place-marker.risk-low {
+  background: #eab308;
+}
 
-        .leaflet-marker-icon.saved-place-marker.risk-moderate {
-            background: #f97316;
-        }
+.leaflet-marker-icon.saved-place-marker.risk-moderate {
+  background: #f97316;
+}
 
-        .leaflet-marker-icon.saved-place-marker.risk-high {
-            background: #dc2626;
-        }
+.leaflet-marker-icon.saved-place-marker.risk-high {
+  background: #dc2626;
+}
 
-        #interactiveMap .leaflet-control-attribution {
-            font-size: 9px;
-            background: rgba(255, 255, 255, 0.8);
-        }
+#interactiveMap .leaflet-control-attribution {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.8);
+}
 
-        #interactiveMap .leaflet-control-attribution a {
-            color: #0284c7;
-        }
+#interactiveMap .leaflet-control-attribution a {
+  color: #0284c7;
+}
 
-        .leaflet-container {
-            font-family: Inter, sans-serif;
-        }
+.leaflet-container {
+  font-family: Inter, sans-serif;
+}
 
-        .location-chips {
-            scrollbar-width: thin;
-            scrollbar-color: #94a3b8 rgba(226, 232, 240, 0.8);
-            overscroll-behavior-x: contain;
-            padding-bottom: 5px;
-        }
+.location-chips {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 rgba(226, 232, 240, 0.8);
+  overscroll-behavior-x: contain;
+  padding-bottom: 5px;
+}
 
-        .location-chips::-webkit-scrollbar {
-            height: 5px;
-        }
+.location-chips::-webkit-scrollbar {
+  height: 5px;
+}
 
-        .location-chips::-webkit-scrollbar-track {
-            background: rgba(226, 232, 240, 0.8);
-            border-radius: 9999px;
-        }
+.location-chips::-webkit-scrollbar-track {
+  background: rgba(226, 232, 240, 0.8);
+  border-radius: 9999px;
+}
 
-        .location-chips::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 9999px;
-        }
+.location-chips::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
 
-        /* Map interactive elements */
-        .map-hotspot {
-            cursor: pointer;
-            transition: transform 0.2s ease, filter 0.2s ease;
-        }
-        .map-hotspot:hover {
-            filter: brightness(0.9);
-        }
-
+/* Map interactive elements */
+.map-hotspot {
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease;
+}
+.map-hotspot:hover {
+  filter: brightness(0.9);
+}
