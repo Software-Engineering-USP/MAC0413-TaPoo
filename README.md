@@ -30,11 +30,13 @@ npm install
 npm run dev
 ```
 
-Lint (the same check runs in CI):
+Lint and format (the same checks run in CI):
 
 ```bash
 cd frontend
 npm run lint
+npm run format        # apply Prettier
+npm run format:check  # check only (CI)
 ```
 
 API health check: `http://localhost:8000/health`.

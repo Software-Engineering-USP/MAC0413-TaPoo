@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import prettier from "eslint-config-prettier";
 import globals from "globals";
 
 export default [
@@ -26,11 +27,16 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react/prop-types": "off",
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
     },
   },
   {
     files: ["*.config.js"],
     languageOptions: { globals: globals.node },
   },
+  // Must stay last: turns off ESLint rules that conflict with Prettier.
+  prettier,
 ];
