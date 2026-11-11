@@ -30,7 +30,7 @@ body {
             background: #cbd5e1;
             border-radius: 4px;
         }
-        
+
         /* Map pulsing animations for risk hotspots */
         @keyframes pulse-red {
             0%, 100% { fill-opacity: 0.35; stroke-opacity: 0.8; }
@@ -47,22 +47,12 @@ body {
             -webkit-backdrop-filter: blur(12px);
         }
 
-        html, body {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-        }
-
         #interactiveMap {
             width: 100%;
             height: 100%;
             min-height: 400px;
             background: #eaf4f8;
             z-index: 0;
-        }
-
-        .leaflet-control-attribution {
-            font-size: 9px !important;
         }
 
         .leaflet-tooltip.city-label {
@@ -131,16 +121,17 @@ body {
             background: #dc2626;
         }
 
-        .leaflet-control-attribution a {
-            color: #0284c7 !important;
+        #interactiveMap .leaflet-control-attribution {
+            font-size: 9px;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        #interactiveMap .leaflet-control-attribution a {
+            color: #0284c7;
         }
 
         .leaflet-container {
             font-family: Inter, sans-serif;
-        }
-
-        .leaflet-control-attribution {
-            background: rgba(255, 255, 255, 0.8) !important;
         }
 
         .location-chips {
@@ -172,4 +163,4 @@ body {
         .map-hotspot:hover {
             filter: brightness(0.9);
         }
-    
+

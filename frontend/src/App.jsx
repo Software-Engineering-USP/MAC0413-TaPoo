@@ -16,7 +16,7 @@ useEffect(() => {
             const promptInput = document.getElementById('promptInput');
             const promptOk = document.getElementById('promptOk');
             const promptCancel = document.getElementById('promptCancel');
-            
+
             const confirmModal = document.getElementById('confirmModal');
             const confirmMessage = document.getElementById('confirmMessage');
             const confirmOk = document.getElementById('confirmOk');
@@ -31,7 +31,7 @@ useEffect(() => {
                 promptInput.focus();
                 promptCallback = callback;
             };
-            
+
             promptOk.addEventListener('click', () => {
                 promptModal.classList.add('hidden');
                 if (promptCallback) promptCallback(promptInput.value);
@@ -64,7 +64,7 @@ useEffect(() => {
             }).addTo(map);
 
             const floodRiskLayer = L.layerGroup().addTo(map);
-            
+
             // Render Rivers
             const rivers = [
                 {
@@ -237,20 +237,43 @@ useEffect(() => {
             }
 
             const savedPlaceMarkers = new Map();
-            
+
             const savedPlaceIcon = riskLevel => {
-                const riskClass = {
+                const riskClasses = {
                     Baixo: 'low',
                     Moderado: 'moderate',
                     Alto: 'high'
                 }[riskLevel];
+                const riskClassName = riskClasses ? `risk-${riskClasses}` : '';
                 return L.divIcon({
-                    className: `city-marker saved-place-marker${riskClass ? ` risk-${riskClass}` : ''}`,
+                    className: ['city-marker', 'saved-place-marker', riskClassName]
+                        .filter(Boolean)
+                        .join(' '),
                     iconSize: [20, 20],
                     iconAnchor: [10, 10]
                 });
             };
-            
+
+            const handleSavedPlaceRemoval = event => {
+                const removeButton = event.target instanceof Element
+                    ? event.target.closest('[data-remove-place]')
+                    : null;
+                if (!removeButton) return;
+
+                event.stopPropagation();
+                const index = Number(removeButton.dataset.removePlace);
+                const place = savedPlaces[index];
+                if (!place) return;
+
+                showConfirmModal(`Remover "${place.name}" dos locais salvos?`, () => {
+                    savedPlaces.splice(index, 1);
+                    localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
+                    renderSavedPlaces();
+                });
+            };
+
+            savedLocationsContainer.addEventListener('click', handleSavedPlaceRemoval);
+
             const renderSavedPlaces = () => {
                 savedLocationsContainer.innerHTML = '';
                 savedPlaceMarkers.forEach(marker => marker.remove());
@@ -260,27 +283,27 @@ useEffect(() => {
                     // Create row element for sidebar
                     const row = document.createElement('div');
                     row.className = 'flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm';
-                    
+
                     const nameContainer = document.createElement('div');
                     nameContainer.className = 'flex flex-col flex-1 min-w-0';
-                    
+
                     const nameSpan = document.createElement('span');
                     nameSpan.className = 'text-xs font-bold text-slate-700 truncate';
                     nameSpan.textContent = place.name;
                     nameSpan.title = place.name;
-                    
+
                     const riskLevel = getRiskLevel(place.center);
                     const riskDescription = riskLevel === 'safe'
                         ? 'Sem risco simulado'
                         : `Risco ${riskLevel.toLowerCase()}`;
-                        
+
                     const subtitleSpan = document.createElement('span');
                     subtitleSpan.className = `text-[10px] font-medium truncate ${riskLevel === 'safe' ? 'text-slate-400' : 'text-red-500'}`;
                     subtitleSpan.textContent = riskDescription;
-                    
+
                     nameContainer.appendChild(nameSpan);
                     nameContainer.appendChild(subtitleSpan);
-                    
+
                     nameContainer.addEventListener('click', () => {
                         map.flyTo(place.center, place.zoom);
                     });
@@ -289,14 +312,7 @@ useEffect(() => {
                     deleteBtn.className = 'text-slate-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition focus:opacity-100 ml-2 rounded-lg hover:bg-red-50';
                     deleteBtn.innerHTML = '<i class="fa-solid fa-trash text-[11px]"></i>';
                     deleteBtn.title = 'Remover local';
-                    deleteBtn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        showConfirmModal(`Remover "${place.name}" dos locais salvos?`, () => {
-                            savedPlaces.splice(index, 1);
-                            localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
-                            renderSavedPlaces();
-                        });
-                    });
+                    deleteBtn.dataset.removePlace = index;
 
                     row.appendChild(nameContainer);
                     row.appendChild(deleteBtn);
@@ -306,7 +322,7 @@ useEffect(() => {
                     const riskDescriptionFull = riskLevel === 'safe'
                         ? 'Sem risco indicado nas áreas simuladas'
                         : `Risco ${riskLevel.toLowerCase()} simulado`;
-                        
+
                     const marker = L.marker(place.center, { icon: savedPlaceIcon(riskLevel) })
                         .addTo(map)
                         .bindTooltip(place.name, {
@@ -331,8 +347,8 @@ useEffect(() => {
             // Save location functionality using Custom Modal
             saveLocationBtn.addEventListener('click', () => {
                 showPromptModal((name) => {
-                    if (!name || !name.trim()) return;
-                    
+                    if (!name?.trim()) return;
+
                     const center = map.getCenter();
                     const place = {
                         name: name.trim().slice(0, 40),
@@ -342,7 +358,7 @@ useEffect(() => {
                     savedPlaces.push(place);
                     localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
                     renderSavedPlaces();
-                    
+
                     // Scroll to bottom of list
                     setTimeout(() => {
                         savedLocationsContainer.scrollTop = savedLocationsContainer.scrollHeight;
@@ -372,17 +388,20 @@ useEffect(() => {
                 event.currentTarget.blur();
             });
 
-        return () => map.remove();
+        return () => {
+            savedLocationsContainer.removeEventListener('click', handleSavedPlaceRemoval);
+            map.remove();
+        };
     }, []);
 
   return (
     <>
 
 
-    
+
     <aside className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
-        
-        
+
+
         <header className="shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
             <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
@@ -397,22 +416,22 @@ useEffect(() => {
             </button>
         </header>
 
-        
+
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
-            
-            
+
+
             <div className="space-y-4">
-                
+
                 <div className="relative flex items-center">
                     <i className="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
-                    <input type="text" id="searchInput" placeholder="Buscar cidade ou rio salvo..." 
+                    <input type="text" id="searchInput" placeholder="Buscar cidade ou rio salvo..."
                            className="w-full pl-11 pr-11 py-3.5 bg-white rounded-xl shadow-sm border border-slate-200 text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition placeholder:text-slate-400" />
                     <button className="absolute right-3 text-slate-400 hover:text-sky-600 p-2 transition" id="myLocationBtn" title="Minha localização">
                         <i className="fa-solid fa-location-arrow text-sm"></i>
                     </button>
                 </div>
 
-                
+
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -424,12 +443,12 @@ useEffect(() => {
                         </button>
                     </div>
                     <div id="savedLocationsContainer" className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
-                        
+
                     </div>
                 </div>
             </div>
 
-            
+
             <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
                 <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
                     <i className="fa-solid fa-truck-medical"></i>
@@ -453,7 +472,7 @@ useEffect(() => {
                 </div>
             </div>
 
-            
+
             <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-600 text-white shadow-xs">
@@ -466,7 +485,7 @@ useEffect(() => {
                 <p className="text-xs text-slate-600 mt-1 leading-relaxed">Previsão de precipitação elevada acumulada nas próximas 24h. Risco de transbordamento contínuo nas áreas de várzea.</p>
             </div>
 
-            
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                     <div className="flex items-center gap-2">
@@ -477,7 +496,7 @@ useEffect(() => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    
+
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <span className="text-[11px] font-medium text-slate-400 block mb-1">CONDIÇÃO ATUAL</span>
                         <div className="flex items-center gap-3">
@@ -489,7 +508,7 @@ useEffect(() => {
                         </div>
                     </div>
 
-                    
+
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                         <span className="text-[11px] font-medium text-slate-400 block mb-1">NÍVEL DO RIO</span>
                         <div className="flex items-center gap-3">
@@ -505,20 +524,20 @@ useEffect(() => {
                 </div>
             </div>
 
-            
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">Previsão de Nível de Risco</h3>
                     <span className="text-[11px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100">Pico previsto: Dom 08h</span>
                 </div>
 
-                
+
                 <div className="relative flex items-center justify-between px-3 py-3">
-                    
+
                     <div className="absolute left-7 right-7 top-1/2 transform -translate-y-1/2 h-1 bg-slate-100 z-0"></div>
                     <div className="absolute left-7 w-2/3 top-1/2 transform -translate-y-1/2 h-1 bg-gradient-to-r from-red-500 via-red-500 to-orange-400 z-0 rounded-full"></div>
 
-                    
+
                     <div className="relative z-10 flex flex-col items-center">
                         <div className="w-6 h-6 rounded-full bg-red-600 border-2 border-white shadow-sm flex items-center justify-center">
                             <div className="w-2 h-2 rounded-full bg-white"></div>
@@ -527,7 +546,7 @@ useEffect(() => {
                         <span className="text-[11px] text-slate-400">14h</span>
                     </div>
 
-                    
+
                     <div className="relative z-10 flex flex-col items-center">
                         <div className="w-7 h-7 rounded-full bg-red-600 border-2 border-white shadow-md flex items-center justify-center ring-4 ring-red-100">
                             <i className="fa-solid fa-triangle-exclamation text-[10px] text-white"></i>
@@ -536,14 +555,14 @@ useEffect(() => {
                         <span className="text-[11px] text-red-500 font-bold">08h</span>
                     </div>
 
-                    
+
                     <div className="relative z-10 flex flex-col items-center">
                         <div className="w-6 h-6 rounded-full bg-orange-500 border-2 border-white shadow-sm"></div>
                         <span className="text-xs font-bold text-slate-800 mt-2">Dom</span>
                         <span className="text-[11px] text-slate-400">20h</span>
                     </div>
 
-                    
+
                     <div className="relative z-10 flex flex-col items-center">
                         <div className="w-6 h-6 rounded-full bg-yellow-400 border-2 border-white shadow-sm"></div>
                         <span className="text-xs font-bold text-slate-800 mt-2">Seg</span>
@@ -552,7 +571,7 @@ useEffect(() => {
                 </div>
             </div>
 
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
                     <div>
@@ -583,7 +602,7 @@ useEffect(() => {
                 </div>
             </div>
 
-            
+
             <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -620,12 +639,12 @@ useEffect(() => {
         </div>
     </aside>
 
-    
+
     <main className="flex-1 h-full relative z-0 bg-[#eaf4f8]">
         <div id="interactiveMap" role="application" aria-label="Mapa interativo de risco de inundação"></div>
     </main>
 
-    
+
     <div id="promptModal" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl space-y-4 border border-slate-100">
             <h3 className="font-bold text-slate-900 text-sm" id="promptTitle">Nome para este local</h3>
@@ -637,7 +656,7 @@ useEffect(() => {
         </div>
     </div>
 
-    
+
     <div id="confirmModal" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl max-w-xs w-full p-5 shadow-2xl space-y-4 border border-slate-100">
             <h3 className="font-bold text-slate-900 text-sm" id="confirmMessage">Tem certeza?</h3>
@@ -648,7 +667,7 @@ useEffect(() => {
         </div>
     </div>
 
-    
+
     <div id="infoModal" className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100">
             <div className="flex items-center justify-between">
@@ -693,9 +712,9 @@ useEffect(() => {
         </div>
     </div>
 
-    
-    
-    
+
+
+
 
     </>
   );
