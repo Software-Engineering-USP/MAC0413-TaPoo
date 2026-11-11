@@ -30,6 +30,13 @@ npm install
 npm run dev
 ```
 
+Lint (the same check runs in CI):
+
+```bash
+cd frontend
+npm run lint
+```
+
 API health check: `http://localhost:8000/health`.
 
 ## SonarQube
