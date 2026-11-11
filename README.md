@@ -25,10 +25,28 @@ uv run pytest -q
 uv run uvicorn app.main:app --reload
 ```
 
+Lint and format (the same checks run in CI):
+
+```bash
+cd backend
+uv run ruff check .
+uv run ruff format .          # apply formatting
+uv run ruff format --check .  # check only (CI)
+```
+
 ```bash
 cd frontend
 npm install
 npm run dev
+```
+
+Lint and format (the same checks run in CI):
+
+```bash
+cd frontend
+npm run lint
+npm run format        # apply Prettier
+npm run format:check  # check only (CI)
 ```
 
 API health check: `http://localhost:8000/health`.
