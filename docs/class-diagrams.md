@@ -94,9 +94,9 @@ classDiagram
     EventoDeRisco "1" --> "0..*" Alerta : pode gerar
 ```
 
-## 2. Com usuários e relatos da comunidade
+## 2. Com contas de usuário
 
-Acrescente esta parte se as pessoas puderem se cadastrar, salvar locais, receber alertas ou enviar/confirmar relatos. O relato de um usuário fica separado de uma medição oficial para que a origem e a confiabilidade continuem claras.
+Acrescente esta parte se as pessoas puderem se cadastrar, salvar locais e receber alertas. Os usuários apenas **consultam** os dados: não enviam relatos nem alteram informações — todos os dados de risco vêm das fontes oficiais importadas.
 
 ```mermaid
 classDiagram
@@ -118,51 +118,22 @@ classDiagram
       +Severidade severidadeMinima
       +String canal
     }
-    class RelatoDeUsuario {
-      +UUID id
-      +TipoDeRisco tipo
-      +String descricao
-      +DateTime relatadoEm
-      +StatusRelato status
-      +String urlMidia
-    }
-    class ConfirmacaoDeRelato {
-      +UUID id
-      +Boolean confirmaRisco
-      +DateTime criadoEm
-    }
-    class EventoDeRisco {
-      +UUID id
-      +TipoDeRisco tipo
-      +Severidade severidade
-      +StatusEvento status
-    }
     class Localizacao {
       +UUID id
       +Decimal latitude
       +Decimal longitude
       +String nomeLocal
     }
-
-    Usuario "1" *-- "0..*" LocalSalvo : salva
-    LocalSalvo "*" --> "1" Localizacao : aponta para
-    Usuario "1" *-- "0..*" PreferenciaDeNotificacao : configura
-    Usuario "1" --> "0..*" RelatoDeUsuario : envia
-    RelatoDeUsuario "*" --> "1" Localizacao : relatado em
-    RelatoDeUsuario "0..*" --> "0..1" EventoDeRisco : pode estar ligado a
-    Usuario "1" --> "0..*" ConfirmacaoDeRelato : confirma
-    ConfirmacaoDeRelato "*" --> "1" RelatoDeUsuario : sobre
     class StatusUsuario {
       <<enumeração>>
       ATIVO
       SUSPENSO
     }
-    class StatusRelato {
-      <<enumeração>>
-      ENVIADO
-      VERIFICADO
-      REJEITADO
-    }
+
+    Usuario "1" *-- "0..*" LocalSalvo : salva
+    LocalSalvo "*" --> "1" Localizacao : aponta para
+    Usuario "1" *-- "0..*" PreferenciaDeNotificacao : configura
+    Usuario --> StatusUsuario
 ```
 
 ## 3. Aplicação e integração com APIs externas
@@ -231,7 +202,7 @@ classDiagram
 
 ## Ponto de partida sugerido
 
-Para uma primeira entrega de diagrama de classes, combine o diagrama 1 com as fronteiras de integração do diagrama 3. Inclua o diagrama 2 apenas se contas de usuário ou relatos da comunidade fizerem parte dos requisitos planejados. Mantenha `EventoDeRisco` genérico e crie subclasses apenas para riscos com dados realmente diferentes; leituras de chuva, por exemplo, podem ser observações em vez de eventos independentes, dependendo da API.
+Para uma primeira entrega de diagrama de classes, combine o diagrama 1 com as fronteiras de integração do diagrama 3. Inclua o diagrama 2 apenas se contas de usuário fizerem parte dos requisitos planejados. Mantenha `EventoDeRisco` genérico e crie subclasses apenas para riscos com dados realmente diferentes; leituras de chuva, por exemplo, podem ser observações em vez de eventos independentes, dependendo da API.
 
 ### Notas de modelagem
 

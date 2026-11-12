@@ -573,5 +573,6 @@ sequenceDiagram
 - **HidroSat, qualidade da água, sedimentos, perfil transversal, curva de descarga** ficam fora do
   modelo inicial; adicioná-los é criar um novo método no adaptador + nova subclasse de `Medicao`
   se for uma grandeza nova.
-- **Usuários/relatos da comunidade** (ver `docs/class-diagrams.md`, diagrama 2) são independentes
-  da ANA e podem ser acoplados depois via `Estacao`/`Coordenada`.
+- **Contas de usuário** (ver `docs/class-diagrams.md`, diagrama 2) são independentes da ANA e
+  podem ser acopladas depois via `Estacao`/`Coordenada`. Os usuários apenas consultam dados e
+  recebem alertas; não há envio de relatos nem contribuição de dados por parte deles.
