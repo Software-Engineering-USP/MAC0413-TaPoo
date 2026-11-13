@@ -6,6 +6,16 @@ Initial FastAPI + React scaffold for Tapoo project
 
 `uv`, `python`, `npm`
 
+## Run with Docker Compose
+
+From the repository root, start the frontend and backend with:
+
+```bash
+docker compose up --build
+```
+
+Open the frontend at `http://localhost:3000`. The API is available at `http://localhost:8000` and its health check is `http://localhost:8000/health`. Stop the services with `Ctrl+C`; add `-d` to run them in the background.
+
 ## Run locally
 
 ```bash
