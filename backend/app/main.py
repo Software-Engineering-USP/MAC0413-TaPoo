@@ -13,7 +13,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-async def _estacao_nao_encontrada(_: Request, erro: Exception) -> JSONResponse:
+def _estacao_nao_encontrada(_: Request, erro: Exception) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(erro)})
 
 
