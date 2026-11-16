@@ -53,10 +53,12 @@ def test_serie_mantem_ordem_cronologica() -> None:
 
 def test_serie_rejeita_outra_grandeza_ou_estacao() -> None:
     serie = SerieTemporal(1, Grandeza.CHUVA)
+    de_outra_grandeza = MedicaoNivel(1, T0, 100)
+    de_outra_estacao = chuva(0, 1, codigo=2)
     with pytest.raises(ValueError):
-        serie.adicionar(MedicaoNivel(1, T0, 100))
+        serie.adicionar(de_outra_grandeza)
     with pytest.raises(ValueError):
-        serie.adicionar(chuva(0, 1, codigo=2))
+        serie.adicionar(de_outra_estacao)
 
 
 def test_serie_vazia() -> None:

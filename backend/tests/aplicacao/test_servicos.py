@@ -84,8 +84,9 @@ def test_coleta_inicial_e_incremental() -> None:
 
 
 def test_coleta_de_estacao_inexistente() -> None:
+    coletar = Cenario([]).coletar
     with pytest.raises(EstacaoNaoEncontrada):
-        Cenario([]).coletar.executar(999)
+        coletar.executar(999)
 
 
 def test_coletar_todas_ignora_estacoes_nao_telemetricas() -> None:
@@ -120,8 +121,9 @@ def test_monitoramento_sem_regras_nao_faz_nada() -> None:
 
 
 def test_consulta_estacao_inexistente() -> None:
+    consulta = Cenario([]).consulta
     with pytest.raises(EstacaoNaoEncontrada):
-        Cenario([]).consulta.estacao(999)
+        consulta.estacao(999)
 
 
 def test_estacoes_proximas_ordenadas_por_distancia() -> None:

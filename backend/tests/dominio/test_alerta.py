@@ -67,8 +67,9 @@ def test_regra_rejeita_limites_fora_de_ordem() -> None:
 
 
 def test_regra_rejeita_serie_de_outra_grandeza() -> None:
+    serie = serie_chuva(1, 1)
     with pytest.raises(ValueError):
-        COTA.avaliar(serie_chuva(1, 1))
+        COTA.avaliar(serie)
 
 
 def test_alerta_nao_pode_ser_normal() -> None:
@@ -86,8 +87,9 @@ def test_alerta_escalar_e_encerrar() -> None:
     assert alerta.status is StatusAlerta.ENCERRADO
     with pytest.raises(ValueError):
         alerta.escalar(Severidade.EMERGENCIA, "z")
+    depois = T0 + timedelta(hours=2)
     with pytest.raises(ValueError):
-        alerta.encerrar(T0 + timedelta(hours=2))
+        alerta.encerrar(depois)
 
 
 def test_avaliador_cria_alerta_com_pior_severidade() -> None:
