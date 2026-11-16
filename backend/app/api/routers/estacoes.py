@@ -16,7 +16,7 @@ PERIODO_PADRAO = timedelta(hours=24)
 PERIODO_MAXIMO = timedelta(days=31)
 
 
-@router.get("", response_model=list[EstacaoOut])
+@router.get("")
 def listar_estacoes(
     consulta: Consulta,
     uf: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
@@ -28,7 +28,7 @@ def listar_estacoes(
 
 
 # Declarada antes de /{codigo} para "proximas" não ser lida como código.
-@router.get("/proximas", response_model=list[EstacaoProximaOut])
+@router.get("/proximas")
 def estacoes_proximas(
     consulta: Consulta,
     lat: Annotated[float, Query(ge=-90, le=90)],
@@ -41,12 +41,12 @@ def estacoes_proximas(
     ]
 
 
-@router.get("/{codigo}", response_model=EstacaoOut)
+@router.get("/{codigo}")
 def obter_estacao(codigo: int, consulta: Consulta) -> EstacaoOut:
     return EstacaoOut.de(consulta.estacao(codigo))
 
 
-@router.get("/{codigo}/medicoes", response_model=SerieOut)
+@router.get("/{codigo}/medicoes")
 def serie_da_estacao(
     codigo: int,
     consulta: Consulta,
