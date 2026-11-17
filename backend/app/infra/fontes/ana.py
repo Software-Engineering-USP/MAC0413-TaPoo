@@ -21,13 +21,40 @@ from app.dominio.tempo import exigir_utc
 
 _BASE_URL_PADRAO = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas"
 _UFS = (
-    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS",
-    "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC",
-    "SE", "SP", "TO",
+    "AC",
+    "AL",
+    "AM",
+    "AP",
+    "BA",
+    "CE",
+    "DF",
+    "ES",
+    "GO",
+    "MA",
+    "MG",
+    "MS",
+    "MT",
+    "PA",
+    "PB",
+    "PE",
+    "PI",
+    "PR",
+    "RJ",
+    "RN",
+    "RO",
+    "RR",
+    "RS",
+    "SC",
+    "SE",
+    "SP",
+    "TO",
 )
 _FORMATOS_DATA_ANA = (
-    "%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f",
-    "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d",
+    "%Y-%m-%d %H:%M:%S.%f",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S.%f",
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%d",
 )
 _FUSO_ANA = ZoneInfo("America/Sao_Paulo")
 
@@ -66,9 +93,7 @@ class FonteAna(FonteDadosHidrologicos):
         por_codigo: dict[int, Estacao] = {}
         for uf in ufs:
             if uf not in self._estacoes_por_uf:
-                resposta = self._get(
-                    "HidroInventarioEstacoes/v1", {"Unidade Federativa": uf}
-                )
+                resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})
                 estacoes_uf = []
                 for item in self._itens(resposta):
                     try:
@@ -219,7 +244,8 @@ class FonteAna(FonteDadosHidrologicos):
                 continue
             status_fonte = str(item.get(status_campo, "")) or None
             consistencia = (
-                NivelConsistencia.CONSISTIDO if status_fonte in (None, "0")
+                NivelConsistencia.CONSISTIDO
+                if status_fonte in (None, "0")
                 else NivelConsistencia.BRUTO
             )
             medicoes.append(

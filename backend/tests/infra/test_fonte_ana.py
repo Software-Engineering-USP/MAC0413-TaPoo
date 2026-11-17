@@ -30,9 +30,7 @@ def test_lista_estacoes_por_uf_e_reutiliza_token(monkeypatch) -> None:
     def abrir(requisicao, timeout):
         chamadas.append(requisicao)
         if requisicao.full_url.endswith("/OAUth/v1"):
-            return RespostaFake(
-                {"status": "OK", "items": {"tokenautenticacao": "token-teste"}}
-            )
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token-teste"}})
         return RespostaFake(
             {
                 "status": "OK",
@@ -73,9 +71,7 @@ def test_busca_mapeia_grandezas_e_status_de_qualidade(monkeypatch) -> None:
     def abrir(requisicao, timeout):
         chamadas.append(requisicao)
         if requisicao.full_url.endswith("/OAUth/v1"):
-            return RespostaFake(
-                {"status": "OK", "items": {"tokenautenticacao": "token-teste"}}
-            )
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token-teste"}})
         return RespostaFake(
             {
                 "status": "OK",

@@ -34,10 +34,14 @@ def credenciais_ana() -> tuple[str, str] | None:
 
 def base_url_ana() -> str:
     _carregar_env_local()
-    return os.getenv(
-        "ANA_BASE_URL",
-        "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas",
-    ).strip().rstrip("/")
+    return (
+        os.getenv(
+            "ANA_BASE_URL",
+            "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas",
+        )
+        .strip()
+        .rstrip("/")
+    )
 
 
 def timeout_ana() -> float:
