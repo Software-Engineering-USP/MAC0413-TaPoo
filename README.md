@@ -8,11 +8,16 @@ Initial FastAPI + React scaffold for Tapoo project
 
 ## Run with Docker Compose
 
-From the repository root, start the frontend and backend with:
+Before the first run, create the local configuration file if it does not exist,
+then start the frontend and backend from the repository root:
 
 ```bash
+[ -f .env ] || cp .env.example .env
 docker compose up --build
 ```
+
+To enable live ANA data, fill `ANA_IDENTIFICADOR` and `ANA_SENHA` in `.env` first.
+With both blank, the backend keeps using its fictional sample source.
 
 Open the frontend at `http://localhost:3000`. The API is available at `http://localhost:8000` and its health check is `http://localhost:8000/health`. Stop the services with `Ctrl+C`; add `-d` to run them in the background.
 
@@ -63,9 +68,21 @@ Dependencies point inward: `dominio` imports nothing from the other layers.
 | Infrastructure | `app/infra` | Port implementations: in-memory repositories, example data source |
 | API | `app/api` | FastAPI routes, response schemas, wiring (`dependencias.py`) |
 
-For now the data is in memory and comes from `FonteFake` (fictional stations
-9000000x), loaded once at startup. The ANA adapter and SQL persistence will
-replace them in `app/api/dependencias.py` without changes to services or routes.
+Stations and measurements use in-memory repositories for now. With blank ANA
+credentials, the backend uses `FonteFake` (fictional stations 9000000x). When
+`ANA_IDENTIFICADOR` and `ANA_SENHA` are set in the repository-root `.env`, it uses
+`FonteAna` to load the ANA inventory and fetch a station's adopted measurements
+when its time-series route is requested. The API token is cached until shortly
+before expiration. Do not commit `.env`; `.env.example` lists the required keys.
+
+The ANA inventory is fetched by UF on the first station-list request, not during
+startup, so a slow ANA response does not prevent the backend from becoming healthy.
+Successful UF inventories are cached for the lifetime of the process. The service
+does not automatically request time series for every Brazilian station; measurements
+are fetched on demand through the station series route. Data is still held in memory,
+so persistence and scheduled refresh remain future work. ANA timestamps omit a
+timezone in the documented response; the adapter currently interprets these values
+in `America/Sao_Paulo` before converting them to UTC.
 
 ### Routes (read-only)
 
