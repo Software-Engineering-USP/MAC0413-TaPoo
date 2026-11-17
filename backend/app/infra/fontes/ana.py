@@ -250,7 +250,7 @@ class FonteAna(FonteDadosHidrologicos):
             except ValueError:
                 continue
         try:
-            data = datetime.fromisoformat(texto.replace("Z", "+00:00"))
+            data = datetime.fromisoformat(texto)
             return exigir_utc(data)
         except ValueError as erro:
             raise ValueError("data da ANA em formato desconhecido") from erro

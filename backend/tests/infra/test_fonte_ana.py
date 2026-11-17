@@ -1,5 +1,6 @@
 import json
 from datetime import UTC, datetime
+from typing import Self
 from urllib.parse import parse_qs, urlparse
 
 from app.aplicacao.filtros import FiltroEstacoes
@@ -13,7 +14,7 @@ class RespostaFake:
     def __init__(self, dados: dict) -> None:
         self._dados = json.dumps(dados).encode()
 
-    def __enter__(self) -> "RespostaFake":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, *args) -> None:
