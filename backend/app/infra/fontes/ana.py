@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
@@ -92,20 +91,23 @@ class FonteAna(FonteDadosHidrologicos):
         ufs = (filtro.uf.upper(),) if filtro.uf else _UFS
         por_codigo: dict[int, Estacao] = {}
         for uf in ufs:
-            if uf not in self._estacoes_por_uf:
-                resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})
-                estacoes_uf = []
-                for item in self._itens(resposta):
-                    try:
-                        estacoes_uf.append(self._mapear_estacao(item))
-                    except (KeyError, TypeError, ValueError):
-                        # Registros incompletos ou sem coordenadas não vão ao mapa.
-                        continue
-                self._estacoes_por_uf[uf] = estacoes_uf
-            for estacao in self._estacoes_por_uf[uf]:
+            for estacao in self._estacoes_da_uf(uf):
                 if filtro.aceita(estacao):
                     por_codigo[estacao.codigo] = estacao
         return sorted(por_codigo.values(), key=lambda estacao: (estacao.uf, estacao.nome))
+
+    def _estacoes_da_uf(self, uf: str) -> list[Estacao]:
+        if uf not in self._estacoes_por_uf:
+            resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})
+            estacoes = []
+            for item in self._itens(resposta):
+                try:
+                    estacoes.append(self._mapear_estacao(item))
+                except (KeyError, TypeError, ValueError):
+                    # Registros incompletos ou sem coordenadas não vão ao mapa.
+                    continue
+            self._estacoes_por_uf[uf] = estacoes
+        return self._estacoes_por_uf[uf]
 
     def buscar_medicoes(
         self, codigo: int, periodo: Periodo, alteradas_desde: datetime | None = None
@@ -150,7 +152,7 @@ class FonteAna(FonteDadosHidrologicos):
             raise ErroFonteAna(
                 f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
             ) from erro
-        except (HTTPError, URLError, OSError, json.JSONDecodeError) as erro:
+        except (OSError, json.JSONDecodeError) as erro:
             raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
         if isinstance(dados, dict) and dados.get("status") not in (None, "OK"):
             raise ErroFonteAna("A ANA retornou uma resposta de erro.")
@@ -173,7 +175,7 @@ class FonteAna(FonteDadosHidrologicos):
             raise ErroFonteAna(
                 f"A ANA não respondeu à autenticação em {self._timeout:g} segundos."
             ) from erro
-        except (HTTPError, URLError, OSError, json.JSONDecodeError) as erro:
+        except (OSError, json.JSONDecodeError) as erro:
             raise ErroFonteAna("Não foi possível autenticar na API da ANA.") from erro
 
         items = dados.get("items", {}) if isinstance(dados, dict) else {}
