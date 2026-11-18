@@ -191,30 +191,44 @@ class FonteAna(FonteDadosHidrologicos):
         return sorted(medicoes.values(), key=lambda medicao: medicao.data_hora_utc)
 
     def _get(self, rota: str, parametros: dict[str, Any] | None = None) -> Any:
-        url = f"{self._base_url}/{rota}"
-        if parametros:
-            url = f"{url}?{urlencode(parametros)}"
+        url = self._url_da_rota(rota, parametros)
         for tentativa in range(2):
             token = self._obter_token()
-            requisicao = Request(url, headers={"Authorization": f"Bearer {token}"})
             try:
-                with urlopen(requisicao, timeout=self._timeout) as resposta:
-                    dados = json.loads(resposta.read().decode("utf-8"))
+                dados = self._solicitar_json(url, token)
             except HTTPError as erro:
-                if erro.code in (401, 403) and tentativa == 0:
-                    erro.close()
-                    self._invalidar_token(token)
-                    continue
-                if erro.code in (401, 403):
-                    raise ErroFonteAna("A sessão da API da ANA foi recusada.") from erro
-                raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
+                self._tratar_erro_http(erro, token, tentativa)
+                continue
             except TimeoutError as erro:
                 raise ErroFonteAna(
                     f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
                 ) from erro
             except (OSError, json.JSONDecodeError) as erro:
                 raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
-            break
+            return self._validar_resposta(dados)
+        raise ErroFonteAna("A consulta à API da ANA falhou após renovar a sessão.")
+
+    def _url_da_rota(self, rota: str, parametros: dict[str, Any] | None) -> str:
+        url = f"{self._base_url}/{rota}"
+        return f"{url}?{urlencode(parametros)}" if parametros else url
+
+    def _solicitar_json(self, url: str, token: str) -> Any:
+        requisicao = Request(url, headers={"Authorization": f"Bearer {token}"})
+        with urlopen(requisicao, timeout=self._timeout) as resposta:
+            return json.loads(resposta.read().decode("utf-8"))
+
+    def _tratar_erro_http(self, erro: HTTPError, token: str, tentativa: int) -> None:
+        sessao_recusada = erro.code in (401, 403)
+        if sessao_recusada and tentativa == 0:
+            erro.close()
+            self._invalidar_token(token)
+            return
+        if sessao_recusada:
+            raise ErroFonteAna("A sessão da API da ANA foi recusada.") from erro
+        raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
+
+    @staticmethod
+    def _validar_resposta(dados: Any) -> Any:
         if isinstance(dados, dict) and dados.get("status") not in (None, "OK"):
             raise ErroFonteAna("A ANA retornou uma resposta de erro.")
         return dados
