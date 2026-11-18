@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 
+from app.api.dependencias import montar_container
+from app.infra.fontes.fake import FonteFake
+from app.main import create_app
 from tests.api.conftest import AGORA
 
 
@@ -32,6 +35,30 @@ def test_obter_estacao(client: TestClient) -> None:
     corpo = client.get("/estacoes/90000001").json()
     assert corpo["rio"] == "Rio Tietê"
     assert corpo["grandezas"] == ["CHUVA", "NIVEL", "VAZAO"]
+
+
+def test_acesso_direto_sincroniza_estacao_ainda_nao_carregada() -> None:
+    fonte = FonteFake(AGORA)
+    fonte.carregar_na_inicializacao = False
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+
+    with TestClient(app) as cliente:
+        resposta = cliente.get("/estacoes/90000001")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["codigo"] == 90000001
+
+
+def test_medicoes_diretas_sincronizam_estacao_ainda_nao_carregada() -> None:
+    fonte = FonteFake(AGORA)
+    fonte.carregar_na_inicializacao = False
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+
+    with TestClient(app) as cliente:
+        resposta = cliente.get("/estacoes/90000001/medicoes?grandeza=NIVEL")
+
+    assert resposta.status_code == 200
+    assert resposta.json()["medicoes"]
 
 
 def test_estacao_inexistente(client: TestClient) -> None:

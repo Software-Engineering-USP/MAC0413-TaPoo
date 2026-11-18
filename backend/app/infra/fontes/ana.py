@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime, timedelta
+from threading import Lock
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
@@ -65,9 +68,11 @@ class ErroFonteAna(RuntimeError):
 class FonteAna(FonteDadosHidrologicos):
     """Consulta inventário e séries telemétricas adotadas da ANA.
 
-    A sessão é renovada somente quando o token expira. Credenciais são recebidas em
-    tempo de execução e nunca incluídas em mensagens de erro.
+    A sessão é renovada quando o token expira ou a ANA recusa uma consulta. Credenciais
+    são recebidas em tempo de execução e nunca incluídas em mensagens de erro.
     """
+
+    carregar_na_inicializacao = False
 
     def __init__(
         self,
@@ -85,29 +90,69 @@ class FonteAna(FonteDadosHidrologicos):
         self._timeout = timeout
         self._token: str | None = None
         self._token_expira_em: datetime | None = None
+        self._token_lock = Lock()
         self._estacoes_por_uf: dict[str, list[Estacao]] = {}
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         ufs = (filtro.uf.upper(),) if filtro.uf else _UFS
         por_codigo: dict[int, Estacao] = {}
-        for uf in ufs:
-            for estacao in self._estacoes_da_uf(uf):
+        if filtro.uf:
+            estacoes_por_uf = {ufs[0]: self._estacoes_da_uf(ufs[0])}
+        else:
+            estacoes_por_uf = self._estacoes_de_todas_ufs(ufs)
+        for estacoes in estacoes_por_uf.values():
+            for estacao in estacoes:
                 if filtro.aceita(estacao):
                     por_codigo[estacao.codigo] = estacao
         return sorted(por_codigo.values(), key=lambda estacao: (estacao.uf, estacao.nome))
 
+    def buscar_estacao(self, codigo: int) -> Estacao | None:
+        resposta = self._get("HidroInventarioEstacoes/v1", {"Código da Estação": codigo})
+        for item in self._itens(resposta):
+            try:
+                estacao = self._mapear_estacao(item)
+            except (KeyError, TypeError, ValueError):
+                continue
+            if estacao.codigo == codigo:
+                estacoes_uf = self._estacoes_por_uf.setdefault(estacao.uf, [])
+                if all(cadastrada.codigo != codigo for cadastrada in estacoes_uf):
+                    estacoes_uf.append(estacao)
+                return estacao
+        return None
+
+    def _estacoes_de_todas_ufs(self, ufs: tuple[str, ...]) -> dict[str, list[Estacao]]:
+        pendentes = [uf for uf in ufs if uf not in self._estacoes_por_uf]
+        falhas = 0
+        if pendentes:
+            # Autentica antes da concorrência para que todos os pedidos reutilizem o token.
+            self._obter_token()
+            with ThreadPoolExecutor(max_workers=len(pendentes)) as executor:
+                tarefas = {executor.submit(self._carregar_estacoes_uf, uf): uf for uf in pendentes}
+                for tarefa in as_completed(tarefas):
+                    uf = tarefas[tarefa]
+                    try:
+                        self._estacoes_por_uf[uf] = tarefa.result()
+                    except ErroFonteAna:
+                        falhas += 1
+            if falhas == len(pendentes):
+                raise ErroFonteAna("Não foi possível consultar o inventário da ANA.")
+        return {uf: self._estacoes_por_uf[uf] for uf in ufs if uf in self._estacoes_por_uf}
+
     def _estacoes_da_uf(self, uf: str) -> list[Estacao]:
         if uf not in self._estacoes_por_uf:
-            resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})
-            estacoes = []
-            for item in self._itens(resposta):
-                try:
-                    estacoes.append(self._mapear_estacao(item))
-                except (KeyError, TypeError, ValueError):
-                    # Registros incompletos ou sem coordenadas não vão ao mapa.
-                    continue
-            self._estacoes_por_uf[uf] = estacoes
+            self._estacoes_por_uf[uf] = self._carregar_estacoes_uf(uf)
         return self._estacoes_por_uf[uf]
+
+    def _carregar_estacoes_uf(self, uf: str) -> list[Estacao]:
+        resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})
+        estacoes = []
+        for item in self._itens(resposta):
+            try:
+                estacoes.append(self._mapear_estacao(item))
+            except (KeyError, TypeError, ValueError):
+                # Registros incompletos ou sem coordenadas não vão ao mapa.
+                continue
+        return estacoes
 
     def buscar_medicoes(
         self, codigo: int, periodo: Periodo, alteradas_desde: datetime | None = None
@@ -118,19 +163,25 @@ class FonteAna(FonteDadosHidrologicos):
         cursor = periodo.fim
         while cursor >= periodo.inicio:
             inicio_janela = max(periodo.inicio, cursor - timedelta(days=29))
-            dias = max(1, (cursor.date() - inicio_janela.date()).days + 1)
+            data_fim_ana = cursor.astimezone(_FUSO_ANA).date()
+            data_inicio_ana = inicio_janela.astimezone(_FUSO_ANA).date()
+            dias = max(1, (data_fim_ana - data_inicio_ana).days + 1)
             range_busca = self._range_api(dias)
             resposta = self._get(
                 "HidroinfoanaSerieTelemetricaAdotada/v1",
                 {
                     "Código da Estação": codigo,
                     "Tipo Filtro Data": "DATA_LEITURA",
-                    "Data de Busca (yyyy-MM-dd)": cursor.date().isoformat(),
+                    "Data de Busca (yyyy-MM-dd)": data_fim_ana.isoformat(),
                     "Range Intervalo de busca": range_busca,
                 },
             )
             for item in self._itens(resposta):
-                for medicao in self._mapear_medicoes(codigo, item):
+                try:
+                    medicoes_item = self._mapear_medicoes(codigo, item)
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    continue
+                for medicao in medicoes_item:
                     if periodo.contem(medicao.data_hora_utc):
                         chave = (codigo, medicao.grandeza().value, medicao.data_hora_utc)
                         medicoes[chave] = medicao
@@ -140,25 +191,45 @@ class FonteAna(FonteDadosHidrologicos):
         return sorted(medicoes.values(), key=lambda medicao: medicao.data_hora_utc)
 
     def _get(self, rota: str, parametros: dict[str, Any] | None = None) -> Any:
-        token = self._obter_token()
         url = f"{self._base_url}/{rota}"
         if parametros:
             url = f"{url}?{urlencode(parametros)}"
-        requisicao = Request(url, headers={"Authorization": f"Bearer {token}"})
-        try:
-            with urlopen(requisicao, timeout=self._timeout) as resposta:
-                dados = json.loads(resposta.read().decode("utf-8"))
-        except TimeoutError as erro:
-            raise ErroFonteAna(
-                f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
-            ) from erro
-        except (OSError, json.JSONDecodeError) as erro:
-            raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
+        for tentativa in range(2):
+            token = self._obter_token()
+            requisicao = Request(url, headers={"Authorization": f"Bearer {token}"})
+            try:
+                with urlopen(requisicao, timeout=self._timeout) as resposta:
+                    dados = json.loads(resposta.read().decode("utf-8"))
+            except HTTPError as erro:
+                if erro.code in (401, 403) and tentativa == 0:
+                    erro.close()
+                    self._invalidar_token(token)
+                    continue
+                if erro.code in (401, 403):
+                    raise ErroFonteAna("A sessão da API da ANA foi recusada.") from erro
+                raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
+            except TimeoutError as erro:
+                raise ErroFonteAna(
+                    f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
+                ) from erro
+            except (OSError, json.JSONDecodeError) as erro:
+                raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
+            break
         if isinstance(dados, dict) and dados.get("status") not in (None, "OK"):
             raise ErroFonteAna("A ANA retornou uma resposta de erro.")
         return dados
 
     def _obter_token(self) -> str:
+        with self._token_lock:
+            return self._obter_token_protegido()
+
+    def _invalidar_token(self, token: str) -> None:
+        with self._token_lock:
+            if self._token == token:
+                self._token = None
+                self._token_expira_em = None
+
+    def _obter_token_protegido(self) -> str:
         agora = datetime.now(UTC)
         if self._token and self._token_expira_em and agora < self._token_expira_em:
             return self._token
@@ -244,11 +315,12 @@ class FonteAna(FonteDadosHidrologicos):
             valor = item.get(campo)
             if valor in (None, ""):
                 continue
-            status_fonte = str(item.get(status_campo, "")) or None
+            status_original = item.get(status_campo)
+            status_fonte = (
+                str(status_original).strip() if status_original not in (None, "") else None
+            )
             consistencia = (
-                NivelConsistencia.CONSISTIDO
-                if status_fonte in (None, "0")
-                else NivelConsistencia.BRUTO
+                NivelConsistencia.CONSISTIDO if status_fonte == "0" else NivelConsistencia.BRUTO
             )
             medicoes.append(
                 classe(

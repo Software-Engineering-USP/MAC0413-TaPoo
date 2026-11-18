@@ -34,8 +34,7 @@ class Container:
     sincronizar: SincronizarEstacoes
     coletar: ColetarMedicoes
     relogio: Callable[[], datetime]
-    sincronizar_na_inicializacao: bool = True
-    coletar_na_inicializacao: bool = True
+    carregar_na_inicializacao: bool = True
 
 
 def montar_container(
@@ -64,18 +63,14 @@ def montar_container(
         sincronizar=SincronizarEstacoes(fonte, estacoes),
         coletar=ColetarMedicoes(fonte, estacoes, medicoes, monitorar, relogio=relogio),
         relogio=relogio,
-        # No modo ANA, adie chamadas externas para não tornar a disponibilidade da API
-        # dependente do tempo de resposta da ANA durante o startup.
-        sincronizar_na_inicializacao=not isinstance(fonte, FonteAna),
-        coletar_na_inicializacao=not isinstance(fonte, FonteAna),
+        carregar_na_inicializacao=fonte.carregar_na_inicializacao,
     )
 
 
 def carga_inicial(container: Container) -> None:
     """Sincroniza estações; fontes pequenas também carregam séries de exemplo."""
-    if container.sincronizar_na_inicializacao:
+    if container.carregar_na_inicializacao:
         container.sincronizar.executar()
-    if container.coletar_na_inicializacao:
         container.coletar.executar_todas()
 
 

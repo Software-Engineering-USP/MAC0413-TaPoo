@@ -46,7 +46,8 @@ def estacoes_proximas(
 
 
 @router.get("/{codigo}")
-def obter_estacao(codigo: int, consulta: Consulta) -> EstacaoOut:
+def obter_estacao(codigo: int, consulta: Consulta, sincronizar: Sincronizar) -> EstacaoOut:
+    sincronizar.garantir(codigo)
     return EstacaoOut.de(consulta.estacao(codigo))
 
 
@@ -55,6 +56,7 @@ def serie_da_estacao(
     codigo: int,
     consulta: Consulta,
     coletar: Coletar,
+    sincronizar: Sincronizar,
     relogio: Relogio,
     grandeza: Grandeza,
     inicio: Annotated[datetime | None, Query(description="ISO 8601 com fuso")] = None,
@@ -71,5 +73,6 @@ def serie_da_estacao(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"período máximo é de {PERIODO_MAXIMO.days} dias",
         )
+    sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)
