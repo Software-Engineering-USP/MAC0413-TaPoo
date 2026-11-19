@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.dependencias import Consulta, Relogio
+from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
 from app.api.schemas import EstacaoOut, EstacaoProximaOut, SerieOut
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
@@ -19,11 +19,13 @@ PERIODO_MAXIMO = timedelta(days=31)
 @router.get("")
 def listar_estacoes(
     consulta: Consulta,
+    sincronizar: Sincronizar,
     uf: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
     tipo: TipoEstacao | None = None,
     apenas_telemetricas: bool = False,
 ) -> list[EstacaoOut]:
     filtro = FiltroEstacoes(uf=uf, tipo=tipo, apenas_telemetricas=apenas_telemetricas)
+    sincronizar.executar(filtro)
     return [EstacaoOut.de(e) for e in consulta.listar_estacoes(filtro)]
 
 
@@ -31,10 +33,12 @@ def listar_estacoes(
 @router.get("/proximas")
 def estacoes_proximas(
     consulta: Consulta,
+    sincronizar: Sincronizar,
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
     raio_km: Annotated[float, Query(gt=0, le=1000)] = 50,
 ) -> list[EstacaoProximaOut]:
+    sincronizar.executar(FiltroEstacoes())
     return [
         EstacaoProximaOut.com_distancia(situacao, distancia)
         for situacao, distancia in consulta.estacoes_proximas(Coordenada(lat, lon), raio_km)
@@ -42,7 +46,8 @@ def estacoes_proximas(
 
 
 @router.get("/{codigo}")
-def obter_estacao(codigo: int, consulta: Consulta) -> EstacaoOut:
+def obter_estacao(codigo: int, consulta: Consulta, sincronizar: Sincronizar) -> EstacaoOut:
+    sincronizar.garantir(codigo)
     return EstacaoOut.de(consulta.situacao_estacao(codigo))
 
 
@@ -50,6 +55,8 @@ def obter_estacao(codigo: int, consulta: Consulta) -> EstacaoOut:
 def serie_da_estacao(
     codigo: int,
     consulta: Consulta,
+    coletar: Coletar,
+    sincronizar: Sincronizar,
     relogio: Relogio,
     grandeza: Grandeza,
     inicio: Annotated[datetime | None, Query(description="ISO 8601 com fuso")] = None,
@@ -66,4 +73,6 @@ def serie_da_estacao(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"período máximo é de {PERIODO_MAXIMO.days} dias",
         )
+    sincronizar.garantir(codigo)
+    coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)

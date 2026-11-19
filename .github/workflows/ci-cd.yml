@@ -28,7 +28,7 @@ jobs:
       - run: uv sync --locked --extra dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
-      - run: uv run pytest --cov --cov-report=xml:coverage.xml
+      - run: uv run pytest --cov=app --cov-report=xml:coverage.xml
       - uses: actions/upload-artifact@v4
         with:
           name: backend-coverage

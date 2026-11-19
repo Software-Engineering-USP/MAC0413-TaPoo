@@ -1,6 +1,6 @@
 """Fonte de dados de exemplo, no lugar da ANA enquanto o adaptador real não existe.
 
-Implementa a mesma porta (`FonteDadosHidrologicos`) que o futuro `FonteAna`. As estações
+Implementa a mesma porta (`FonteDadosHidrologicos`) que `FonteAna`. As estações
 são FICTÍCIAS (códigos 9000000x), posicionadas em cidades reais só para o mapa fazer
 sentido. As séries são horárias e determinísticas, terminando em `agora`, e foram
 montadas para cobrir cenários de alerta:
@@ -157,6 +157,9 @@ class FonteFake(FonteDadosHidrologicos):
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]
+
+    def buscar_estacao(self, codigo: int) -> Estacao | None:
+        return next((estacao for estacao, _ in self._dados if estacao.codigo == codigo), None)
 
     def buscar_medicoes(
         self, codigo: int, periodo: Periodo, alteradas_desde: datetime | None = None

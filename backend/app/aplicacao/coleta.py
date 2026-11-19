@@ -45,5 +45,14 @@ class ColetarMedicoes:
         self._monitorar.executar(codigo)
         return salvas
 
+    def executar_periodo(self, codigo: int, periodo: Periodo) -> int:
+        """Atualiza sob demanda uma série para o período solicitado pelo usuário."""
+        if self._estacoes.por_codigo(codigo) is None:
+            raise EstacaoNaoEncontrada(codigo)
+        novas = self._fonte.buscar_medicoes(codigo, periodo)
+        salvas = self._medicoes.salvar_varias(novas)
+        self._monitorar.executar(codigo)
+        return salvas
+
     def executar_todas(self) -> int:
         return sum(self.executar(e.codigo) for e in self._estacoes.monitoradas())
