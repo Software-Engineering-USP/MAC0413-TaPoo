@@ -31,15 +31,18 @@ def test_estacao_com_alerta_usa_severidade_do_alerta() -> None:
 
 
 def test_alerta_de_outra_estacao_e_rejeitado() -> None:
+    estacao_1 = estacao(1)
+    alerta_da_2 = alerta(2, Severidade.ALERTA)
     with pytest.raises(ValueError, match="outra estação"):
-        SituacaoEstacao(estacao(1), alerta(2, Severidade.ALERTA))
+        SituacaoEstacao(estacao_1, alerta_da_2)
 
 
 def test_alerta_encerrado_e_rejeitado() -> None:
+    estacao_1 = estacao(1)
     encerrado = alerta(1, Severidade.ALERTA)
     encerrado.encerrar(AGORA)
     with pytest.raises(ValueError, match="ativos"):
-        SituacaoEstacao(estacao(1), encerrado)
+        SituacaoEstacao(estacao_1, encerrado)
 
 
 def test_municipio_assume_a_pior_situacao_e_ordena_por_gravidade() -> None:
