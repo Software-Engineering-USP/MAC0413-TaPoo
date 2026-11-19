@@ -4,7 +4,7 @@ import pytest
 
 from app.aplicacao.coleta import ColetarMedicoes
 from app.aplicacao.consulta import ConsultarDados
-from app.aplicacao.erros import EstacaoNaoEncontrada
+from app.aplicacao.erros import EstacaoNaoEncontrada, MunicipioNaoEncontrado
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.monitoramento import MonitorarEstacoes
 from app.aplicacao.sincronizacao import SincronizarEstacoes
@@ -129,7 +129,7 @@ def test_consulta_estacao_inexistente() -> None:
 def test_estacoes_proximas_ordenadas_por_distancia() -> None:
     c = Cenario([])
     resultado = c.consulta.estacoes_proximas(Coordenada(-23.0, -47.0), raio_km=150)
-    assert [e.codigo for e, _ in resultado] == [2, 1]
+    assert [s.estacao.codigo for s, _ in resultado] == [2, 1]
     assert resultado[0][1] < resultado[1][1]
 
 
@@ -138,3 +138,52 @@ def test_consulta_serie() -> None:
     c.coletar.executar(1)
     serie = c.consulta.serie(1, Grandeza.NIVEL, Periodo.ultimos(timedelta(hours=1), ate=AGORA))
     assert [m.valor for m in serie.medicoes] == [2, 3]
+
+
+def test_listar_estacoes_traz_situacao_atual() -> None:
+    c = Cenario(niveis(300, 420))
+    c.coletar.executar(1)
+    situacoes = {s.estacao.codigo: s for s in c.consulta.listar_estacoes(FiltroEstacoes())}
+    assert situacoes[1].severidade is Severidade.ALERTA
+    assert situacoes[1].alerta is not None
+    assert situacoes[2].severidade is Severidade.NORMAL
+    assert situacoes[2].alerta is None
+
+
+def test_situacao_estacao() -> None:
+    c = Cenario(niveis(520))
+    c.coletar.executar(1)
+    assert c.consulta.situacao_estacao(1).severidade is Severidade.EMERGENCIA
+    with pytest.raises(EstacaoNaoEncontrada):
+        c.consulta.situacao_estacao(999)
+
+
+def test_estacoes_proximas_trazem_situacao() -> None:
+    c = Cenario(niveis(420))
+    c.coletar.executar(1)
+    resultado = c.consulta.estacoes_proximas(Coordenada(-23.0, -47.0), raio_km=150)
+    assert [(s.estacao.codigo, s.severidade) for s, _ in resultado] == [
+        (2, Severidade.NORMAL),
+        (1, Severidade.ALERTA),
+    ]
+
+
+def test_situacao_municipio_ignora_acentos_e_maiusculas() -> None:
+    c = Cenario(niveis(420))
+    c.coletar.executar(1)
+    situacao = c.consulta.situacao_municipio("sp", "  SAO   paulo ")
+    assert (situacao.uf, situacao.municipio) == ("SP", "São Paulo")
+    assert situacao.severidade is Severidade.ALERTA
+    assert [s.estacao.codigo for s in situacao.estacoes] == [1]
+
+
+def test_situacao_municipio_sem_alerta_e_normal() -> None:
+    situacao = Cenario([]).consulta.situacao_municipio("SP", "Campinas")
+    assert situacao.severidade is Severidade.NORMAL
+    assert situacao.alertas == []
+
+
+def test_situacao_municipio_exige_uf_correta() -> None:
+    consulta = Cenario([]).consulta
+    with pytest.raises(MunicipioNaoEncontrado):
+        consulta.situacao_municipio("MG", "Campinas")

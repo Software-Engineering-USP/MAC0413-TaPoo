@@ -71,11 +71,12 @@ replace them in `app/api/dependencias.py` without changes to services or routes.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=` | List stations |
+| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=` | List stations, each with its current `severidade` and active `alerta` |
 | GET | `/estacoes/proximas?lat=&lon=&raio_km=50` | Stations within a radius, nearest first |
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
 | GET | `/alertas` | Active alerts, most severe first |
+| GET | `/municipios/{uf}/{nome}/situacao` | Worst severity among the municipality's stations (name matched ignoring accents and case; 404 if none) |
 
 ## SonarQube
 

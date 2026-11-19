@@ -36,14 +36,14 @@ def estacoes_proximas(
     raio_km: Annotated[float, Query(gt=0, le=1000)] = 50,
 ) -> list[EstacaoProximaOut]:
     return [
-        EstacaoProximaOut.com_distancia(estacao, distancia)
-        for estacao, distancia in consulta.estacoes_proximas(Coordenada(lat, lon), raio_km)
+        EstacaoProximaOut.com_distancia(situacao, distancia)
+        for situacao, distancia in consulta.estacoes_proximas(Coordenada(lat, lon), raio_km)
     ]
 
 
 @router.get("/{codigo}")
 def obter_estacao(codigo: int, consulta: Consulta) -> EstacaoOut:
-    return EstacaoOut.de(consulta.estacao(codigo))
+    return EstacaoOut.de(consulta.situacao_estacao(codigo))
 
 
 @router.get("/{codigo}/medicoes")
