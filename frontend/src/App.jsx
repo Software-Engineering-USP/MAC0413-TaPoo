@@ -1,7 +1,41 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import L from "leaflet";
 
+function CivilDefenseWarning({ onDismiss }) {
+  return (
+    <div
+      role="note"
+      aria-label="Aviso sobre alertas oficiais"
+      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
+    >
+      <div className="flex items-start gap-2">
+        <i
+          className="fa-solid fa-triangle-exclamation mt-0.5 text-amber-700"
+          aria-hidden="true"
+        ></i>
+        <p className="flex-1 text-xs font-medium leading-relaxed">
+          <strong>Aviso:</strong> Este sistema não substitui os alertas oficiais
+          da Defesa Civil. Em uma emergência, acompanhe os canais oficiais.
+        </p>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Fechar aviso"
+            className="shrink-0 rounded p-1 text-amber-800 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
+          >
+            <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [isCivilDefenseWarningVisible, setCivilDefenseWarningVisible] =
+    useState(true);
+
   useEffect(() => {
     const infoBtn = document.getElementById("infoBtn");
     const infoModal = document.getElementById("infoModal");
@@ -510,7 +544,7 @@ export default function App() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
           <div className="space-y-4">
             <div className="relative flex items-center">
               <i className="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
@@ -612,6 +646,12 @@ export default function App() {
               de transbordamento contínuo nas áreas de várzea.
             </p>
           </div>
+
+          {isCivilDefenseWarningVisible && (
+            <CivilDefenseWarning
+              onDismiss={() => setCivilDefenseWarningVisible(false)}
+            />
+          )}
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -813,6 +853,7 @@ export default function App() {
             </div>
           </div>
         </div>
+
       </aside>
 
       <main className="flex-1 h-full relative z-0 bg-[#eaf4f8]">
@@ -900,11 +941,7 @@ export default function App() {
             cruzando dados meteorológicos em tempo real com histórico de cheias
             registradas no Brasil.
           </p>
-          <div className="bg-sky-50 p-4 rounded-2xl border border-sky-100 text-xs text-sky-800 leading-relaxed">
-            <i className="fa-solid fa-circle-info mr-1.5 text-sky-600"></i>
-            Em situações de emergência, siga sempre as orientações oficiais dos
-            Bombeiros e <strong>Defesa Civil</strong>.
-          </div>
+          <CivilDefenseWarning />
           <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Legenda do mapa
