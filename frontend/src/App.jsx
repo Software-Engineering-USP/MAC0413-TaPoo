@@ -852,6 +852,92 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <section
+            aria-labelledby="safetyGuidanceHeading"
+            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <i
+                className="fa-solid fa-circle-info text-sky-600"
+                aria-hidden="true"
+              ></i>
+              <h3
+                id="safetyGuidanceHeading"
+                className="text-sm font-bold uppercase tracking-wider text-slate-700"
+              >
+                Orientações de segurança
+              </h3>
+            </div>
+            <ul className="space-y-3 text-xs leading-relaxed text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Siga as orientações das autoridades locais, como a Defesa
+                  Civil e o Corpo de Bombeiros.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Evite contato com água e lama de enchentes. Se for inevitável
+                  passar por uma área inundada, use botas impermeáveis e luvas;
+                  proteja cortes e arranhões.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Não consuma alimentos que tiveram contato com a água da
+                  inundação ou lama. Para beber, use água segura e siga as
+                  orientações sanitárias.
+                </span>
+              </li>
+            </ul>
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Fontes oficiais
+              </h4>
+              <ul className="mt-2 space-y-2 text-xs">
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Enchentes
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-leptospirose"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a leptospirose
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-agua"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a água
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </section>
         </div>
 
       </aside>
