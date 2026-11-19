@@ -252,9 +252,10 @@ def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> No
         return RespostaFake({"status": "ERRO", "items": []})
 
     monkeypatch.setattr(ana, "urlopen", abrir)
+    fonte = FonteAna("id", "senha")
 
     with pytest.raises(ErroFonteAna):
-        FonteAna("id", "senha").buscar_estacao(1)
+        fonte.buscar_estacao(1)
 
 
 @pytest.mark.parametrize("falha", ["timeout", "rede", "json", "sem-token"])
@@ -269,9 +270,10 @@ def test_autenticacao_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -
         return RespostaFake({"status": "OK", "items": []})
 
     monkeypatch.setattr(ana, "urlopen", abrir)
+    fonte = FonteAna("id", "senha")
 
     with pytest.raises(ErroFonteAna):
-        FonteAna("id", "senha")._obter_token()
+        fonte._obter_token()
 
 
 def test_api_recusa_novo_token_apos_segunda_resposta_401(monkeypatch) -> None:
@@ -281,9 +283,10 @@ def test_api_recusa_novo_token_apos_segunda_resposta_401(monkeypatch) -> None:
         raise HTTPError(requisicao.full_url, 401, "Unauthorized", None, BytesIO())
 
     monkeypatch.setattr(ana, "urlopen", abrir)
+    fonte = FonteAna("id", "senha")
 
     with pytest.raises(ErroFonteAna, match="sessão.*recusada"):
-        FonteAna("id", "senha").buscar_estacao(1)
+        fonte.buscar_estacao(1)
 
 
 def test_busca_mapeia_grandezas_e_status_de_qualidade(monkeypatch) -> None:
