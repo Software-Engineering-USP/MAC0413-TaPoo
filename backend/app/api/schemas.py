@@ -26,6 +26,7 @@ class AlertaOut(BaseModel):
     id: UUID
     codigo_estacao: int
     severidade: Severidade
+    severidade_rotulo: str
     status: StatusAlerta
     mensagem: str
     emitido_em: datetime
@@ -37,6 +38,7 @@ class AlertaOut(BaseModel):
             id=alerta.id,
             codigo_estacao=alerta.codigo_estacao,
             severidade=alerta.severidade,
+            severidade_rotulo=alerta.severidade.rotulo,
             status=alerta.status,
             mensagem=alerta.mensagem,
             emitido_em=alerta.emitido_em,
@@ -57,6 +59,7 @@ class EstacaoOut(BaseModel):
     telemetrica: bool
     grandezas: list[Grandeza]
     severidade: Severidade
+    severidade_rotulo: str
     alerta: AlertaOut | None
 
     @classmethod
@@ -75,6 +78,7 @@ class EstacaoOut(BaseModel):
             telemetrica=estacao.telemetrica,
             grandezas=[g for g in Grandeza if estacao.mede(g)],
             severidade=situacao.severidade,
+            severidade_rotulo=situacao.severidade.rotulo,
             alerta=AlertaOut.de(situacao.alerta) if situacao.alerta is not None else None,
         )
 
@@ -106,6 +110,7 @@ class MedicaoOut(BaseModel):
 class SerieOut(BaseModel):
     codigo_estacao: int
     grandeza: Grandeza
+    grandeza_rotulo: str
     unidade: str
     inicio: datetime
     fim: datetime
@@ -116,6 +121,7 @@ class SerieOut(BaseModel):
         return cls(
             codigo_estacao=serie.codigo_estacao,
             grandeza=serie.grandeza,
+            grandeza_rotulo=serie.grandeza.rotulo,
             unidade=serie.unidade(),
             inicio=periodo.inicio,
             fim=periodo.fim,
@@ -127,6 +133,7 @@ class SituacaoMunicipioOut(BaseModel):
     uf: str
     municipio: str
     severidade: Severidade
+    severidade_rotulo: str
     estacoes: list[EstacaoOut]
 
     @classmethod
@@ -135,5 +142,6 @@ class SituacaoMunicipioOut(BaseModel):
             uf=situacao.uf,
             municipio=situacao.municipio,
             severidade=situacao.severidade,
+            severidade_rotulo=situacao.severidade.rotulo,
             estacoes=[EstacaoOut.de(s) for s in situacao.estacoes],
         )
