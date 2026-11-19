@@ -36,6 +36,22 @@ def test_obter_estacao(client: TestClient) -> None:
     corpo = client.get("/estacoes/90000001").json()
     assert corpo["rio"] == "Rio Tietê"
     assert corpo["grandezas"] == ["CHUVA", "NIVEL", "VAZAO"]
+    assert corpo["severidade"] == "ALERTA"
+    assert corpo["alerta"]["codigo_estacao"] == 90000001
+    assert corpo["alerta"]["status"] == "ATIVO"
+
+
+def test_listar_traz_situacao_de_cada_estacao(client: TestClient) -> None:
+    situacoes = {e["codigo"]: e["severidade"] for e in client.get("/estacoes").json()}
+    assert situacoes == {
+        90000001: "ALERTA",
+        90000002: "NORMAL",
+        90000003: "NORMAL",
+        90000004: "EMERGENCIA",
+        90000005: "NORMAL",
+    }
+    sem_alerta = client.get("/estacoes?uf=MG").json()
+    assert all(e["alerta"] is None for e in sem_alerta)
 
 
 def test_acesso_direto_sincroniza_estacao_ainda_nao_carregada() -> None:
@@ -91,6 +107,7 @@ def test_estacoes_proximas(client: TestClient) -> None:
     longe = client.get("/estacoes/proximas?lat=-23.55&lon=-46.63&raio_km=100").json()
     assert [e["codigo"] for e in longe] == [90000001, 90000002]
     assert longe[0]["distancia_km"] < longe[1]["distancia_km"]
+    assert [e["severidade"] for e in longe] == ["ALERTA", "NORMAL"]
 
 
 def test_estacoes_proximas_valida_parametros(client: TestClient) -> None:

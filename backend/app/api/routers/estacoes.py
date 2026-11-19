@@ -40,15 +40,15 @@ def estacoes_proximas(
 ) -> list[EstacaoProximaOut]:
     sincronizar.executar(FiltroEstacoes())
     return [
-        EstacaoProximaOut.com_distancia(estacao, distancia)
-        for estacao, distancia in consulta.estacoes_proximas(Coordenada(lat, lon), raio_km)
+        EstacaoProximaOut.com_distancia(situacao, distancia)
+        for situacao, distancia in consulta.estacoes_proximas(Coordenada(lat, lon), raio_km)
     ]
 
 
 @router.get("/{codigo}")
 def obter_estacao(codigo: int, consulta: Consulta, sincronizar: Sincronizar) -> EstacaoOut:
     sincronizar.garantir(codigo)
-    return EstacaoOut.de(consulta.estacao(codigo))
+    return EstacaoOut.de(consulta.situacao_estacao(codigo))
 
 
 @router.get("/{codigo}/medicoes")

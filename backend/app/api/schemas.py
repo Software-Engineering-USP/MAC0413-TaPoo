@@ -17,9 +17,31 @@ from app.dominio.enums import (
     StatusAlerta,
     TipoEstacao,
 )
-from app.dominio.estacao import Estacao
 from app.dominio.medicao import Medicao, SerieTemporal
 from app.dominio.periodo import Periodo
+from app.dominio.situacao import SituacaoEstacao, SituacaoMunicipio
+
+
+class AlertaOut(BaseModel):
+    id: UUID
+    codigo_estacao: int
+    severidade: Severidade
+    status: StatusAlerta
+    mensagem: str
+    emitido_em: datetime
+    encerrado_em: datetime | None
+
+    @classmethod
+    def de(cls, alerta: Alerta) -> "AlertaOut":
+        return cls(
+            id=alerta.id,
+            codigo_estacao=alerta.codigo_estacao,
+            severidade=alerta.severidade,
+            status=alerta.status,
+            mensagem=alerta.mensagem,
+            emitido_em=alerta.emitido_em,
+            encerrado_em=alerta.encerrado_em,
+        )
 
 
 class EstacaoOut(BaseModel):
@@ -34,9 +56,12 @@ class EstacaoOut(BaseModel):
     operando: bool
     telemetrica: bool
     grandezas: list[Grandeza]
+    severidade: Severidade
+    alerta: AlertaOut | None
 
     @classmethod
-    def de(cls, estacao: Estacao) -> "EstacaoOut":
+    def de(cls, situacao: SituacaoEstacao) -> "EstacaoOut":
+        estacao = situacao.estacao
         return cls(
             codigo=estacao.codigo,
             nome=estacao.nome,
@@ -49,6 +74,8 @@ class EstacaoOut(BaseModel):
             operando=estacao.operando,
             telemetrica=estacao.telemetrica,
             grandezas=[g for g in Grandeza if estacao.mede(g)],
+            severidade=situacao.severidade,
+            alerta=AlertaOut.de(situacao.alerta) if situacao.alerta is not None else None,
         )
 
 
@@ -56,8 +83,8 @@ class EstacaoProximaOut(EstacaoOut):
     distancia_km: float
 
     @classmethod
-    def com_distancia(cls, estacao: Estacao, distancia_km: float) -> "EstacaoProximaOut":
-        return cls(**EstacaoOut.de(estacao).model_dump(), distancia_km=round(distancia_km, 2))
+    def com_distancia(cls, situacao: SituacaoEstacao, distancia_km: float) -> "EstacaoProximaOut":
+        return cls(**EstacaoOut.de(situacao).model_dump(), distancia_km=round(distancia_km, 2))
 
 
 class MedicaoOut(BaseModel):
@@ -96,23 +123,17 @@ class SerieOut(BaseModel):
         )
 
 
-class AlertaOut(BaseModel):
-    id: UUID
-    codigo_estacao: int
+class SituacaoMunicipioOut(BaseModel):
+    uf: str
+    municipio: str
     severidade: Severidade
-    status: StatusAlerta
-    mensagem: str
-    emitido_em: datetime
-    encerrado_em: datetime | None
+    estacoes: list[EstacaoOut]
 
     @classmethod
-    def de(cls, alerta: Alerta) -> "AlertaOut":
+    def de(cls, situacao: SituacaoMunicipio) -> "SituacaoMunicipioOut":
         return cls(
-            id=alerta.id,
-            codigo_estacao=alerta.codigo_estacao,
-            severidade=alerta.severidade,
-            status=alerta.status,
-            mensagem=alerta.mensagem,
-            emitido_em=alerta.emitido_em,
-            encerrado_em=alerta.encerrado_em,
+            uf=situacao.uf,
+            municipio=situacao.municipio,
+            severidade=situacao.severidade,
+            estacoes=[EstacaoOut.de(s) for s in situacao.estacoes],
         )
