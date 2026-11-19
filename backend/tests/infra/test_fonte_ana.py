@@ -161,30 +161,39 @@ def test_busca_estacao_por_codigo(monkeypatch) -> None:
         chamadas.append(requisicao)
         if requisicao.full_url.endswith("/OAUth/v1"):
             return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        parametros = parse_qs(urlparse(requisicao.full_url).query)
+        item = {
+            "codigoestacao": "15400000",
+            "Estacao_Nome": "PORTO VELHO",
+            "Tipo_Estacao": "Fluviometrica",
+            "Latitude": "-8.7483",
+            "Longitude": "-63.9169",
+            "UF_Estacao": "SP",
+            "Municipio_Nome": "SÃO PAULO",
+        }
+        if "Código da Estação" in parametros:
+            items = item
+        else:
+            items = [item, {**item, "codigoestacao": "15400001", "Estacao_Nome": "OUTRA"}]
         return RespostaFake(
             {
                 "status": "OK",
-                "items": [
-                    {
-                        "codigoestacao": "15400000",
-                        "Estacao_Nome": "PORTO VELHO",
-                        "Tipo_Estacao": "Fluviometrica",
-                        "Latitude": "-8.7483",
-                        "Longitude": "-63.9169",
-                        "UF_Estacao": "RO",
-                        "Municipio_Nome": "PORTO VELHO",
-                    }
-                ],
+                "items": items,
             }
         )
 
     monkeypatch.setattr(ana, "urlopen", abrir)
-    estacao = FonteAna("id", "senha").buscar_estacao(15400000)
+    fonte = FonteAna("id", "senha")
+    estacao = fonte.buscar_estacao(15400000)
 
     assert estacao is not None
     assert estacao.codigo == 15400000
     parametros = parse_qs(urlparse(chamadas[1].full_url).query)
     assert parametros == {"Código da Estação": ["15400000"]}
+    estacoes_da_uf = fonte.listar_estacoes(FiltroEstacoes(uf="SP"))
+    assert {estacao.codigo for estacao in estacoes_da_uf} == {15400000, 15400001}
+    parametros = parse_qs(urlparse(chamadas[2].full_url).query)
+    assert parametros == {"Unidade Federativa": ["SP"]}
 
 
 def test_busca_medicoes_reflete_data_local_da_ana(monkeypatch) -> None:

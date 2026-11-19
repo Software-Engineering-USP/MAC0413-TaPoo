@@ -114,8 +114,10 @@ class FonteAna(FonteDadosHidrologicos):
             except (KeyError, TypeError, ValueError):
                 continue
             if estacao.codigo == codigo:
-                estacoes_uf = self._estacoes_por_uf.setdefault(estacao.uf, [])
-                if all(cadastrada.codigo != codigo for cadastrada in estacoes_uf):
+                estacoes_uf = self._estacoes_por_uf.get(estacao.uf)
+                if estacoes_uf is not None and all(
+                    cadastrada.codigo != codigo for cadastrada in estacoes_uf
+                ):
                     estacoes_uf.append(estacao)
                 return estacao
         return None
