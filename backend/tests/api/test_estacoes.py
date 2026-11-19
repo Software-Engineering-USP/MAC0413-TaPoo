@@ -37,6 +37,7 @@ def test_obter_estacao(client: TestClient) -> None:
     assert corpo["rio"] == "Rio Tietê"
     assert corpo["grandezas"] == ["CHUVA", "NIVEL", "VAZAO"]
     assert corpo["severidade"] == "ALERTA"
+    assert corpo["severidade_rotulo"] == "Alerta"
     assert corpo["alerta"]["codigo_estacao"] == 90000001
     assert corpo["alerta"]["status"] == "ATIVO"
 
@@ -117,7 +118,7 @@ def test_estacoes_proximas_valida_parametros(client: TestClient) -> None:
 
 def test_serie_padrao_ultimas_24h(client: TestClient) -> None:
     corpo = client.get("/estacoes/90000001/medicoes?grandeza=NIVEL").json()
-    assert corpo["unidade"] == "cm"
+    assert (corpo["grandeza_rotulo"], corpo["unidade"]) == ("Nível", "cm")
     assert len(corpo["medicoes"]) == 25  # leituras horárias, intervalo fechado
     assert corpo["medicoes"][-1]["data_hora_utc"].startswith(AGORA.strftime("%Y-%m-%dT%H"))
     assert corpo["medicoes"][-1]["valor"] == 440
