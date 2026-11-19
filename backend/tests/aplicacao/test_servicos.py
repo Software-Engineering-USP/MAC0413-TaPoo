@@ -89,6 +89,18 @@ def test_coleta_de_estacao_inexistente() -> None:
         coletar.executar(999)
 
 
+def test_coleta_sob_demanda_para_periodo() -> None:
+    c = Cenario(niveis(100, 200, 250))
+    periodo = Periodo(AGORA - timedelta(hours=2), AGORA)
+
+    assert c.coletar.executar_periodo(1, periodo) == 3
+    assert [m.valor for m in c.consulta.serie(1, Grandeza.NIVEL, periodo).medicoes] == [
+        100,
+        200,
+        250,
+    ]
+
+
 def test_coletar_todas_ignora_estacoes_nao_telemetricas() -> None:
     c = Cenario(niveis(100))
     c.coletar.executar_todas()

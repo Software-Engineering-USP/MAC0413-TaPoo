@@ -27,6 +27,9 @@ class FonteStub(FonteDadosHidrologicos):
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [e for e in self.estacoes if filtro.aceita(e)]
 
+    def buscar_estacao(self, codigo: int) -> Estacao | None:
+        return next((estacao for estacao in self.estacoes if estacao.codigo == codigo), None)
+
     def buscar_medicoes(self, codigo, periodo, alteradas_desde=None) -> list[Medicao]:
         self.chamadas.append((codigo, periodo, alteradas_desde))
         return [

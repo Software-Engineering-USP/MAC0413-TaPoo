@@ -28,6 +28,12 @@ line-length = 100
 [tool.pytest.ini_options]
 pythonpath = ["."]
 
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.2",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.9,<1",
+]
 [tool.coverage.run]
 source = ["app"]
 branch = true
