@@ -10,4 +10,6 @@ frontend/dist/
 
 .env
 .DS_Store
+
+coverage.xml
 .coverage
