@@ -9,6 +9,7 @@ from app.dominio.alerta import (
     RegraCotaReferencia,
 )
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.erros import DadoInvalido
 from app.dominio.medicao import MedicaoChuva, MedicaoNivel, SerieTemporal
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -62,33 +63,33 @@ def test_regra_chuva_acumulada(mm_h: float, esperado: Severidade) -> None:
 
 
 def test_regra_rejeita_limites_fora_de_ordem() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         RegraCotaReferencia(COD, 500, 400, 300)
 
 
 def test_regra_rejeita_serie_de_outra_grandeza() -> None:
     serie = serie_chuva(1, 1)
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         COTA.avaliar(serie)
 
 
 def test_alerta_nao_pode_ser_normal() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         Alerta(COD, Severidade.NORMAL, "x", T0)
 
 
 def test_alerta_escalar_e_encerrar() -> None:
     alerta = Alerta(COD, Severidade.ATENCAO, "x", T0)
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         alerta.escalar(Severidade.ATENCAO, "y")
     alerta.escalar(Severidade.ALERTA, "y")
     assert alerta.severidade is Severidade.ALERTA
     alerta.encerrar(T0 + timedelta(hours=1))
     assert alerta.status is StatusAlerta.ENCERRADO
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         alerta.escalar(Severidade.EMERGENCIA, "z")
     depois = T0 + timedelta(hours=2)
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         alerta.encerrar(depois)
 
 

@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.portas import FonteDadosHidrologicos
 from app.dominio.enums import NivelConsistencia, TipoEstacao
+from app.dominio.erros import DadoInvalido, FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
@@ -61,7 +62,7 @@ _FORMATOS_DATA_ANA = (
 _FUSO_ANA = ZoneInfo("America/Sao_Paulo")
 
 
-class ErroFonteAna(RuntimeError):
+class ErroFonteAna(FonteIndisponivel):
     """Falha de autenticação, comunicação ou interpretação da resposta da ANA."""
 
 
@@ -300,7 +301,7 @@ class FonteAna(FonteDadosHidrologicos):
         elif "pluv" in tipo_texto:
             tipo = TipoEstacao.PLUVIOMETRICA
         else:
-            raise ValueError("tipo de estação desconhecido")
+            raise DadoInvalido("tipo de estação desconhecido")
 
         codigo = int(item["codigoestacao"])
         latitude, longitude = float(item["Latitude"]), float(item["Longitude"])
@@ -354,7 +355,7 @@ class FonteAna(FonteDadosHidrologicos):
     def _data_hora(valor: Any, *, obrigatoria: bool = True) -> datetime | None:
         if valor in (None, ""):
             if obrigatoria:
-                raise ValueError("resposta da ANA sem data da medição")
+                raise DadoInvalido("resposta da ANA sem data da medição")
             return None
         texto = str(valor).strip()
         for formato in _FORMATOS_DATA_ANA:
@@ -369,7 +370,7 @@ class FonteAna(FonteDadosHidrologicos):
             data = datetime.fromisoformat(texto)
             return exigir_utc(data)
         except ValueError as erro:
-            raise ValueError("data da ANA em formato desconhecido") from erro
+            raise DadoInvalido("data da ANA em formato desconhecido") from erro
 
     @staticmethod
     def _interpretar_validade(valor: Any) -> datetime | None:

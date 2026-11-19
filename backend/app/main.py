@@ -1,28 +1,15 @@
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
 from app.api.dependencias import Container, carga_inicial, montar_container
+from app.api.erros import registrar_handlers
 from app.api.routers import alertas, estacoes, municipios
-from app.aplicacao.erros import RecursoNaoEncontrado
-from app.infra.fontes.ana import ErroFonteAna
 
 
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-def _nao_encontrado(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(erro)})
-
-
-def _ana_indisponivel(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        content={"detail": str(erro)},
-    )
 
 
 def create_app(fabrica: Callable[[], Container] = montar_container) -> FastAPI:
@@ -35,8 +22,7 @@ def create_app(fabrica: Callable[[], Container] = montar_container) -> FastAPI:
 
     app = FastAPI(title="TaPoo API", version="0.1.0", lifespan=lifespan)
     app.add_api_route("/health", health, methods=["GET"], tags=["infra"])
-    app.add_exception_handler(RecursoNaoEncontrado, _nao_encontrado)
-    app.add_exception_handler(ErroFonteAna, _ana_indisponivel)
+    registrar_handlers(app)
     app.include_router(estacoes.router)
     app.include_router(alertas.router)
     app.include_router(municipios.router)

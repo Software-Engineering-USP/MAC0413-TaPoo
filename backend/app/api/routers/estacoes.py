@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 
 from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
 from app.api.schemas import EstacaoOut, EstacaoProximaOut, SerieOut
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
+from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.periodo import Periodo
 
@@ -64,15 +65,9 @@ def serie_da_estacao(
 ) -> SerieOut:
     fim = fim or relogio()
     inicio = inicio or fim - PERIODO_PADRAO
-    try:
-        periodo = Periodo(inicio, fim)
-    except ValueError as erro:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(erro)) from erro
+    periodo = Periodo(inicio, fim)
     if periodo.duracao() > PERIODO_MAXIMO:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"período máximo é de {PERIODO_MAXIMO.days} dias",
-        )
+        raise DadoInvalido(f"período máximo é de {PERIODO_MAXIMO.days} dias")
     sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)

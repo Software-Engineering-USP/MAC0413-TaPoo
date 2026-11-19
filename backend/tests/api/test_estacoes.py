@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.api.dependencias import montar_container
+from app.dominio.erros import FonteIndisponivel
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
 from app.infra.fontes.fake import FonteFake
 from app.main import create_app
@@ -78,7 +79,7 @@ def test_medicoes_diretas_sincronizam_estacao_ainda_nao_carregada() -> None:
     assert resposta.json()["medicoes"]
 
 
-def test_indisponibilidade_da_ana_retorna_502(monkeypatch) -> None:
+def test_indisponibilidade_da_ana_retorna_503(monkeypatch) -> None:
     fonte = FonteAna("id", "senha")
 
     def indisponivel(codigo):
@@ -90,7 +91,7 @@ def test_indisponibilidade_da_ana_retorna_502(monkeypatch) -> None:
     with TestClient(app) as cliente:
         resposta = cliente.get("/estacoes/15400000")
 
-    assert resposta.status_code == 502
+    assert resposta.status_code == 503
     assert resposta.json()["detail"] == "ANA indisponível"
 
 
@@ -146,3 +147,27 @@ def test_serie_rejeita_periodo_invalido(client: TestClient) -> None:
 
 def test_serie_de_estacao_inexistente(client: TestClient) -> None:
     assert client.get("/estacoes/1/medicoes?grandeza=NIVEL").status_code == 404
+
+
+def test_qualquer_fonte_indisponivel_retorna_503(monkeypatch) -> None:
+    fonte = FonteFake(AGORA)
+
+    def indisponivel(codigo):
+        raise FonteIndisponivel("fonte fora do ar")
+
+    monkeypatch.setattr(fonte, "buscar_estacao", indisponivel)
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+
+    with TestClient(app) as cliente:
+        resposta = cliente.get("/estacoes/15400000")
+
+    assert resposta.status_code == 503
+    assert resposta.json()["detail"] == "fonte fora do ar"
+
+
+def test_periodo_invalido_devolve_mensagem_do_dominio(client: TestClient) -> None:
+    base = "/estacoes/90000001/medicoes?grandeza=NIVEL"
+    invertido = client.get(f"{base}&inicio=2026-01-10T10:00:00Z&fim=2026-01-10T09:00:00Z")
+    assert invertido.json() == {"detail": "inicio precisa ser anterior a fim"}
+    longo = client.get(f"{base}&inicio=2025-01-01T00:00:00Z&fim=2026-01-01T00:00:00Z")
+    assert longo.json() == {"detail": "período máximo é de 31 dias"}
