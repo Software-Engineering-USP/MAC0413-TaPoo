@@ -27,3 +27,8 @@ def test_rotulo_da_grandeza(grandeza: Grandeza, rotulo: str) -> None:
 def test_rotulo_nao_altera_o_valor_serializado() -> None:
     assert Severidade.ATENCAO == "ATENCAO"
     assert str(Grandeza.NIVEL) == "NIVEL"
+
+
+@pytest.mark.parametrize("membro", [*Severidade, *Grandeza])
+def test_todo_membro_tem_rotulo(membro: Severidade | Grandeza) -> None:
+    assert membro.rotulo
