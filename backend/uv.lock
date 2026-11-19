@@ -672,6 +672,7 @@ dev = [
 dev = [
     { name = "httpx2" },
     { name = "pytest-cov" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -689,6 +690,7 @@ provides-extras = ["dev"]
 dev = [
     { name = "httpx2", specifier = ">=2.16.2" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "ruff", specifier = ">=0.9,<1" },
 ]
 
 [[package]]
