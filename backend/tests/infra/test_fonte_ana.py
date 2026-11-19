@@ -5,11 +5,13 @@ from typing import Self
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
 
+import pytest
+
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, NivelConsistencia, TipoEstacao
 from app.dominio.periodo import Periodo
 from app.infra.fontes import ana
-from app.infra.fontes.ana import FonteAna
+from app.infra.fontes.ana import ErroFonteAna, FonteAna
 
 
 class RespostaFake:
@@ -24,6 +26,68 @@ class RespostaFake:
 
     def read(self) -> bytes:
         return self._dados
+
+
+def test_fonte_ana_rejeita_credenciais_vazias() -> None:
+    with pytest.raises(ValueError, match="identificador e senha"):
+        FonteAna("", "senha")
+    with pytest.raises(ValueError, match="identificador e senha"):
+        FonteAna("id", " ")
+
+
+def test_helpers_normalizam_respostas_e_intervalos() -> None:
+    assert FonteAna._itens([{"a": 1}, None]) == [{"a": 1}]
+    assert FonteAna._itens(None) == []
+    assert FonteAna._itens({"items": {"a": 1}}) == [{"a": 1}]
+    assert FonteAna._itens({"items": [1, {"a": 1}]}) == [{"a": 1}]
+    assert FonteAna._itens({"items": "inválido"}) == []
+    assert FonteAna._range_api(1) == "HORA_24"
+    assert FonteAna._range_api(2) == "DIAS_2"
+    assert FonteAna._range_api(8) == "DIAS_14"
+    assert FonteAna._range_api(31) == "DIAS_30"
+
+
+def test_mapeia_estacao_pluviometrica_com_campos_opcionais() -> None:
+    estacao = FonteAna._mapear_estacao(
+        {
+            "codigoestacao": "15400000",
+            "Tipo_Estacao": "Pluviometrica",
+            "Latitude": "-23.5",
+            "Longitude": "-46.6",
+            "Data_Periodo_Telemetrica_Inicio": "0",
+            "Operando": "0",
+        }
+    )
+
+    assert estacao.tipo is TipoEstacao.PLUVIOMETRICA
+    assert estacao.nome == "Estação 15400000"
+    assert estacao.municipio == "Não informado"
+    assert not estacao.telemetrica
+    assert not estacao.operando
+
+    with pytest.raises(ValueError, match="tipo de estação desconhecido"):
+        FonteAna._mapear_estacao({"Tipo_Estacao": "desconhecido"})
+
+
+def test_parseia_data_iso_e_rejeita_data_ausente_ou_invalida() -> None:
+    assert FonteAna._data_hora(None, obrigatoria=False) is None
+    with pytest.raises(ValueError, match="sem data"):
+        FonteAna._data_hora(None)
+    assert FonteAna._data_hora("2026-11-18T12:00:00+00:00") == datetime(
+        2026, 11, 18, 12, tzinfo=UTC
+    )
+    with pytest.raises(ValueError, match="formato desconhecido"):
+        FonteAna._data_hora("data inválida")
+
+
+def test_interpreta_validade_em_formatos_suportados() -> None:
+    primeira = FonteAna._interpretar_validade("Wed Nov 18 12:00:00 GMT+0000 2026")
+    iso = FonteAna._interpretar_validade("2026-11-18T12:00:00+00:00")
+
+    assert primeira == datetime(2026, 11, 18, 11, 58, tzinfo=UTC)
+    assert iso == datetime(2026, 11, 18, 11, 58, tzinfo=UTC)
+    assert FonteAna._interpretar_validade("") is None
+    assert FonteAna._interpretar_validade("data inválida") is None
 
 
 def test_lista_estacoes_por_uf_e_reutiliza_token(monkeypatch) -> None:
@@ -103,6 +167,123 @@ def test_listagem_nacional_retorna_resultados_parciais_se_uma_uf_falhar(monkeypa
     assert [estacao.codigo for estacao in estacoes] == [15400000]
     assert autenticacoes == 1
     assert len(ufs_consultadas) == len(ana._UFS)
+
+
+def test_listagem_nacional_falha_se_todas_as_ufs_falharem(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+
+    def falhar(uf):
+        raise ErroFonteAna(f"falha em {uf}")
+
+    monkeypatch.setattr(fonte, "_obter_token", lambda: "token")
+    monkeypatch.setattr(fonte, "_carregar_estacoes_uf", falhar)
+
+    with pytest.raises(ErroFonteAna, match="inventário"):
+        fonte._estacoes_de_todas_ufs(("AC",))
+
+
+def test_listagem_uf_ignora_registros_malformados(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+    estacao_valida = {
+        "codigoestacao": "15400000",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7",
+        "Longitude": "-63.9",
+        "UF_Estacao": "RO",
+    }
+    monkeypatch.setattr(
+        fonte,
+        "_get",
+        lambda rota, parametros: {"items": [{"Tipo_Estacao": "desconhecido"}, estacao_valida]},
+    )
+
+    estacoes = fonte.listar_estacoes(FiltroEstacoes(uf="RO"))
+
+    assert [estacao.codigo for estacao in estacoes] == [15400000]
+
+
+def test_buscar_estacao_ignora_resposta_invalida_e_nao_encontrada(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+    outra_estacao = {
+        "codigoestacao": "2",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7",
+        "Longitude": "-63.9",
+        "UF_Estacao": "RO",
+    }
+    monkeypatch.setattr(
+        fonte,
+        "_get",
+        lambda rota, parametros: {"items": [{"Tipo_Estacao": "inválido"}, outra_estacao]},
+    )
+
+    assert fonte.buscar_estacao(1) is None
+
+
+def test_busca_medicoes_com_periodo_maior_que_30_dias_faz_varias_consultas(monkeypatch) -> None:
+    chamadas = []
+
+    def abrir(requisicao, timeout):
+        chamadas.append(requisicao)
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        return RespostaFake({"status": "OK", "items": []})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+    periodo = Periodo(datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 2, 1, tzinfo=UTC))
+
+    assert FonteAna("id", "senha").buscar_medicoes(15400000, periodo) == []
+    assert sum(not chamada.full_url.endswith("/OAUth/v1") for chamada in chamadas) == 2
+
+
+@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "http", "status"])
+def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> None:
+    def abrir(requisicao, timeout):
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        if falha == "timeout":
+            raise TimeoutError("timeout")
+        if falha == "rede":
+            raise OSError("sem rede")
+        if falha == "json":
+            return BytesIO(b"{")
+        if falha == "http":
+            raise HTTPError(requisicao.full_url, 500, "erro", None, BytesIO())
+        return RespostaFake({"status": "ERRO", "items": []})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+
+    with pytest.raises(ErroFonteAna):
+        FonteAna("id", "senha").buscar_estacao(1)
+
+
+@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "sem-token"])
+def test_autenticacao_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> None:
+    def abrir(requisicao, timeout):
+        if falha == "timeout":
+            raise TimeoutError("timeout")
+        if falha == "rede":
+            raise OSError("sem rede")
+        if falha == "json":
+            return BytesIO(b"{")
+        return RespostaFake({"status": "OK", "items": []})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+
+    with pytest.raises(ErroFonteAna):
+        FonteAna("id", "senha")._obter_token()
+
+
+def test_api_recusa_novo_token_apos_segunda_resposta_401(monkeypatch) -> None:
+    def abrir(requisicao, timeout):
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        raise HTTPError(requisicao.full_url, 401, "Unauthorized", None, BytesIO())
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+
+    with pytest.raises(ErroFonteAna, match="sessão.*recusada"):
+        FonteAna("id", "senha").buscar_estacao(1)
 
 
 def test_busca_mapeia_grandezas_e_status_de_qualidade(monkeypatch) -> None:
@@ -193,6 +374,62 @@ def test_busca_estacao_por_codigo(monkeypatch) -> None:
     estacoes_da_uf = fonte.listar_estacoes(FiltroEstacoes(uf="SP"))
     assert {estacao.codigo for estacao in estacoes_da_uf} == {15400000, 15400001}
     parametros = parse_qs(urlparse(chamadas[2].full_url).query)
+    assert parametros == {"Unidade Federativa": ["SP"]}
+
+
+def test_busca_por_codigo_nao_marca_uf_e_atualiza_cache_completo(monkeypatch) -> None:
+    item = {
+        "codigoestacao": "15400000",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7",
+        "Longitude": "-63.9",
+        "UF_Estacao": "RO",
+    }
+    fonte = FonteAna("id", "senha")
+    monkeypatch.setattr(fonte, "_get", lambda rota, parametros: {"items": item})
+
+    estacao = fonte.buscar_estacao(15400000)
+    assert estacao is not None
+    assert "RO" not in fonte._estacoes_por_uf
+
+    fonte._estacoes_por_uf["RO"] = [FonteAna._mapear_estacao({**item, "codigoestacao": "15400001"})]
+    fonte.buscar_estacao(15400000)
+    fonte.buscar_estacao(15400000)
+
+    assert [item.codigo for item in fonte._estacoes_por_uf["RO"]] == [15400001, 15400000]
+
+
+def test_busca_por_codigo_nao_marca_uf_como_inventario_completo(monkeypatch) -> None:
+    chamadas = []
+    primeira = {
+        "codigoestacao": "15400000",
+        "Estacao_Nome": "PORTO VELHO",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7483",
+        "Longitude": "-63.9169",
+        "UF_Estacao": "SP",
+        "Municipio_Nome": "SÃO PAULO",
+    }
+
+    def abrir(requisicao, timeout):
+        chamadas.append(requisicao)
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        parametros = parse_qs(urlparse(requisicao.full_url).query)
+        if "Código da Estação" in parametros:
+            items = primeira
+        else:
+            items = [primeira, {**primeira, "codigoestacao": "15400001"}]
+        return RespostaFake({"status": "OK", "items": items})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+    fonte = FonteAna("id", "senha")
+
+    assert fonte.buscar_estacao(15400000).codigo == 15400000
+    estacoes = fonte.listar_estacoes(FiltroEstacoes(uf="SP"))
+
+    assert {estacao.codigo for estacao in estacoes} == {15400000, 15400001}
+    parametros = parse_qs(urlparse(chamadas[-1].full_url).query)
     assert parametros == {"Unidade Federativa": ["SP"]}
 
 
