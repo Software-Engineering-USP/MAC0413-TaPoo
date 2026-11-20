@@ -184,6 +184,7 @@ class Alerta:
     mensagem: str
     emitido_em: datetime
     medicao_gatilho: Medicao | None = None
+    fatores: tuple[FatorAvaliacao, ...] = ()
     status: StatusAlerta = StatusAlerta.ATIVO
     encerrado_em: datetime | None = None
     id: UUID = field(default_factory=uuid4)
@@ -197,7 +198,13 @@ class Alerta:
     def ativo(self) -> bool:
         return self.status is StatusAlerta.ATIVO
 
-    def escalar(self, nova: Severidade, mensagem: str, gatilho: Medicao | None = None) -> None:
+    def escalar(
+        self,
+        nova: Severidade,
+        mensagem: str,
+        gatilho: Medicao | None = None,
+        fatores: tuple[FatorAvaliacao, ...] | None = None,
+    ) -> None:
         """Eleva a severidade. Alertas não são rebaixados: só encerram ao normalizar."""
         if not self.ativo:
             raise ValueError("não é possível escalar um alerta encerrado")
@@ -206,6 +213,8 @@ class Alerta:
         self.severidade = nova
         self.mensagem = mensagem
         self.medicao_gatilho = gatilho
+        if fatores is not None:
+            self.fatores = fatores
 
     def encerrar(self, quando: datetime) -> None:
         if not self.ativo:
@@ -248,12 +257,18 @@ class AvaliadorAlertas:
                 resultado.mensagem,
                 emitido_em=agora,
                 medicao_gatilho=fator.medicao_gatilho,
+                fatores=resultado.fatores,
             )
 
         if severidade > ativo.severidade:
             fator = resultado.fator_mais_grave
             assert fator is not None
-            ativo.escalar(severidade, resultado.mensagem, fator.medicao_gatilho)
+            ativo.escalar(
+                severidade,
+                resultado.mensagem,
+                fator.medicao_gatilho,
+                resultado.fatores,
+            )
             return ativo
         return None
 

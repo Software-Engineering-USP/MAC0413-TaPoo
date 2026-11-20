@@ -9,7 +9,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.dominio.alerta import Alerta
+from app.dominio.alerta import Alerta, FatorAvaliacao
 from app.dominio.enums import (
     Grandeza,
     NivelConsistencia,
@@ -22,11 +22,26 @@ from app.dominio.periodo import Periodo
 from app.dominio.situacao import SituacaoEstacao, SituacaoMunicipio
 
 
+class FatorAvaliacaoOut(BaseModel):
+    descricao: str
+    severidade: Severidade
+    severidade_rotulo: str
+
+    @classmethod
+    def de(cls, fator: FatorAvaliacao) -> "FatorAvaliacaoOut":
+        return cls(
+            descricao=fator.descricao,
+            severidade=fator.severidade,
+            severidade_rotulo=fator.severidade.rotulo,
+        )
+
+
 class AlertaOut(BaseModel):
     id: UUID
     codigo_estacao: int
     severidade: Severidade
     severidade_rotulo: str
+    fatores: list[FatorAvaliacaoOut]
     status: StatusAlerta
     mensagem: str
     emitido_em: datetime
@@ -39,6 +54,7 @@ class AlertaOut(BaseModel):
             codigo_estacao=alerta.codigo_estacao,
             severidade=alerta.severidade,
             severidade_rotulo=alerta.severidade.rotulo,
+            fatores=[FatorAvaliacaoOut.de(fator) for fator in alerta.fatores],
             status=alerta.status,
             mensagem=alerta.mensagem,
             emitido_em=alerta.emitido_em,
