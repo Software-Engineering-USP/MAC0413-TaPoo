@@ -42,6 +42,29 @@ function CivilDefenseWarning({ onDismiss }) {
 export default function App() {
   const [isCivilDefenseWarningVisible, setCivilDefenseWarningVisible] =
     useState(true);
+  const [isInfoSheetOpen, setInfoSheetOpen] = useState(false);
+
+  const openInfoSheet = () => {
+    const appShell = document.getElementById("root");
+    const mapView = document.querySelector(".mobile-map-view");
+    if (!appShell || !mapView) return;
+
+    setInfoSheetOpen(true);
+    requestAnimationFrame(() => {
+      const scrollOffset =
+        mapView.offsetHeight -
+        Math.min(180, appShell.clientHeight * 0.35);
+      appShell.scrollTo({ top: scrollOffset, behavior: "smooth" });
+    });
+  };
+
+  const closeInfoSheet = () => {
+    setInfoSheetOpen(false);
+    document.getElementById("root")?.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   useEffect(() => {
     const infoBtn = document.getElementById("infoBtn");
@@ -52,6 +75,9 @@ export default function App() {
       "savedLocationsContainer",
     );
     const saveLocationBtn = document.getElementById("saveLocationBtn");
+    const saveLocationButtons = document.querySelectorAll(
+      ".save-location-btn",
+    );
     const savedPlaceKey = "aquaWatchSavedPlaces";
 
     // Custom Modals References
@@ -381,15 +407,17 @@ export default function App() {
     savedLocationsContainer.addEventListener("click", handleSavedPlaceRemoval);
 
     const renderSavedPlaces = () => {
-      savedLocationsContainer.innerHTML = "";
+      savedLocationsContainer
+        .querySelectorAll(".saved-place-chip")
+        .forEach((chip) => chip.remove());
       savedPlaceMarkers.forEach((marker) => marker.remove());
       savedPlaceMarkers.clear();
 
       savedPlaces.forEach((place, index) => {
-        // Create row element for sidebar
+        // Create a saved-location chip
         const row = document.createElement("div");
         row.className =
-          "flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
+          "saved-place-chip flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
 
         const nameContainer = document.createElement("div");
         nameContainer.className = "flex flex-col flex-1 min-w-0";
@@ -425,7 +453,7 @@ export default function App() {
 
         row.appendChild(nameContainer);
         row.appendChild(deleteBtn);
-        savedLocationsContainer.appendChild(row);
+        savedLocationsContainer.insertBefore(row, saveLocationBtn);
 
         // Map Marker Logic
         const riskDescriptionFull =
@@ -463,7 +491,7 @@ export default function App() {
     renderSavedPlaces();
 
     // Save location functionality using Custom Modal
-    saveLocationBtn.addEventListener("click", () => {
+    const handleSaveLocation = () => {
       showPromptModal((name) => {
         if (!name?.trim()) return;
 
@@ -477,13 +505,21 @@ export default function App() {
         localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
         renderSavedPlaces();
 
-        // Scroll to bottom of list
+        // Keep the new saved location in view
         setTimeout(() => {
-          savedLocationsContainer.scrollTop =
-            savedLocationsContainer.scrollHeight;
+          const isMobile = window.matchMedia("(max-width: 767px)").matches;
+          savedLocationsContainer.scrollTo({
+            [isMobile ? "left" : "top"]: isMobile
+              ? savedLocationsContainer.scrollWidth
+              : savedLocationsContainer.scrollHeight,
+            behavior: "smooth",
+          });
         }, 50);
       });
-    });
+    };
+    saveLocationButtons.forEach((button) =>
+      button.addEventListener("click", handleSaveLocation),
+    );
 
     document
       .querySelector("#myLocationBtn")
@@ -521,13 +557,18 @@ export default function App() {
         "click",
         handleSavedPlaceRemoval,
       );
+      saveLocationButtons.forEach((button) =>
+        button.removeEventListener("click", handleSaveLocation),
+      );
       map.remove();
     };
   }, []);
 
   return (
     <>
-      <aside className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
+      <aside
+        className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative"
+      >
         <header className="shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
@@ -537,7 +578,7 @@ export default function App() {
               <h1 className="font-bold text-slate-900 tracking-tight text-xl leading-tight">
                 AquaWatch{" "}
                 <span className="text-sky-600 text-[10px] font-bold px-1.5 py-0.5 bg-sky-50 rounded border border-sky-100 align-middle ml-1">
-                  WEB
+                  BR
                 </span>
               </h1>
             </div>
@@ -551,46 +592,54 @@ export default function App() {
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="space-y-4">
-            <div className="relative flex items-center">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
-              <input
-                type="text"
-                id="searchInput"
-                placeholder="Buscar cidade ou rio salvo..."
-                className="w-full pl-11 pr-11 py-3.5 bg-white rounded-xl shadow-sm border border-slate-200 text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition placeholder:text-slate-400"
-              />
-              <button
-                className="absolute right-3 text-slate-400 hover:text-sky-600 p-2 transition"
-                id="myLocationBtn"
-                title="Minha localização"
-              >
-                <i className="fa-solid fa-location-arrow text-sm"></i>
-              </button>
+        <div className="saved-places-track">
+          <div className="saved-places-heading">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
+              <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
+                Meus Locais Salvos
+              </h3>
             </div>
+            <button
+              type="button"
+              className="save-location-btn desktop-save-location-btn text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition"
+            >
+              + Salvar Local
+            </button>
+          </div>
+          <div
+            id="savedLocationsContainer"
+            className="location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
+          >
+            <button
+              id="saveLocationBtn"
+              className="save-location-btn mobile-save-location-btn shrink-0 whitespace-nowrap rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-[11px] text-sky-700 shadow transition hover:bg-sky-50"
+              type="button"
+            >
+              <i className="fa-solid fa-bookmark mr-1 mobile-save-icon"></i>
+              <span className="desktop-save-label">+ Salvar Atual</span>
+              <span className="mobile-save-label">Salve um local</span>
+            </button>
+          </div>
+        </div>
 
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
-                  <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
-                    Meus Locais Salvos
-                  </h3>
-                </div>
-                <button
-                  id="saveLocationBtn"
-                  type="button"
-                  className="text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition cursor-pointer bg-transparent border-0 p-0"
-                >
-                  + Salvar Atual
-                </button>
-              </div>
-              <div
-                id="savedLocationsContainer"
-                className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
-              ></div>
-            </div>
+        <div
+          id="dashboardSheet"
+          className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5"
+        >
+          <div className="mobile-sheet-handle">
+            <button
+              type="button"
+              onClick={closeInfoSheet}
+              aria-label="Voltar ao mapa"
+              className="flex w-full flex-col items-center gap-2 text-slate-400"
+            >
+              <span className="h-1 w-10 rounded-full bg-slate-300"></span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Voltar ao mapa{" "}
+                <i className="fa-solid fa-chevron-down ml-1 text-[9px]"></i>
+              </span>
+            </button>
           </div>
 
           <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
@@ -938,13 +987,63 @@ export default function App() {
 
       </aside>
 
-      <main className="flex-1 h-full relative z-0 bg-[#eaf4f8]">
+      <main className="mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
+        <div className="map-search-controls">
+          <div className="relative flex items-center">
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Buscar cidade ou rio..."
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            />
+            <button
+              className="absolute right-3 p-1 text-slate-400 hover:text-sky-600"
+              id="myLocationBtn"
+              title="Minha localização"
+            >
+              <i className="fa-solid fa-location-arrow text-xs"></i>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={openInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-expanded={isInfoSheetOpen}
+          className="open-info-tab flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-700 shadow-lg transition active:scale-95"
+        >
+          Ver informações
+          <i className="fa-solid fa-chevron-up text-[10px]"></i>
+        </button>
         <div
           id="interactiveMap"
           role="application"
           aria-label="Mapa interativo de risco de inundação"
         ></div>
       </main>
+
+      <div className="mobile-bottom-nav" aria-hidden="true">
+        <div className="active">
+          <i className="fa-solid fa-map-location-dot"></i>
+          <span>Mapa</span>
+        </div>
+        <div>
+          <span className="relative">
+            <i className="fa-regular fa-bell"></i>
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500"></span>
+          </span>
+          <span>Alertas</span>
+        </div>
+        <div>
+          <i className="fa-solid fa-chart-simple"></i>
+          <span>Histórico</span>
+        </div>
+        <div>
+          <i className="fa-regular fa-user"></i>
+          <span>Conta</span>
+        </div>
+      </div>
 
       <div
         id="promptModal"
