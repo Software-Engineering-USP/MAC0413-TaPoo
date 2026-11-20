@@ -4,6 +4,7 @@
 `FonteAna`, muda só este arquivo.
 """
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -37,21 +38,32 @@ class Container:
     carregar_na_inicializacao: bool = True
 
 
+def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrologicos:
+    """Escolhe a `FonteDadosHidrologicos` pela variável de ambiente `FONTE`.
+
+    `FONTE=ana`: `FonteAna` (exige ANA_IDENTIFICADOR/ANA_SENHA).
+    `FONTE=fake`/`simulada`: `FonteFake`.
+    Sem `FONTE`: comportamento antigo — ANA se houver credencial, senão simulada.
+    """
+    credencial = credenciais_ana()
+    var = (os.getenv("FONTE") or "").strip().casefold()
+    if var == "ana":
+        if credencial is None:
+            raise RuntimeError("FONTE=ana exige ANA_IDENTIFICADOR e ANA_SENHA.")
+        return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
+    if var in ("fake", "simulada"):
+        return FonteFake(relogio())
+    if credencial is not None:
+        return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
+    return FonteFake(relogio())
+
+
 def montar_container(
     fonte: FonteDadosHidrologicos | None = None,
     relogio: Callable[[], datetime] = agora_utc,
 ) -> Container:
     if fonte is None:
-        credenciais = credenciais_ana()
-        fonte = (
-            FonteAna(
-                *credenciais,
-                base_url=base_url_ana(),
-                timeout=timeout_ana(),
-            )
-            if credenciais
-            else FonteFake(relogio())
-        )
+        fonte = criar_fonte(relogio)
     estacoes = EstacaoRepositorioMemoria()
     medicoes = MedicaoRepositorioMemoria()
     alertas = AlertaRepositorioMemoria()
