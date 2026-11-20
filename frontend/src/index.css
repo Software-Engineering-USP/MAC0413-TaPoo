@@ -244,8 +244,7 @@ body {
     margin-top: 0.75rem;
   }
 
-  #root > aside > div.overflow-y-auto
-    > :not(.mobile-sheet-handle):not(.grid) {
+  #root > aside > div.overflow-y-auto > :not(.mobile-sheet-handle):not(.grid) {
     padding: 1rem;
   }
 
@@ -253,9 +252,7 @@ body {
     gap: 0.75rem;
   }
 
-  #root > aside > div.overflow-y-auto
-    .grid-cols-2
-    > div.bg-slate-50 {
+  #root > aside > div.overflow-y-auto .grid-cols-2 > div.bg-slate-50 {
     min-width: 0;
     padding: 0.625rem;
   }

@@ -52,8 +52,7 @@ export default function App() {
     setInfoSheetOpen(true);
     requestAnimationFrame(() => {
       const scrollOffset =
-        mapView.offsetHeight -
-        Math.min(180, appShell.clientHeight * 0.35);
+        mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35);
       appShell.scrollTo({ top: scrollOffset, behavior: "smooth" });
     });
   };
@@ -75,9 +74,7 @@ export default function App() {
       "savedLocationsContainer",
     );
     const saveLocationBtn = document.getElementById("saveLocationBtn");
-    const saveLocationButtons = document.querySelectorAll(
-      ".save-location-btn",
-    );
+    const saveLocationButtons = document.querySelectorAll(".save-location-btn");
     const savedPlaceKey = "aquaWatchSavedPlaces";
 
     // Custom Modals References
@@ -566,9 +563,7 @@ export default function App() {
 
   return (
     <>
-      <aside
-        className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative"
-      >
+      <aside className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
         <header className="shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
@@ -984,7 +979,6 @@ export default function App() {
             </div>
           </section>
         </div>
-
       </aside>
 
       <main className="mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
