@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import L from "leaflet";
 
+const emergencyContacts = [
+  { number: "190", service: "Polícia Militar" },
+  { number: "192", service: "SAMU" },
+  { number: "193", service: "Corpo de Bombeiros" },
+  { number: "199", service: "Defesa Civil" },
+];
+
 function CivilDefenseWarning({ onDismiss }) {
   return (
     <div
@@ -586,48 +593,6 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
-              <i className="fa-solid fa-truck-medical"></i>
-            </div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
-                Acionar Autoridades
-              </h3>
-            </div>
-            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Em caso de alagamento, risco de desabamento ou emergência
-              imediata, contate os órgãos responsáveis.
-            </p>
-            <div className="grid grid-cols-2 gap-3 relative z-10">
-              <a
-                href="tel:193"
-                className="flex flex-col items-center justify-center bg-red-50 border border-red-200 rounded-xl p-3.5 hover:bg-red-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-fire text-red-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Bombeiros
-                </span>
-                <span className="text-[11px] font-bold text-white bg-red-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 193
-                </span>
-              </a>
-              <a
-                href="tel:199"
-                className="flex flex-col items-center justify-center bg-orange-50 border border-orange-200 rounded-xl p-3.5 hover:bg-orange-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-house-chimney-crack text-orange-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Defesa Civil
-                </span>
-                <span className="text-[11px] font-bold text-white bg-orange-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 199
-                </span>
-              </a>
-            </div>
-          </div>
-
           <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-2">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-600 text-white shadow-xs">
@@ -850,6 +815,37 @@ export default function App() {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
+              <i className="fa-solid fa-truck-medical"></i>
+            </div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
+                Acionar Autoridades
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Em caso de alagamento, risco de desabamento ou emergência
+              imediata, contate os órgãos responsáveis.
+            </p>
+            <div className="grid grid-cols-2 gap-3 relative z-10">
+              {emergencyContacts.map(({ number, service }) => (
+                <div
+                  key={number}
+                  className="flex min-h-20 flex-col items-center justify-center rounded-xl border border-red-100 bg-red-50 p-3 text-center"
+                >
+                  <span className="text-lg font-bold leading-tight text-red-800">
+                    {number}
+                  </span>
+                  <span className="mt-1 text-xs font-semibold text-slate-800">
+                    {service}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
