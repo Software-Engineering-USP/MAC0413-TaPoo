@@ -2,14 +2,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.aplicacao.portas import FonteDePrevisao
 from app.dominio.alerta import (
     Alerta,
     AvaliadorAlertas,
     RegraChuvaAcumulada,
+    RegraChuvaPrevisao,
     RegraCotaReferencia,
 )
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta
-from app.dominio.medicao import MedicaoChuva, MedicaoNivel, SerieTemporal
+from app.dominio.geografia import Coordenada
+from app.dominio.medicao import MedicaoChuva, MedicaoNivel, PrevisaoChuva, SerieTemporal
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 COD = 100
@@ -128,3 +131,15 @@ def test_avaliador_encerra_quando_normaliza() -> None:
 def test_avaliador_ignora_regras_inativas() -> None:
     inativa = RegraCotaReferencia(COD, 1, 2, 3, ativa=False)
     assert AvaliadorAlertas([inativa]).avaliar({Grandeza.NIVEL: serie_nivel(10)}, None, T0) is None
+
+
+def test_regra_chuva_previsao_avalia_chuva_prevista() -> None:
+    class Falsa(FonteDePrevisao):
+        def buscar_previsao(self, coordenada: Coordenada) -> list[PrevisaoChuva]:
+            return [PrevisaoChuva(T0, 40), PrevisaoChuva(T0 + timedelta(hours=1), 20)]
+
+    regra = RegraChuvaPrevisao(COD, Coordenada(-23, -46), Falsa(), timedelta(hours=2), 30, 60, 90)
+    assert regra.avaliar(serie_chuva(1, 1)) is Severidade.ALERTA
+    assert (
+        regra.descrever(Severidade.ALERTA, serie_chuva(1, 1)) == "Chuva prevista de 60.0 mm em 2 h"
+    )

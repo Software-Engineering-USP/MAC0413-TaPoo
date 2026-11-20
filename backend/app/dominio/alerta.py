@@ -9,11 +9,16 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, SerieTemporal
 from app.dominio.tempo import exigir_utc
+
+if TYPE_CHECKING:
+    from app.aplicacao.portas import FonteDePrevisao
 
 
 class RegraAlerta(ABC):
@@ -136,6 +141,63 @@ class RegraChuvaAcumulada(RegraAlerta):
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
         horas = self.janela.total_seconds() / 3600
         return f"Chuva acumulada de {serie.acumulado(self.janela):.1f} mm em {horas:.0f} h"
+
+
+class RegraChuvaPrevisao(RegraAlerta):
+    """Compara a chuva prevista na janela com limiares moderado, alto e extremo."""
+
+    def __init__(
+        self,
+        codigo_estacao: int,
+        coordenada: Coordenada,
+        fonte_previsao: "FonteDePrevisao",
+        janela: timedelta,
+        limite_moderado_mm: float,
+        limite_alto_mm: float,
+        limite_extremo_mm: float,
+        *,
+        id: int | None = None,
+        ativa: bool = True,
+    ) -> None:
+        super().__init__(codigo_estacao, id=id, ativa=ativa)
+        self.coordenada = coordenada
+        self.fonte_previsao = fonte_previsao
+        self.janela = janela
+        _validar_crescente(limite_moderado_mm, limite_alto_mm, limite_extremo_mm)
+        self.limite_moderado_mm = limite_moderado_mm
+        self.limite_alto_mm = limite_alto_mm
+        self.limite_extremo_mm = limite_extremo_mm
+
+    @property
+    def grandeza(self) -> Grandeza:
+        return Grandeza.CHUVA
+
+    def avaliar(self, serie: SerieTemporal) -> Severidade:
+        self._validar_serie(serie)
+        return _classificar(
+            self._chuva_prevista(),
+            [
+                (self.limite_moderado_mm, Severidade.ATENCAO),
+                (self.limite_alto_mm, Severidade.ALERTA),
+                (self.limite_extremo_mm, Severidade.EMERGENCIA),
+            ],
+        )
+
+    def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
+        acumulado = self._chuva_prevista()
+        horas = self.janela.total_seconds() / 3600
+        return f"Chuva prevista de {acumulado:.1f} mm em {horas:.0f} h"
+
+    def _chuva_prevista(self) -> float:
+        previsoes = sorted(
+            self.fonte_previsao.buscar_previsao(self.coordenada), key=lambda p: p.data_hora_utc
+        )
+        if not previsoes:
+            return 0.0
+        ultima = previsoes[-1].data_hora_utc
+        return sum(
+            p.chuva_mm for p in previsoes if ultima - self.janela <= p.data_hora_utc <= ultima
+        )
 
 
 @dataclass(slots=True)
