@@ -4,7 +4,9 @@ import pytest
 
 from app.dominio.alerta import (
     Alerta,
+    AvaliacaoDeSituacao,
     AvaliadorAlertas,
+    FatorAvaliacao,
     RegraChuvaAcumulada,
     RegraCotaReferencia,
 )
@@ -100,6 +102,51 @@ def test_avaliador_cria_alerta_com_pior_severidade() -> None:
     assert alerta.severidade is Severidade.ALERTA
     assert "Chuva acumulada" in alerta.mensagem
     assert alerta.medicao_gatilho.grandeza() is Grandeza.CHUVA
+
+
+def test_avaliacao_agrega_fatores_e_compoe_mensagem() -> None:
+    avaliador = AvaliadorAlertas([COTA, CHUVA])
+    series = {Grandeza.NIVEL: serie_nivel(450), Grandeza.CHUVA: serie_chuva(3, 24)}
+
+    resultado = avaliador._avaliar_regras(series)
+
+    assert resultado.severidade is Severidade.ALERTA
+    assert len(resultado.fatores) == 2
+    assert "Rio acima da cota de alerta" in resultado.mensagem
+    assert "Chuva acumulada de 72.0 mm em 24 h" in resultado.mensagem
+    assert resultado.mensagem.count(";") == 1
+
+
+def test_avaliacao_vazia_e_normal_sem_fatores() -> None:
+    resultado = AvaliacaoDeSituacao()
+
+    assert resultado.severidade is Severidade.NORMAL
+    assert resultado.fatores == ()
+    assert resultado.mensagem == ""
+    assert resultado.fator_mais_grave is None
+
+
+def test_avaliacao_seleciona_fator_mais_grave() -> None:
+    fator_atencao = FatorAvaliacao("nível elevado", Severidade.ATENCAO, COD, None)
+    fator_emergencia = FatorAvaliacao("chuva extrema", Severidade.EMERGENCIA, COD, None)
+
+    resultado = AvaliacaoDeSituacao((fator_atencao, fator_emergencia))
+
+    assert resultado.severidade is Severidade.EMERGENCIA
+    assert resultado.fator_mais_grave is fator_emergencia
+
+
+def test_alerta_inclui_mensagem_de_todos_os_fatores_acionados() -> None:
+    avaliador = AvaliadorAlertas([COTA, CHUVA])
+    series = {Grandeza.NIVEL: serie_nivel(450), Grandeza.CHUVA: serie_chuva(3, 24)}
+
+    alerta = avaliador.avaliar(series, None, T0)
+
+    assert alerta is not None
+    assert alerta.severidade is Severidade.ALERTA
+    assert "Rio acima da cota de alerta" in alerta.mensagem
+    assert "Chuva acumulada de 72.0 mm em 24 h" in alerta.mensagem
+    assert alerta.medicao_gatilho is series[Grandeza.NIVEL].ultimo()
 
 
 def test_avaliador_sem_alerta_quando_normal() -> None:

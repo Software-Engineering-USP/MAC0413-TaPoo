@@ -91,8 +91,18 @@ class RegraCotaReferencia(RegraAlerta):
 
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
         ultimo = serie.ultimo()
-        nivel = f"{ultimo.valor:.0f} cm" if ultimo else "sem leitura"
-        return f"Nível do rio em {nivel} (cota de inundação: {self.cota_inundacao_cm:.0f} cm)"
+        if ultimo is None:
+            return "Nível do rio sem leitura"
+
+        cotas = {
+            Severidade.ATENCAO: ("atenção", self.cota_atencao_cm),
+            Severidade.ALERTA: ("alerta", self.cota_alerta_cm),
+            Severidade.EMERGENCIA: ("inundação", self.cota_inundacao_cm),
+        }
+        nome_cota, valor_cota = cotas[severidade]
+        return (
+            f"Rio acima da cota de {nome_cota} ({ultimo.valor:.0f} cm, limite {valor_cota:.0f} cm)"
+        )
 
 
 class RegraChuvaAcumulada(RegraAlerta):
@@ -136,6 +146,35 @@ class RegraChuvaAcumulada(RegraAlerta):
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
         horas = self.janela.total_seconds() / 3600
         return f"Chuva acumulada de {serie.acumulado(self.janela):.1f} mm em {horas:.0f} h"
+
+
+@dataclass(frozen=True, slots=True)
+class FatorAvaliacao:
+    """Motivo individual que contribuiu para a avaliação hidrológica."""
+
+    descricao: str
+    severidade: Severidade
+    codigo_estacao: int
+    medicao_gatilho: Medicao | None
+
+
+@dataclass(frozen=True, slots=True)
+class AvaliacaoDeSituacao:
+    """Resultado agregado das regras, com motivos e explicação legível."""
+
+    fatores: tuple[FatorAvaliacao, ...] = ()
+
+    @property
+    def severidade(self) -> Severidade:
+        return max((fator.severidade for fator in self.fatores), default=Severidade.NORMAL)
+
+    @property
+    def mensagem(self) -> str:
+        return "; ".join(fator.descricao for fator in self.fatores)
+
+    @property
+    def fator_mais_grave(self) -> FatorAvaliacao | None:
+        return max(self.fatores, key=lambda fator: fator.severidade, default=None)
 
 
 @dataclass(slots=True)
@@ -191,7 +230,8 @@ class AvaliadorAlertas:
         agora: datetime,
     ) -> Alerta | None:
         """Devolve o alerta criado/alterado/encerrado, ou None se nada mudou."""
-        severidade, mensagem, gatilho, codigo = self._pior_resultado(series)
+        resultado = self._avaliar_regras(series)
+        severidade = resultado.severidade
 
         if severidade is Severidade.NORMAL:
             if ativo is not None and ativo.ativo:
@@ -200,27 +240,37 @@ class AvaliadorAlertas:
             return None
 
         if ativo is None or not ativo.ativo:
-            return Alerta(codigo, severidade, mensagem, emitido_em=agora, medicao_gatilho=gatilho)
+            fator = resultado.fator_mais_grave
+            assert fator is not None
+            return Alerta(
+                fator.codigo_estacao,
+                severidade,
+                resultado.mensagem,
+                emitido_em=agora,
+                medicao_gatilho=fator.medicao_gatilho,
+            )
 
         if severidade > ativo.severidade:
-            ativo.escalar(severidade, mensagem, gatilho)
+            fator = resultado.fator_mais_grave
+            assert fator is not None
+            ativo.escalar(severidade, resultado.mensagem, fator.medicao_gatilho)
             return ativo
         return None
 
-    def _pior_resultado(
-        self, series: Mapping[Grandeza, SerieTemporal]
-    ) -> tuple[Severidade, str, Medicao | None, int]:
-        pior: tuple[Severidade, str, Medicao | None, int] = (Severidade.NORMAL, "", None, 0)
+    def _avaliar_regras(self, series: Mapping[Grandeza, SerieTemporal]) -> AvaliacaoDeSituacao:
+        fatores = []
         for regra in self.regras:
             serie = series.get(regra.grandeza)
             if serie is None or serie.vazia():
                 continue
             severidade = regra.avaliar(serie)
-            if severidade > pior[0]:
-                pior = (
-                    severidade,
-                    regra.descrever(severidade, serie),
-                    serie.ultimo(),
-                    regra.codigo_estacao,
+            if severidade > Severidade.NORMAL:
+                fatores.append(
+                    FatorAvaliacao(
+                        regra.descrever(severidade, serie),
+                        severidade,
+                        regra.codigo_estacao,
+                        serie.ultimo(),
+                    )
                 )
-        return pior
+        return AvaliacaoDeSituacao(tuple(fatores))
