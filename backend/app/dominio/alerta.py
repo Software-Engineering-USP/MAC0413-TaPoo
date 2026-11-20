@@ -100,7 +100,9 @@ class RegraCotaReferencia(RegraAlerta):
             Severidade.EMERGENCIA: ("inundação", self.cota_inundacao_cm),
         }
         nome_cota, valor_cota = cotas[severidade]
-        return f"Rio acima da cota de {nome_cota} ({ultimo.valor:.0f} cm, limite {valor_cota:.0f} cm)"
+        return (
+            f"Rio acima da cota de {nome_cota} ({ultimo.valor:.0f} cm, limite {valor_cota:.0f} cm)"
+        )
 
 
 class RegraChuvaAcumulada(RegraAlerta):
