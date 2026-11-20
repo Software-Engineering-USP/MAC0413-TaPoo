@@ -1,7 +1,70 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import L from "leaflet";
 
+const emergencyContacts = [
+  { number: "190", service: "Polícia Militar" },
+  { number: "192", service: "SAMU" },
+  { number: "193", service: "Corpo de Bombeiros" },
+  { number: "199", service: "Defesa Civil" },
+];
+
+function CivilDefenseWarning({ onDismiss }) {
+  return (
+    <div
+      role="note"
+      aria-label="Aviso sobre alertas oficiais"
+      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
+    >
+      <div className="flex items-start gap-2">
+        <i
+          className="fa-solid fa-triangle-exclamation mt-0.5 text-amber-700"
+          aria-hidden="true"
+        ></i>
+        <p className="flex-1 text-xs font-medium leading-relaxed">
+          <strong>Aviso:</strong> Este sistema não substitui os alertas oficiais
+          da Defesa Civil. Em uma emergência, acompanhe os canais oficiais.
+        </p>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Fechar aviso"
+            className="shrink-0 rounded p-1 text-amber-800 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
+          >
+            <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [isCivilDefenseWarningVisible, setCivilDefenseWarningVisible] =
+    useState(true);
+  const [isInfoSheetOpen, setInfoSheetOpen] = useState(false);
+
+  const openInfoSheet = () => {
+    const appShell = document.getElementById("root");
+    const mapView = document.querySelector(".mobile-map-view");
+    if (!appShell || !mapView) return;
+
+    setInfoSheetOpen(true);
+    requestAnimationFrame(() => {
+      const scrollOffset =
+        mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35);
+      appShell.scrollTo({ top: scrollOffset, behavior: "smooth" });
+    });
+  };
+
+  const closeInfoSheet = () => {
+    setInfoSheetOpen(false);
+    document.getElementById("root")?.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
   useEffect(() => {
     const infoBtn = document.getElementById("infoBtn");
     const infoModal = document.getElementById("infoModal");
@@ -11,6 +74,7 @@ export default function App() {
       "savedLocationsContainer",
     );
     const saveLocationBtn = document.getElementById("saveLocationBtn");
+    const saveLocationButtons = document.querySelectorAll(".save-location-btn");
     const savedPlaceKey = "aquaWatchSavedPlaces";
 
     // Custom Modals References
@@ -340,15 +404,17 @@ export default function App() {
     savedLocationsContainer.addEventListener("click", handleSavedPlaceRemoval);
 
     const renderSavedPlaces = () => {
-      savedLocationsContainer.innerHTML = "";
+      savedLocationsContainer
+        .querySelectorAll(".saved-place-chip")
+        .forEach((chip) => chip.remove());
       savedPlaceMarkers.forEach((marker) => marker.remove());
       savedPlaceMarkers.clear();
 
       savedPlaces.forEach((place, index) => {
-        // Create row element for sidebar
+        // Create a saved-location chip
         const row = document.createElement("div");
         row.className =
-          "flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
+          "saved-place-chip flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
 
         const nameContainer = document.createElement("div");
         nameContainer.className = "flex flex-col flex-1 min-w-0";
@@ -384,7 +450,7 @@ export default function App() {
 
         row.appendChild(nameContainer);
         row.appendChild(deleteBtn);
-        savedLocationsContainer.appendChild(row);
+        savedLocationsContainer.insertBefore(row, saveLocationBtn);
 
         // Map Marker Logic
         const riskDescriptionFull =
@@ -422,7 +488,7 @@ export default function App() {
     renderSavedPlaces();
 
     // Save location functionality using Custom Modal
-    saveLocationBtn.addEventListener("click", () => {
+    const handleSaveLocation = () => {
       showPromptModal((name) => {
         if (!name?.trim()) return;
 
@@ -436,13 +502,21 @@ export default function App() {
         localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
         renderSavedPlaces();
 
-        // Scroll to bottom of list
+        // Keep the new saved location in view
         setTimeout(() => {
-          savedLocationsContainer.scrollTop =
-            savedLocationsContainer.scrollHeight;
+          const isMobile = window.matchMedia("(max-width: 767px)").matches;
+          savedLocationsContainer.scrollTo({
+            [isMobile ? "left" : "top"]: isMobile
+              ? savedLocationsContainer.scrollWidth
+              : savedLocationsContainer.scrollHeight,
+            behavior: "smooth",
+          });
         }, 50);
       });
-    });
+    };
+    saveLocationButtons.forEach((button) =>
+      button.addEventListener("click", handleSaveLocation),
+    );
 
     document
       .querySelector("#myLocationBtn")
@@ -480,6 +554,9 @@ export default function App() {
         "click",
         handleSavedPlaceRemoval,
       );
+      saveLocationButtons.forEach((button) =>
+        button.removeEventListener("click", handleSaveLocation),
+      );
       map.remove();
     };
   }, []);
@@ -496,7 +573,7 @@ export default function App() {
               <h1 className="font-bold text-slate-900 tracking-tight text-xl leading-tight">
                 AquaWatch{" "}
                 <span className="text-sky-600 text-[10px] font-bold px-1.5 py-0.5 bg-sky-50 rounded border border-sky-100 align-middle ml-1">
-                  WEB
+                  BR
                 </span>
               </h1>
             </div>
@@ -510,88 +587,54 @@ export default function App() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="space-y-4">
-            <div className="relative flex items-center">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
-              <input
-                type="text"
-                id="searchInput"
-                placeholder="Buscar cidade ou rio salvo..."
-                className="w-full pl-11 pr-11 py-3.5 bg-white rounded-xl shadow-sm border border-slate-200 text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition placeholder:text-slate-400"
-              />
-              <button
-                className="absolute right-3 text-slate-400 hover:text-sky-600 p-2 transition"
-                id="myLocationBtn"
-                title="Minha localização"
-              >
-                <i className="fa-solid fa-location-arrow text-sm"></i>
-              </button>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
-                  <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
-                    Meus Locais Salvos
-                  </h3>
-                </div>
-                <button
-                  id="saveLocationBtn"
-                  type="button"
-                  className="text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition cursor-pointer bg-transparent border-0 p-0"
-                >
-                  + Salvar Atual
-                </button>
-              </div>
-              <div
-                id="savedLocationsContainer"
-                className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
-              ></div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
-              <i className="fa-solid fa-truck-medical"></i>
-            </div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
-                Acionar Autoridades
+        <div className="saved-places-track">
+          <div className="saved-places-heading">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
+              <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
+                Meus Locais Salvos
               </h3>
             </div>
-            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Em caso de alagamento, risco de desabamento ou emergência
-              imediata, contate os órgãos responsáveis.
-            </p>
-            <div className="grid grid-cols-2 gap-3 relative z-10">
-              <a
-                href="tel:193"
-                className="flex flex-col items-center justify-center bg-red-50 border border-red-200 rounded-xl p-3.5 hover:bg-red-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-fire text-red-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Bombeiros
-                </span>
-                <span className="text-[11px] font-bold text-white bg-red-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 193
-                </span>
-              </a>
-              <a
-                href="tel:199"
-                className="flex flex-col items-center justify-center bg-orange-50 border border-orange-200 rounded-xl p-3.5 hover:bg-orange-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-house-chimney-crack text-orange-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Defesa Civil
-                </span>
-                <span className="text-[11px] font-bold text-white bg-orange-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 199
-                </span>
-              </a>
-            </div>
+            <button
+              type="button"
+              className="save-location-btn desktop-save-location-btn text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition"
+            >
+              + Salvar Local
+            </button>
+          </div>
+          <div
+            id="savedLocationsContainer"
+            className="location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
+          >
+            <button
+              id="saveLocationBtn"
+              className="save-location-btn mobile-save-location-btn shrink-0 whitespace-nowrap rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-[11px] text-sky-700 shadow transition hover:bg-sky-50"
+              type="button"
+            >
+              <i className="fa-solid fa-bookmark mr-1 mobile-save-icon"></i>
+              <span className="desktop-save-label">+ Salvar Atual</span>
+              <span className="mobile-save-label">Salve um local</span>
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="dashboardSheet"
+          className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5"
+        >
+          <div className="mobile-sheet-handle">
+            <button
+              type="button"
+              onClick={closeInfoSheet}
+              aria-label="Voltar ao mapa"
+              className="flex w-full flex-col items-center gap-2 text-slate-400"
+            >
+              <span className="h-1 w-10 rounded-full bg-slate-300"></span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Voltar ao mapa{" "}
+                <i className="fa-solid fa-chevron-down ml-1 text-[9px]"></i>
+              </span>
+            </button>
           </div>
 
           <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
@@ -612,6 +655,12 @@ export default function App() {
               de transbordamento contínuo nas áreas de várzea.
             </p>
           </div>
+
+          {isCivilDefenseWarningVisible && (
+            <CivilDefenseWarning
+              onDismiss={() => setCivilDefenseWarningVisible(false)}
+            />
+          )}
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -812,16 +861,183 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
+              <i className="fa-solid fa-truck-medical"></i>
+            </div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
+                Acionar Autoridades
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Em caso de alagamento, risco de desabamento ou emergência
+              imediata, contate os órgãos responsáveis.
+            </p>
+            <div className="grid grid-cols-2 gap-3 relative z-10">
+              {emergencyContacts.map(({ number, service }) => (
+                <div
+                  key={number}
+                  className="flex min-h-20 flex-col items-center justify-center rounded-xl border border-red-100 bg-red-50 p-3 text-center"
+                >
+                  <span className="text-lg font-bold leading-tight text-red-800">
+                    {number}
+                  </span>
+                  <span className="mt-1 text-xs font-semibold text-slate-800">
+                    {service}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <section
+            aria-labelledby="safetyGuidanceHeading"
+            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <i
+                className="fa-solid fa-circle-info text-sky-600"
+                aria-hidden="true"
+              ></i>
+              <h3
+                id="safetyGuidanceHeading"
+                className="text-sm font-bold uppercase tracking-wider text-slate-700"
+              >
+                Orientações de segurança
+              </h3>
+            </div>
+            <ul className="space-y-3 text-xs leading-relaxed text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Siga as orientações das autoridades locais, como a Defesa
+                  Civil e o Corpo de Bombeiros.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Evite contato com água e lama de enchentes. Se for inevitável
+                  passar por uma área inundada, use botas impermeáveis e luvas;
+                  proteja cortes e arranhões.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Não consuma alimentos que tiveram contato com a água da
+                  inundação ou lama. Para beber, use água segura e siga as
+                  orientações sanitárias.
+                </span>
+              </li>
+            </ul>
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Fontes oficiais
+              </h4>
+              <ul className="mt-2 space-y-2 text-xs">
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Enchentes
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-leptospirose"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a leptospirose
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-agua"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a água
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </section>
         </div>
       </aside>
 
-      <main className="flex-1 h-full relative z-0 bg-[#eaf4f8]">
+      <main className="mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
+        <div className="map-search-controls">
+          <div className="relative flex items-center">
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Buscar cidade ou rio..."
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            />
+            <button
+              className="absolute right-3 p-1 text-slate-400 hover:text-sky-600"
+              id="myLocationBtn"
+              title="Minha localização"
+            >
+              <i className="fa-solid fa-location-arrow text-xs"></i>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={openInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-expanded={isInfoSheetOpen}
+          className="open-info-tab flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-700 shadow-lg transition active:scale-95"
+        >
+          Ver informações
+          <i className="fa-solid fa-chevron-up text-[10px]"></i>
+        </button>
         <div
           id="interactiveMap"
           role="application"
           aria-label="Mapa interativo de risco de inundação"
         ></div>
       </main>
+
+      <div className="mobile-bottom-nav" aria-hidden="true">
+        <div className="active">
+          <i className="fa-solid fa-map-location-dot"></i>
+          <span>Mapa</span>
+        </div>
+        <div>
+          <span className="relative">
+            <i className="fa-regular fa-bell"></i>
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500"></span>
+          </span>
+          <span>Alertas</span>
+        </div>
+        <div>
+          <i className="fa-solid fa-chart-simple"></i>
+          <span>Histórico</span>
+        </div>
+        <div>
+          <i className="fa-regular fa-user"></i>
+          <span>Conta</span>
+        </div>
+      </div>
 
       <div
         id="promptModal"
@@ -900,11 +1116,7 @@ export default function App() {
             cruzando dados meteorológicos em tempo real com histórico de cheias
             registradas no Brasil.
           </p>
-          <div className="bg-sky-50 p-4 rounded-2xl border border-sky-100 text-xs text-sky-800 leading-relaxed">
-            <i className="fa-solid fa-circle-info mr-1.5 text-sky-600"></i>
-            Em situações de emergência, siga sempre as orientações oficiais dos
-            Bombeiros e <strong>Defesa Civil</strong>.
-          </div>
+          <CivilDefenseWarning />
           <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Legenda do mapa
