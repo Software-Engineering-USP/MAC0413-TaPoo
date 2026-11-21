@@ -174,6 +174,12 @@ def test_busca_valida_tamanho_do_termo(client: TestClient, q: str) -> None:
     assert client.get("/estacoes", params={"q": q}).status_code == 422
 
 
+def test_busca_so_com_espacos_nao_traz_nada(client: TestClient) -> None:
+    resposta = client.get("/estacoes", params={"q": "   "})
+    assert resposta.status_code == 200
+    assert resposta.json() == []
+
+
 class FonteSemCarga(FonteFake):
     carregar_na_inicializacao = False
 

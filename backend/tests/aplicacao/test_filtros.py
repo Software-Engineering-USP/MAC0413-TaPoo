@@ -43,5 +43,10 @@ def test_texto_combina_com_os_outros_criterios() -> None:
     assert not FiltroEstacoes(tipo=TipoEstacao.PLUVIOMETRICA, texto="tiete").aceita(TIETE)
 
 
+@pytest.mark.parametrize("texto", ["", "   ", "\t\n"])
+def test_texto_sem_palavras_nao_aceita_nenhuma_estacao(texto: str) -> None:
+    assert not FiltroEstacoes(texto=texto).aceita(TIETE)
+
+
 def test_sem_texto_aceita_qualquer_estacao() -> None:
     assert FiltroEstacoes().aceita(TIETE)

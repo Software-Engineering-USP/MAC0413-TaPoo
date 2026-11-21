@@ -46,5 +46,8 @@ class FiltroEstacoes:
     def _aceita_texto(self, estacao: Estacao) -> bool:
         if self.texto is None:
             return True
+        palavras = normalizar_nome(self.texto).split()
+        if not palavras:
+            return False
         onde = normalizar_nome(" ".join((estacao.nome, estacao.municipio, estacao.rio or "")))
-        return all(palavra in onde for palavra in normalizar_nome(self.texto).split())
+        return all(palavra in onde for palavra in palavras)
