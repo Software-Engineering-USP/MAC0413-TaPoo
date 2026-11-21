@@ -127,6 +127,29 @@ def test_monitoramento_encerra_alerta_quando_nivel_baixa() -> None:
     assert c.consulta.alertas_ativos() == []
 
 
+def test_historico_mantem_alerta_encerrado_e_o_novo() -> None:
+    c = Cenario(niveis(420))
+    c.coletar.executar(1)
+    [primeiro] = c.alertas.ativos()
+
+    c.medicoes.salvar_varias([MedicaoNivel(1, AGORA + timedelta(minutes=30), 100)])
+    c.relogio = lambda: AGORA + timedelta(hours=1)
+    c.monitorar.executar(1)
+    c.medicoes.salvar_varias([MedicaoNivel(1, AGORA + timedelta(hours=1, minutes=30), 430)])
+    c.relogio = lambda: AGORA + timedelta(hours=2)
+    c.monitorar.executar(1)
+
+    historico = c.consulta.historico_alertas(1)
+    assert [a.status for a in historico] == [StatusAlerta.ATIVO, StatusAlerta.ENCERRADO]
+    assert historico[1] is primeiro
+    assert c.consulta.historico_alertas(1, limite=1) == historico[:1]
+
+
+def test_historico_de_estacao_inexistente() -> None:
+    with pytest.raises(EstacaoNaoEncontrada):
+        Cenario([]).consulta.historico_alertas(999)
+
+
 def test_monitoramento_sem_regras_nao_faz_nada() -> None:
     c = Cenario([])
     assert c.monitorar.executar(2) is None

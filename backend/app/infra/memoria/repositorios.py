@@ -94,6 +94,11 @@ class AlertaRepositorioMemoria(AlertaRepositorio):
     def ativos(self) -> list[Alerta]:
         return [a for a in self._por_id.values() if a.ativo]
 
+    def historico_da_estacao(self, codigo: int, limite: int | None = None) -> list[Alerta]:
+        da_estacao = [a for a in self._por_id.values() if a.codigo_estacao == codigo]
+        da_estacao.sort(key=lambda a: a.emitido_em, reverse=True)
+        return da_estacao[:limite]
+
 
 class RegraRepositorioMemoria(RegraRepositorio):
     def __init__(self, regras: Iterable[RegraAlerta] = ()) -> None:
