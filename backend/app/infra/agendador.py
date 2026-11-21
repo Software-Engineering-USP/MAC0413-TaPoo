@@ -8,7 +8,7 @@ from datetime import timedelta
 logger = logging.getLogger(__name__)
 
 
-class AgendadorDeColeta:
+class AgendadorColeta:
     """Roda `acao` a cada `intervalo` até `parar()` ser chamado.
 
     A ação é síncrona (os clientes HTTP das fontes usam `httpx` síncrono), por isso roda em

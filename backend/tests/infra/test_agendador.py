@@ -5,7 +5,7 @@ from datetime import timedelta
 
 import pytest
 
-from app.infra.agendador import AgendadorDeColeta
+from app.infra.agendador import AgendadorColeta
 
 RAPIDO = timedelta(milliseconds=5)
 
@@ -20,7 +20,7 @@ def test_executa_a_acao_repetidamente_ate_parar() -> None:
     chamadas: list[int] = []
 
     async def cenario() -> None:
-        agendador = AgendadorDeColeta(lambda: chamadas.append(1), RAPIDO)
+        agendador = AgendadorColeta(lambda: chamadas.append(1), RAPIDO)
         agendador.iniciar()
         assert agendador.rodando
         await _esperar(lambda: len(chamadas) >= 3)
@@ -42,7 +42,7 @@ def test_falha_em_um_ciclo_nao_interrompe_os_proximos(caplog) -> None:
             raise RuntimeError("fonte fora do ar")
 
     async def cenario() -> None:
-        agendador = AgendadorDeColeta(acao, RAPIDO)
+        agendador = AgendadorColeta(acao, RAPIDO)
         agendador.iniciar()
         await _esperar(lambda: len(chamadas) >= 2)
         await agendador.parar()
@@ -58,7 +58,7 @@ def test_acao_roda_fora_da_thread_do_event_loop() -> None:
     threads: list[int] = []
 
     async def cenario() -> None:
-        agendador = AgendadorDeColeta(lambda: threads.append(threading.get_ident()), RAPIDO)
+        agendador = AgendadorColeta(lambda: threads.append(threading.get_ident()), RAPIDO)
         agendador.iniciar()
         await _esperar(lambda: bool(threads))
         await agendador.parar()
@@ -71,7 +71,7 @@ def test_primeiro_ciclo_espera_o_intervalo_por_padrao() -> None:
     chamadas: list[int] = []
 
     async def cenario() -> None:
-        agendador = AgendadorDeColeta(lambda: chamadas.append(1), timedelta(hours=1))
+        agendador = AgendadorColeta(lambda: chamadas.append(1), timedelta(hours=1))
         agendador.iniciar()
         agendador.iniciar()  # chamar de novo não cria outra tarefa
         await asyncio.sleep(0.05)
@@ -85,4 +85,4 @@ def test_primeiro_ciclo_espera_o_intervalo_por_padrao() -> None:
 @pytest.mark.parametrize("intervalo", [timedelta(0), timedelta(seconds=-1)])
 def test_rejeita_intervalo_nao_positivo(intervalo) -> None:
     with pytest.raises(ValueError, match="intervalo"):
-        AgendadorDeColeta(lambda: None, intervalo)
+        AgendadorColeta(lambda: None, intervalo)

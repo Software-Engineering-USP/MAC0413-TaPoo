@@ -18,7 +18,7 @@ from app.aplicacao.portas import FonteDadosHidrologicos
 from app.aplicacao.sincronizacao import SincronizarEstacoes
 from app.configuracao import base_url_ana, credenciais_ana, timeout_ana
 from app.dominio.tempo import agora_utc
-from app.infra.agendador import AgendadorDeColeta
+from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake, regras_de_exemplo
 from app.infra.memoria.repositorios import (
@@ -84,8 +84,8 @@ def executar_ciclo(container: Container) -> int:
     return container.coletar.executar_todas()
 
 
-def criar_agendador(container: Container, intervalo: timedelta) -> AgendadorDeColeta:
-    return AgendadorDeColeta(lambda: executar_ciclo(container), intervalo)
+def criar_agendador(container: Container, intervalo: timedelta) -> AgendadorColeta:
+    return AgendadorColeta(lambda: executar_ciclo(container), intervalo)
 
 
 def _container(request: Request) -> Container:
