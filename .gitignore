@@ -13,3 +13,6 @@ frontend/dist/
 
 coverage.xml
 .coverage
+
+# tapoo.db: SQLite local usado com REPO=sql sem DATABASE_URL
+*.db

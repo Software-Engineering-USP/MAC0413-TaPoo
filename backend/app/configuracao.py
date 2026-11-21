@@ -53,3 +53,21 @@ def timeout_ana() -> float:
     if valor <= 0:
         raise RuntimeError("ANA_TIMEOUT_SEGUNDOS precisa ser maior que zero.")
     return valor
+
+
+REPOSITORIOS = ("memoria", "sql")
+
+
+def tipo_repositorio() -> str:
+    """Onde os dados ficam: `REPO=memoria` (padrão, some ao reiniciar) ou `REPO=sql`."""
+    _carregar_env_local()
+    valor = os.getenv("REPO", "memoria").strip().casefold() or "memoria"
+    if valor not in REPOSITORIOS:
+        raise RuntimeError(f"REPO precisa ser um de: {', '.join(REPOSITORIOS)}.")
+    return valor
+
+
+def url_banco() -> str:
+    """URL do banco usado com `REPO=sql`. Sem `DATABASE_URL`, um SQLite local."""
+    _carregar_env_local()
+    return os.getenv("DATABASE_URL", "").strip() or "sqlite:///tapoo.db"
