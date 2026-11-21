@@ -227,8 +227,8 @@ class Alerta:
         self,
         nova: Severidade,
         mensagem: str,
-        gatilho: Medicao | None = None,
-        fatores: tuple[FatorAvaliacao, ...] | None = None,
+        gatilho: Medicao | None,
+        fatores: tuple[FatorAvaliacao, ...],
     ) -> None:
         """Eleva a severidade. Alertas não são rebaixados: só encerram ao normalizar."""
         if not self.ativo:
@@ -236,11 +236,7 @@ class Alerta:
         if nova <= self.severidade:
             raise ValueError(f"{nova} não é mais grave que {self.severidade}")
         self.severidade = nova
-        self.atualizar_motivos(
-            mensagem,
-            gatilho,
-            self.fatores if fatores is None else fatores,
-        )
+        self.atualizar_motivos(mensagem, gatilho, fatores)
 
     def atualizar_motivos(
         self,

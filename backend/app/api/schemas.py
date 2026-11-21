@@ -41,9 +41,9 @@ class AlertaOut(BaseModel):
     codigo_estacao: int
     severidade: Severidade
     severidade_rotulo: str
-    fatores: list[FatorAvaliacaoOut]
     status: StatusAlerta
     mensagem: str
+    fatores: list[FatorAvaliacaoOut]
     emitido_em: datetime
     encerrado_em: datetime | None
 

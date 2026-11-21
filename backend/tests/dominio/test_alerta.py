@@ -94,16 +94,27 @@ def test_alerta_nao_pode_ser_normal() -> None:
 def test_alerta_escalar_e_encerrar() -> None:
     alerta = Alerta(COD, Severidade.ATENCAO, "x", T0)
     with pytest.raises(ValueError):
-        alerta.escalar(Severidade.ATENCAO, "y")
-    alerta.escalar(Severidade.ALERTA, "y")
+        alerta.escalar(Severidade.ATENCAO, "y", None, ())
+    alerta.escalar(Severidade.ALERTA, "y", None, ())
     assert alerta.severidade is Severidade.ALERTA
     alerta.encerrar(T0 + timedelta(hours=1))
     assert alerta.status is StatusAlerta.ENCERRADO
     with pytest.raises(ValueError):
-        alerta.escalar(Severidade.EMERGENCIA, "z")
+        alerta.escalar(Severidade.EMERGENCIA, "z", None, ())
     depois = T0 + timedelta(hours=2)
     with pytest.raises(ValueError):
         alerta.encerrar(depois)
+
+
+def test_escalar_substitui_mensagem_e_fatores() -> None:
+    fator_inicial = FatorAvaliacao("nível elevado", Severidade.ATENCAO, COD, None)
+    fator_novo = FatorAvaliacao("chuva intensa", Severidade.ALERTA, COD, None)
+    alerta = Alerta(COD, Severidade.ATENCAO, "nível elevado", T0, fatores=(fator_inicial,))
+
+    alerta.escalar(Severidade.ALERTA, "chuva intensa", None, (fator_novo,))
+
+    assert alerta.mensagem == "chuva intensa"
+    assert alerta.fatores == (fator_novo,)
 
 
 def test_avaliador_cria_alerta_com_pior_severidade() -> None:
@@ -170,6 +181,8 @@ def test_alerta_inclui_mensagem_de_todos_os_fatores_acionados() -> None:
     assert "Rio acima da cota de alerta" in alerta.mensagem
     assert "Chuva acumulada de 72.0 mm em 24 h" in alerta.mensagem
     assert alerta.medicao_gatilho is series[Grandeza.NIVEL].ultimo()
+    assert len(alerta.fatores) == 2
+    assert {fator.severidade for fator in alerta.fatores} == {Severidade.ALERTA}
 
 
 def test_avaliador_sem_alerta_quando_normal() -> None:
@@ -204,6 +217,23 @@ def test_avaliador_atualiza_fatores_sem_escalar_severidade() -> None:
     assert ativo.severidade is Severidade.ALERTA
     assert len(ativo.fatores) == 2
     assert "Chuva acumulada de 36.0 mm" in ativo.mensagem
+
+
+def test_avaliador_atualiza_descricao_quando_o_valor_muda() -> None:
+    avaliador = AvaliadorAlertas([COTA])
+    ativo = avaliador.avaliar({Grandeza.NIVEL: serie_nivel(450)}, None, T0)
+    assert ativo is not None
+    assert "450 cm" in ativo.mensagem
+
+    resultado = avaliador.avaliar(
+        {Grandeza.NIVEL: serie_nivel(460)},
+        ativo,
+        T0 + timedelta(hours=1),
+    )
+
+    assert resultado is ativo
+    assert ativo.severidade is Severidade.ALERTA
+    assert "460 cm" in ativo.mensagem
 
 
 def test_avaliador_remove_fator_normalizado_sem_rebaixar_alerta() -> None:
