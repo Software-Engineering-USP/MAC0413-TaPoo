@@ -102,8 +102,10 @@ checks. Configure these in the repository settings before enabling the workflow:
 
 - Secret: `SONAR_TOKEN`
 
-The project name and key are defined in `sonar-project.properties`. Coverage is
-intentionally excluded for the initial project phase.
+The project name and key are defined in `sonar-project.properties`. The backend job
+uploads `coverage.xml` for the scan and fails if total coverage (lines and branches)
+drops below 80%. The threshold is `fail_under` in `[tool.coverage.report]` of
+`backend/pyproject.toml`, so `uv run pytest --cov` enforces it locally too.
 
 ## CI/CD
 
