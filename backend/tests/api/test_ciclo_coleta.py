@@ -56,7 +56,8 @@ def test_segundo_ciclo_busca_so_o_que_mudou() -> None:
     relogio[0] = AGORA + timedelta(minutes=15)
     executar_ciclo(container)
 
-    assert fonte.buscas and all(desde == AGORA for _, desde in fonte.buscas)
+    assert fonte.buscas
+    assert all(desde == AGORA for _, desde in fonte.buscas)
     assert {a.id for a in container.consulta.alertas_ativos()} == alertas_antes
 
 
