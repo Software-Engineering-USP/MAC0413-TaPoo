@@ -94,6 +94,12 @@ class RegraCotaReferencia(RegraAlerta):
         if ultimo is None:
             return "Nível do rio sem leitura"
 
+        if severidade is Severidade.NORMAL:
+            return (
+                f"Rio abaixo da cota de atenção ({ultimo.valor:.0f} cm, "
+                f"limite {self.cota_atencao_cm:.0f} cm)"
+            )
+
         cotas = {
             Severidade.ATENCAO: ("atenção", self.cota_atencao_cm),
             Severidade.ALERTA: ("alerta", self.cota_alerta_cm),
@@ -145,7 +151,17 @@ class RegraChuvaAcumulada(RegraAlerta):
 
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
         horas = self.janela.total_seconds() / 3600
-        return f"Chuva acumulada de {serie.acumulado(self.janela):.1f} mm em {horas:.0f} h"
+        limites = {
+            Severidade.NORMAL: ("atenção", self.limite_moderado_mm),
+            Severidade.ATENCAO: ("atenção", self.limite_moderado_mm),
+            Severidade.ALERTA: ("alerta", self.limite_alto_mm),
+            Severidade.EMERGENCIA: ("emergência", self.limite_extremo_mm),
+        }
+        nome_limite, valor_limite = limites[severidade]
+        return (
+            f"Chuva acumulada de {serie.acumulado(self.janela):.1f} mm em {horas:.0f} h "
+            f"(limite de {nome_limite}: {valor_limite:.1f} mm)"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,9 +176,16 @@ class FatorAvaliacao:
 
 @dataclass(frozen=True, slots=True)
 class AvaliacaoDeSituacao:
-    """Resultado agregado das regras, com motivos e explicação legível."""
+    """Resultado agregado; em empates, preserva a ordem original das regras."""
 
     fatores: tuple[FatorAvaliacao, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "fatores",
+            tuple(sorted(self.fatores, key=lambda fator: -fator.severidade.nivel)),
+        )
 
     @property
     def severidade(self) -> Severidade:
@@ -174,7 +197,7 @@ class AvaliacaoDeSituacao:
 
     @property
     def fator_mais_grave(self) -> FatorAvaliacao | None:
-        return max(self.fatores, key=lambda fator: fator.severidade, default=None)
+        return self.fatores[0] if self.fatores else None
 
 
 @dataclass(slots=True)
@@ -187,6 +210,7 @@ class Alerta:
     status: StatusAlerta = StatusAlerta.ATIVO
     encerrado_em: datetime | None = None
     id: UUID = field(default_factory=uuid4)
+    fatores: tuple[FatorAvaliacao, ...] = ()
 
     def __post_init__(self) -> None:
         if self.severidade is Severidade.NORMAL:
@@ -197,15 +221,42 @@ class Alerta:
     def ativo(self) -> bool:
         return self.status is StatusAlerta.ATIVO
 
-    def escalar(self, nova: Severidade, mensagem: str, gatilho: Medicao | None = None) -> None:
+    def escalar(
+        self,
+        nova: Severidade,
+        mensagem: str,
+        gatilho: Medicao | None = None,
+        fatores: tuple[FatorAvaliacao, ...] | None = None,
+    ) -> None:
         """Eleva a severidade. Alertas não são rebaixados: só encerram ao normalizar."""
         if not self.ativo:
             raise ValueError("não é possível escalar um alerta encerrado")
         if nova <= self.severidade:
             raise ValueError(f"{nova} não é mais grave que {self.severidade}")
         self.severidade = nova
-        self.mensagem = mensagem
-        self.medicao_gatilho = gatilho
+        self.atualizar_motivos(
+            mensagem,
+            gatilho,
+            self.fatores if fatores is None else fatores,
+        )
+
+    def atualizar_motivos(
+        self,
+        mensagem: str,
+        gatilho: Medicao | None,
+        fatores: tuple[FatorAvaliacao, ...],
+    ) -> bool:
+        """Atualiza a explicação sem alterar a severidade e informa se algo mudou."""
+        if not self.ativo:
+            raise ValueError("não é possível atualizar um alerta encerrado")
+        alterado = (
+            self.mensagem != mensagem or self.medicao_gatilho != gatilho or self.fatores != fatores
+        )
+        if alterado:
+            self.mensagem = mensagem
+            self.medicao_gatilho = gatilho
+            self.fatores = fatores
+        return alterado
 
     def encerrar(self, quando: datetime) -> None:
         if not self.ativo:
@@ -230,7 +281,7 @@ class AvaliadorAlertas:
         agora: datetime,
     ) -> Alerta | None:
         """Devolve o alerta criado/alterado/encerrado, ou None se nada mudou."""
-        resultado = self._avaliar_regras(series)
+        resultado = self.avaliar_regras(series)
         severidade = resultado.severidade
 
         if severidade is Severidade.NORMAL:
@@ -239,25 +290,38 @@ class AvaliadorAlertas:
                 return ativo
             return None
 
+        fator = resultado.fator_mais_grave
+        if fator is None:
+            raise RuntimeError("avaliação não normal precisa conter ao menos um fator")
+
         if ativo is None or not ativo.ativo:
-            fator = resultado.fator_mais_grave
-            assert fator is not None
             return Alerta(
                 fator.codigo_estacao,
                 severidade,
                 resultado.mensagem,
                 emitido_em=agora,
                 medicao_gatilho=fator.medicao_gatilho,
+                fatores=resultado.fatores,
             )
 
         if severidade > ativo.severidade:
-            fator = resultado.fator_mais_grave
-            assert fator is not None
-            ativo.escalar(severidade, resultado.mensagem, fator.medicao_gatilho)
+            ativo.escalar(
+                severidade,
+                resultado.mensagem,
+                fator.medicao_gatilho,
+                resultado.fatores,
+            )
+            return ativo
+        if ativo.atualizar_motivos(
+            resultado.mensagem,
+            fator.medicao_gatilho,
+            resultado.fatores,
+        ):
             return ativo
         return None
 
-    def _avaliar_regras(self, series: Mapping[Grandeza, SerieTemporal]) -> AvaliacaoDeSituacao:
+    def avaliar_regras(self, series: Mapping[Grandeza, SerieTemporal]) -> AvaliacaoDeSituacao:
+        """Avalia regras ativas e devolve os fatores que contribuem para a situação."""
         fatores = []
         for regra in self.regras:
             serie = series.get(regra.grandeza)

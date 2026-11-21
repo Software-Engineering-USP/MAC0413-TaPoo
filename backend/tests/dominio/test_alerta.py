@@ -74,6 +74,18 @@ def test_regra_rejeita_serie_de_outra_grandeza() -> None:
         COTA.avaliar(serie)
 
 
+def test_descrever_cota_referencia_com_severidade_normal() -> None:
+    descricao = COTA.descrever(Severidade.NORMAL, serie_nivel(250))
+
+    assert descricao == "Rio abaixo da cota de atenção (250 cm, limite 300 cm)"
+
+
+def test_descricao_de_chuva_informa_limite_da_severidade() -> None:
+    descricao = CHUVA.descrever(Severidade.ALERTA, serie_chuva(3, 24))
+
+    assert descricao == "Chuva acumulada de 72.0 mm em 24 h (limite de alerta: 50.0 mm)"
+
+
 def test_alerta_nao_pode_ser_normal() -> None:
     with pytest.raises(ValueError):
         Alerta(COD, Severidade.NORMAL, "x", T0)
@@ -108,7 +120,7 @@ def test_avaliacao_agrega_fatores_e_compoe_mensagem() -> None:
     avaliador = AvaliadorAlertas([COTA, CHUVA])
     series = {Grandeza.NIVEL: serie_nivel(450), Grandeza.CHUVA: serie_chuva(3, 24)}
 
-    resultado = avaliador._avaliar_regras(series)
+    resultado = avaliador.avaliar_regras(series)
 
     assert resultado.severidade is Severidade.ALERTA
     assert len(resultado.fatores) == 2
@@ -134,6 +146,17 @@ def test_avaliacao_seleciona_fator_mais_grave() -> None:
 
     assert resultado.severidade is Severidade.EMERGENCIA
     assert resultado.fator_mais_grave is fator_emergencia
+    assert resultado.fatores == (fator_emergencia, fator_atencao)
+
+
+def test_avaliacao_preserva_ordem_dos_fatores_em_empate() -> None:
+    primeiro = FatorAvaliacao("primeiro", Severidade.ALERTA, COD, None)
+    segundo = FatorAvaliacao("segundo", Severidade.ALERTA, COD, None)
+
+    resultado = AvaliacaoDeSituacao((primeiro, segundo))
+
+    assert resultado.fator_mais_grave is primeiro
+    assert resultado.fatores == (primeiro, segundo)
 
 
 def test_alerta_inclui_mensagem_de_todos_os_fatores_acionados() -> None:
@@ -156,11 +179,54 @@ def test_avaliador_sem_alerta_quando_normal() -> None:
 def test_avaliador_escala_mas_nao_rebaixa() -> None:
     avaliador = AvaliadorAlertas([COTA])
     ativo = Alerta(COD, Severidade.ALERTA, "x", T0)
-    assert avaliador.avaliar({Grandeza.NIVEL: serie_nivel(350)}, ativo, T0) is None
+    resultado = avaliador.avaliar({Grandeza.NIVEL: serie_nivel(350)}, ativo, T0)
+    assert resultado is ativo
     assert ativo.severidade is Severidade.ALERTA
+    assert "Rio acima da cota de atenção" in ativo.mensagem
     resultado = avaliador.avaliar({Grandeza.NIVEL: serie_nivel(550)}, ativo, T0)
     assert resultado is ativo
     assert ativo.severidade is Severidade.EMERGENCIA
+
+
+def test_avaliador_atualiza_fatores_sem_escalar_severidade() -> None:
+    avaliador = AvaliadorAlertas([COTA, CHUVA])
+    serie_nivel_alerta = serie_nivel(450)
+    ativo = avaliador.avaliar({Grandeza.NIVEL: serie_nivel_alerta}, None, T0)
+    assert ativo is not None
+
+    series_com_chuva = {
+        Grandeza.NIVEL: serie_nivel_alerta,
+        Grandeza.CHUVA: serie_chuva(1.5, 24),
+    }
+    resultado = avaliador.avaliar(series_com_chuva, ativo, T0 + timedelta(hours=1))
+
+    assert resultado is ativo
+    assert ativo.severidade is Severidade.ALERTA
+    assert len(ativo.fatores) == 2
+    assert "Chuva acumulada de 36.0 mm" in ativo.mensagem
+
+
+def test_avaliador_remove_fator_normalizado_sem_rebaixar_alerta() -> None:
+    avaliador = AvaliadorAlertas([COTA, CHUVA])
+    series_nivel_e_chuva = {
+        Grandeza.NIVEL: serie_nivel(450),
+        Grandeza.CHUVA: serie_chuva(3, 24),
+    }
+    ativo = avaliador.avaliar(series_nivel_e_chuva, None, T0)
+    assert ativo is not None
+    assert len(ativo.fatores) == 2
+
+    resultado = avaliador.avaliar(
+        {Grandeza.NIVEL: serie_nivel(250), Grandeza.CHUVA: serie_chuva(3, 24)},
+        ativo,
+        T0 + timedelta(hours=1),
+    )
+
+    assert resultado is ativo
+    assert ativo.severidade is Severidade.ALERTA
+    assert len(ativo.fatores) == 1
+    assert "Rio acima da cota" not in ativo.mensagem
+    assert "Chuva acumulada" in ativo.mensagem
 
 
 def test_avaliador_encerra_quando_normaliza() -> None:
