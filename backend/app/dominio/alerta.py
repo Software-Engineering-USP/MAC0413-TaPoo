@@ -15,6 +15,8 @@ from app.dominio.enums import Grandeza, Severidade, StatusAlerta
 from app.dominio.medicao import Medicao, SerieTemporal
 from app.dominio.tempo import exigir_utc
 
+_ROTULO_ATENCAO = "atenção"
+
 
 class RegraAlerta(ABC):
     def __init__(self, codigo_estacao: int, *, id: int | None = None, ativa: bool = True) -> None:
@@ -96,12 +98,12 @@ class RegraCotaReferencia(RegraAlerta):
 
         if severidade is Severidade.NORMAL:
             return (
-                f"Rio abaixo da cota de atenção ({ultimo.valor:.0f} cm, "
+                f"Rio abaixo da cota de {_ROTULO_ATENCAO} ({ultimo.valor:.0f} cm, "
                 f"limite {self.cota_atencao_cm:.0f} cm)"
             )
 
         cotas = {
-            Severidade.ATENCAO: ("atenção", self.cota_atencao_cm),
+            Severidade.ATENCAO: (_ROTULO_ATENCAO, self.cota_atencao_cm),
             Severidade.ALERTA: ("alerta", self.cota_alerta_cm),
             Severidade.EMERGENCIA: ("inundação", self.cota_inundacao_cm),
         }
@@ -152,8 +154,8 @@ class RegraChuvaAcumulada(RegraAlerta):
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
         horas = self.janela.total_seconds() / 3600
         limites = {
-            Severidade.NORMAL: ("atenção", self.limite_moderado_mm),
-            Severidade.ATENCAO: ("atenção", self.limite_moderado_mm),
+            Severidade.NORMAL: (_ROTULO_ATENCAO, self.limite_moderado_mm),
+            Severidade.ATENCAO: (_ROTULO_ATENCAO, self.limite_moderado_mm),
             Severidade.ALERTA: ("alerta", self.limite_alto_mm),
             Severidade.EMERGENCIA: ("emergência", self.limite_extremo_mm),
         }
