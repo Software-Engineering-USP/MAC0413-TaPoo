@@ -146,8 +146,9 @@ def test_historico_mantem_alerta_encerrado_e_o_novo() -> None:
 
 
 def test_historico_de_estacao_inexistente() -> None:
+    consulta = Cenario([]).consulta
     with pytest.raises(EstacaoNaoEncontrada):
-        Cenario([]).consulta.historico_alertas(999)
+        consulta.historico_alertas(999)
 
 
 def test_monitoramento_sem_regras_nao_faz_nada() -> None:
