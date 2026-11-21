@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 _ARQUIVO_ENV = Path(__file__).resolve().parents[2] / ".env"
@@ -42,6 +43,18 @@ def base_url_ana() -> str:
         .strip()
         .rstrip("/")
     )
+
+
+def intervalo_coleta() -> timedelta | None:
+    """Intervalo da coleta periódica (`COLETA_INTERVALO_MINUTOS`, padrão 15); 0 desliga."""
+    _carregar_env_local()
+    try:
+        minutos = float(os.getenv("COLETA_INTERVALO_MINUTOS", "15"))
+    except ValueError as erro:
+        raise RuntimeError("COLETA_INTERVALO_MINUTOS precisa ser um número.") from erro
+    if minutos < 0:
+        raise RuntimeError("COLETA_INTERVALO_MINUTOS não pode ser negativo.")
+    return timedelta(minutes=minutos) if minutos > 0 else None
 
 
 def timeout_ana() -> float:
