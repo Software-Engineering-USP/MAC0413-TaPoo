@@ -266,7 +266,7 @@ classDiagram
       +datetime encerrado_em
       +StatusAlerta status
       +Medicao medicao_gatilho
-      +escalar(nova: Severidade)
+      +escalar(nova: Severidade, mensagem, gatilho, fatores)
       +atualizar_motivos(mensagem, gatilho, fatores) bool
       +encerrar(quando: datetime)
     }
