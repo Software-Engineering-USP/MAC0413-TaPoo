@@ -88,7 +88,7 @@ in `America/Sao_Paulo` before converting them to UTC.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=` | List stations, each with its current `severidade` and active `alerta` |
+| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=&q=` | List stations, each with its current `severidade` and active `alerta`. `q` searches the station name, municipality and river, ignoring accents and case; without `uf` it only searches stations already loaded |
 | GET | `/estacoes/proximas?lat=&lon=&raio_km=50` | Stations within a radius, nearest first |
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
