@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import L from "leaflet";
 
 const emergencyContacts = [
+  { number: "112", service: "Emergência" },
   { number: "190", service: "Polícia Militar" },
   { number: "192", service: "SAMU" },
   { number: "193", service: "Corpo de Bombeiros" },
   { number: "199", service: "Defesa Civil" },
 ];
 
-function CivilDefenseWarning({ onDismiss }) {
+function CivilDefenseWarning() {
   return (
     <div
       role="note"
@@ -24,24 +25,12 @@ function CivilDefenseWarning({ onDismiss }) {
           <strong>Aviso:</strong> Este sistema não substitui os alertas oficiais
           da Defesa Civil. Em uma emergência, acompanhe os canais oficiais.
         </p>
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            aria-label="Fechar aviso"
-            className="shrink-0 rounded p-1 text-amber-800 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
-          >
-            <i className="fa-solid fa-xmark" aria-hidden="true"></i>
-          </button>
-        )}
       </div>
     </div>
   );
 }
 
 export default function App() {
-  const [isCivilDefenseWarningVisible, setCivilDefenseWarningVisible] =
-    useState(true);
   const [isInfoSheetOpen, setInfoSheetOpen] = useState(false);
 
   const openInfoSheet = () => {
@@ -64,6 +53,26 @@ export default function App() {
       behavior: "smooth",
     });
   };
+
+  useEffect(() => {
+    const appShell = document.getElementById("root");
+    const mapView = document.querySelector(".mobile-map-view");
+    if (!appShell || !mapView) return;
+
+    const syncInfoSheetState = () => {
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      setInfoSheetOpen(isMobile && appShell.scrollTop > 0);
+    };
+
+    appShell.addEventListener("scroll", syncInfoSheetState, { passive: true });
+    window.addEventListener("resize", syncInfoSheetState);
+    syncInfoSheetState();
+
+    return () => {
+      appShell.removeEventListener("scroll", syncInfoSheetState);
+      window.removeEventListener("resize", syncInfoSheetState);
+    };
+  }, []);
 
   useEffect(() => {
     const infoBtn = document.getElementById("infoBtn");
@@ -563,17 +572,17 @@ export default function App() {
 
   return (
     <>
-      <aside className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
-        <header className="shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
+      <aside className="app-sidebar w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
+        <header className="app-header shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
+            <div className="app-brand-icon w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
               <i className="fa-solid me-0.5 fa-droplet text-lg"></i>
             </div>
             <div>
-              <h1 className="font-bold text-slate-900 tracking-tight text-xl leading-tight">
+              <h1 className="app-title font-bold text-slate-900 tracking-tight text-xl leading-tight">
                 AquaWatch{" "}
                 <span className="text-sky-600 text-[10px] font-bold px-1.5 py-0.5 bg-sky-50 rounded border border-sky-100 align-middle ml-1">
-                  BR
+                  WEB
                 </span>
               </h1>
             </div>
@@ -620,7 +629,7 @@ export default function App() {
 
         <div
           id="dashboardSheet"
-          className="min-h-0 flex-1 overflow-y-auto p-5 space-y-5"
+          className="dashboard-sheet min-h-0 flex-1 overflow-y-auto p-5 space-y-5"
         >
           <div className="mobile-sheet-handle">
             <button
@@ -637,7 +646,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div className="high-risk-warning bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-2">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-600 text-white shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-white mr-2 animate-ping"></span>
@@ -656,11 +665,7 @@ export default function App() {
             </p>
           </div>
 
-          {isCivilDefenseWarningVisible && (
-            <CivilDefenseWarning
-              onDismiss={() => setCivilDefenseWarningVisible(false)}
-            />
-          )}
+          <CivilDefenseWarning />
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
@@ -678,8 +683,8 @@ export default function App() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="dashboard-grid grid grid-cols-2 gap-4">
+              <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span className="text-[11px] font-medium text-slate-400 block mb-1">
                   CONDIÇÃO ATUAL
                 </span>
@@ -696,7 +701,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span className="text-[11px] font-medium text-slate-400 block mb-1">
                   NÍVEL DO RIO
                 </span>
@@ -771,7 +776,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="dashboard-grid grid grid-cols-2 gap-4">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2.5">
@@ -876,10 +881,12 @@ export default function App() {
               Em caso de alagamento, risco de desabamento ou emergência
               imediata, contate os órgãos responsáveis.
             </p>
-            <div className="grid grid-cols-2 gap-3 relative z-10">
+            <div className="dashboard-grid grid grid-cols-2 gap-3 relative z-10">
               {emergencyContacts.map(({ number, service }) => (
-                <div
+                <a
                   key={number}
+                  href={`tel:${number}`}
+                  aria-label={`Ligar para ${service}, ${number}`}
                   className="flex min-h-20 flex-col items-center justify-center rounded-xl border border-red-100 bg-red-50 p-3 text-center"
                 >
                   <span className="text-lg font-bold leading-tight text-red-800">
@@ -888,7 +895,7 @@ export default function App() {
                   <span className="mt-1 text-xs font-semibold text-slate-800">
                     {service}
                   </span>
-                </div>
+                </a>
               ))}
             </div>
           </div>
@@ -981,7 +988,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
+      <main className="app-main mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
         <div className="map-search-controls">
           <div className="relative flex items-center">
             <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
@@ -1000,44 +1007,37 @@ export default function App() {
             </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={openInfoSheet}
-          aria-controls="dashboardSheet"
-          aria-expanded={isInfoSheetOpen}
-          className="open-info-tab flex items-center gap-2 whitespace-nowrap rounded-full border border-slate-200 bg-white px-5 py-3 text-xs font-semibold text-slate-700 shadow-lg transition active:scale-95"
-        >
-          Ver informações
-          <i className="fa-solid fa-chevron-up text-[10px]"></i>
-        </button>
         <div
           id="interactiveMap"
+          className="interactive-map"
           role="application"
           aria-label="Mapa interativo de risco de inundação"
         ></div>
       </main>
 
-      <div className="mobile-bottom-nav" aria-hidden="true">
-        <div className="active">
+      <nav className="mobile-bottom-nav" aria-label="Navegação principal">
+        <button
+          type="button"
+          onClick={closeInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-pressed={!isInfoSheetOpen}
+          className={!isInfoSheetOpen ? "active" : ""}
+        >
           <i className="fa-solid fa-map-location-dot"></i>
           <span>Mapa</span>
-        </div>
-        <div>
-          <span className="relative">
-            <i className="fa-regular fa-bell"></i>
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-red-500"></span>
-          </span>
-          <span>Alertas</span>
-        </div>
-        <div>
-          <i className="fa-solid fa-chart-simple"></i>
-          <span>Histórico</span>
-        </div>
-        <div>
-          <i className="fa-regular fa-user"></i>
-          <span>Conta</span>
-        </div>
-      </div>
+        </button>
+        <button
+          type="button"
+          onClick={openInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-expanded={isInfoSheetOpen}
+          aria-pressed={isInfoSheetOpen}
+          className={isInfoSheetOpen ? "active" : ""}
+        >
+          <i className="fa-solid fa-circle-info"></i>
+          <span>Informações</span>
+        </button>
+      </nav>
 
       <div
         id="promptModal"

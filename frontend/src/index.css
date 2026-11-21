@@ -25,8 +25,7 @@ body {
   display: none;
 }
 
-.mobile-sheet-handle,
-.open-info-tab {
+.mobile-sheet-handle {
   display: none;
 }
 
@@ -38,22 +37,28 @@ body {
   width: min(26rem, calc(100% - 2rem));
 }
 
-#root > main {
+.app-main {
   position: static;
   z-index: auto;
 }
 
-#root > aside {
+.app-sidebar {
   overflow-x: hidden;
   overflow-y: auto;
 }
 
-#root > aside > header {
+.app-header {
   position: sticky;
   top: 0;
 }
 
-#dashboardSheet {
+@media (min-width: 768px) {
+  .app-header {
+    z-index: 30;
+  }
+}
+
+.dashboard-sheet {
   flex: none;
   overflow: visible;
 }
@@ -70,15 +75,15 @@ body {
 }
 
 @media (min-width: 768px) {
-  #dashboardSheet {
+  .dashboard-sheet {
     padding-top: 1rem;
   }
 
-  #dashboardSheet > * + * {
+  .dashboard-sheet > * + * {
     margin-top: 1rem;
   }
 
-  #dashboardSheet > .bg-red-50\/90 {
+  .dashboard-sheet > .high-risk-warning {
     margin-top: 0;
   }
 }
@@ -176,11 +181,11 @@ body {
     display: none;
   }
 
-  #root > aside {
+  .app-sidebar {
     display: contents;
   }
 
-  #root > aside > header {
+  .app-header {
     position: sticky;
     top: 0;
     z-index: 40;
@@ -192,35 +197,35 @@ body {
     box-shadow: none;
   }
 
-  #root > aside > header > div > div:first-child {
+  .app-brand-icon {
     width: 2rem;
     height: 2rem;
     border-radius: 0.75rem;
   }
 
-  #root > aside > header > div > div:first-child i {
+  .app-brand-icon i {
     font-size: 0.875rem;
   }
 
-  #root > aside > header > div > div:last-child h1 {
+  .app-title {
     font-size: 1.125rem;
   }
 
-  #root > aside > header > div > div:last-child h1 span {
+  .app-title > span {
     font-size: 0.75rem;
     font-weight: 600;
   }
 
-  #root > aside > header > button {
+  .app-header > button {
     width: 2rem;
     height: 2rem;
   }
 
-  #root > aside > header > button i {
+  .app-header > button i {
     font-size: 1rem;
   }
 
-  #root > aside > div.overflow-y-auto {
+  .dashboard-sheet {
     position: relative;
     z-index: 10;
     order: 2;
@@ -240,35 +245,35 @@ body {
     transform: translateX(-50%);
   }
 
-  #root > aside > div.overflow-y-auto > :not(:first-child) {
+  .dashboard-sheet > :not(:first-child) {
     margin-top: 0.75rem;
   }
 
-  #root > aside > div.overflow-y-auto > :not(.mobile-sheet-handle):not(.grid) {
+  .dashboard-sheet > :not(.mobile-sheet-handle):not(.dashboard-grid) {
     padding: 1rem;
   }
 
-  #root > aside > div.overflow-y-auto .grid-cols-2 {
+  .dashboard-sheet .dashboard-grid {
     gap: 0.75rem;
   }
 
-  #root > aside > div.overflow-y-auto .grid-cols-2 > div.bg-slate-50 {
+  .dashboard-grid > .dashboard-grid-card {
     min-width: 0;
     padding: 0.625rem;
   }
 
-  #root > aside > div.overflow-y-auto > .grid-cols-2 > div {
+  .dashboard-sheet > .dashboard-grid > * {
     min-width: 0;
     padding: 0.75rem;
   }
 
-  #root > aside > div.overflow-y-auto > .mobile-sheet-handle {
+  .dashboard-sheet > .mobile-sheet-handle {
     display: block;
     margin: 0 -1rem;
     padding: 0.75rem 1rem 0;
   }
 
-  #root > main {
+  .app-main {
     position: sticky;
     top: 61px;
     z-index: 0;
@@ -281,7 +286,7 @@ body {
     flex: none;
   }
 
-  #root > main #interactiveMap {
+  .app-main .interactive-map {
     position: absolute;
     inset: 0;
     min-height: 340px;
@@ -298,7 +303,7 @@ body {
     margin: 0 0.75rem;
   }
 
-  #root > aside > .saved-places-track {
+  .app-sidebar > .saved-places-track {
     position: fixed;
     top: 8rem;
     left: 50%;
@@ -391,15 +396,6 @@ body {
     padding: 0.25rem;
   }
 
-  .open-info-tab {
-    position: absolute;
-    bottom: calc(5rem + env(safe-area-inset-bottom));
-    left: 50%;
-    z-index: 10;
-    display: flex;
-    transform: translateX(-50%);
-  }
-
   .mobile-bottom-nav {
     position: fixed;
     right: auto;
@@ -418,14 +414,18 @@ body {
     transform: translateX(-50%);
   }
 
-  .mobile-bottom-nav > div {
+  .mobile-bottom-nav > button {
     display: flex;
-    min-width: 3.5rem;
+    min-width: 5rem;
     flex-direction: column;
     align-items: center;
     gap: 0.125rem;
+    border: 0;
+    padding: 0;
+    background: transparent;
     color: #94a3b8;
     font-size: 10px;
+    cursor: pointer;
   }
 
   .mobile-bottom-nav i {
