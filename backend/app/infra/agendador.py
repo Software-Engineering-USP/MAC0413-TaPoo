@@ -45,10 +45,9 @@ class AgendadorDeColeta:
         if tarefa is None:
             return
         tarefa.cancel()
-        try:
-            await tarefa
-        except asyncio.CancelledError:
-            pass
+        # `wait` espera o fim da tarefa sem relançar o cancelamento dela; se quem chamou
+        # `parar()` for cancelado, o `CancelledError` dele continua propagando.
+        await asyncio.wait([tarefa])
 
     async def _loop(self) -> None:
         await asyncio.sleep(self._atraso_inicial.total_seconds())
