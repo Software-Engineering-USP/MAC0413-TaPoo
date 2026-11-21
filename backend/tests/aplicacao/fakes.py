@@ -102,6 +102,10 @@ class Alertas(AlertaRepositorio):
     def ativos(self) -> list[Alerta]:
         return [a for a in self.dados.values() if a.ativo]
 
+    def historico_da_estacao(self, codigo: int, limite: int | None = None) -> list[Alerta]:
+        alertas = [a for a in self.dados.values() if a.codigo_estacao == codigo]
+        return sorted(alertas, key=lambda a: a.emitido_em, reverse=True)[:limite]
+
 
 class Regras(RegraRepositorio):
     def __init__(self, regras: list[RegraAlerta]) -> None:

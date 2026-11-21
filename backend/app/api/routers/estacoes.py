@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
-from app.api.schemas import EstacaoOut, EstacaoProximaOut, SerieOut
+from app.api.schemas import AlertaOut, EstacaoOut, EstacaoProximaOut, SerieOut
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
 from app.dominio.geografia import Coordenada
@@ -76,3 +76,15 @@ def serie_da_estacao(
     sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)
+
+
+@router.get("/{codigo}/alertas")
+def historico_de_alertas(
+    codigo: int,
+    consulta: Consulta,
+    sincronizar: Sincronizar,
+    limite: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> list[AlertaOut]:
+    """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""
+    sincronizar.garantir(codigo)
+    return [AlertaOut.de(a) for a in consulta.historico_alertas(codigo, limite)]
