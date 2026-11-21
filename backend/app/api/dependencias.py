@@ -6,7 +6,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -18,6 +18,7 @@ from app.aplicacao.portas import FonteDadosHidrologicos
 from app.aplicacao.sincronizacao import SincronizarEstacoes
 from app.configuracao import base_url_ana, credenciais_ana, timeout_ana
 from app.dominio.tempo import agora_utc
+from app.infra.agendador import AgendadorDeColeta
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake, regras_de_exemplo
 from app.infra.memoria.repositorios import (
@@ -71,7 +72,20 @@ def carga_inicial(container: Container) -> None:
     """Sincroniza estações; fontes pequenas também carregam séries de exemplo."""
     if container.carregar_na_inicializacao:
         container.sincronizar.executar()
-        container.coletar.executar_todas()
+        executar_ciclo(container)
+
+
+def executar_ciclo(container: Container) -> int:
+    """Um ciclo do agendador: coleta as estações monitoradas e reavalia os alertas.
+
+    Não sincroniza o inventário: na ANA isso baixaria todas as estações do país. As
+    estações entram no repositório na carga inicial ou sob demanda, pelas rotas.
+    """
+    return container.coletar.executar_todas()
+
+
+def criar_agendador(container: Container, intervalo: timedelta) -> AgendadorDeColeta:
+    return AgendadorDeColeta(lambda: executar_ciclo(container), intervalo)
 
 
 def _container(request: Request) -> Container:
