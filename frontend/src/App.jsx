@@ -79,10 +79,7 @@ function criarPopupEstacao(estacao, nome, severidade) {
   titulo.textContent = nome;
   popup.appendChild(titulo);
 
-  const municipio =
-    estacao.municipio && estacao.uf
-      ? `${estacao.municipio} — ${estacao.uf}`
-      : estacao.uf;
+  const municipio = [estacao.municipio, estacao.uf].filter(Boolean).join(" — ");
   const detalhes = [
     municipio,
     estacao.rio && `Rio: ${estacao.rio}`,
@@ -291,16 +288,28 @@ export default function App() {
           signal: requisicao.signal,
         });
         if (requisicao.signal.aborted) return;
-        const markers = limitarEstacoesParaMapa(stations);
+        const stationsWithCoordinates = stations.filter((station) =>
+          obterCoordenadasEstacao(station),
+        );
+        const stationsWithoutCoordinates =
+          stations.length - stationsWithCoordinates.length;
+        const markers = limitarEstacoesParaMapa(stationsWithCoordinates);
         const markersRendered = renderStationMarkers(markers, true);
         if (stationSearchStatus) {
           if (stations.length === 0) {
             stationSearchStatus.textContent = "Nenhuma estação encontrada.";
-          } else if (markersRendered === 0) {
+          } else if (stationsWithCoordinates.length === 0) {
             stationSearchStatus.textContent =
-              "Foram encontradas estações sem coordenadas válidas para exibir.";
-          } else if (stations.length > markersRendered) {
-            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stations.length} estações de ${uf}. Refine a busca para ver outras.`;
+              `Foram encontradas ${stations.length} estações, mas nenhuma tem coordenadas válidas para exibir.`;
+          } else if (
+            stationsWithCoordinates.length > markersRendered &&
+            stationsWithoutCoordinates > 0
+          ) {
+            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stationsWithCoordinates.length} estações com coordenadas válidas em ${uf}; ${stationsWithoutCoordinates} sem coordenadas válidas.`;
+          } else if (stationsWithCoordinates.length > markersRendered) {
+            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stationsWithCoordinates.length} estações com coordenadas válidas em ${uf}. Refine a busca para ver outras.`;
+          } else if (stationsWithoutCoordinates > 0) {
+            stationSearchStatus.textContent = `${markersRendered} estação(ões) exibida(s) em ${uf}; ${stationsWithoutCoordinates} sem coordenadas válidas.`;
           } else {
             stationSearchStatus.textContent = `${markersRendered} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
           }
@@ -713,7 +722,24 @@ export default function App() {
     const stationSearchForm = document.getElementById("stationSearchForm");
     const handleStationSearch = (event) => {
       event.preventDefault();
+      stationRequest?.abort();
       const query = searchInput.value.trim();
+      const normalizedQuery = query.toLocaleLowerCase("pt-BR");
+      const savedPlaceMatches =
+        query.length >= 2
+          ? savedPlaces.filter((place) =>
+              place.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery),
+            )
+          : [];
+      const savedPlace =
+        savedPlaceMatches.length === 1 ? savedPlaceMatches[0] : null;
+      if (savedPlace) {
+        map.flyTo(savedPlace.center, savedPlace.zoom);
+        stationSearchStatus.textContent = `Mapa centralizado em “${savedPlace.name}”.`;
+        stationSearchStatus.dataset.state = "success";
+        searchInput.blur();
+        return;
+      }
       if (query.length < 2) {
         stationSearchStatus.textContent =
           "Informe ao menos 2 caracteres para pesquisar.";
@@ -1197,25 +1223,28 @@ export default function App() {
             <input
               type="text"
               id="searchInput"
-              aria-label="Buscar estação por cidade, nome ou rio"
-              placeholder="Município, estação ou rio..."
-              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-24 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              aria-label="Buscar local salvo, estação por cidade, nome ou rio"
+              placeholder="Local salvo, município, estação ou rio..."
+              maxLength={100}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-28 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
-            <button
-              type="button"
-              id="myLocationBtn"
-              className="absolute right-12 p-1 text-slate-400 hover:text-sky-600"
-              title="Minha localização"
-              aria-label="Ir para minha localização salva"
-            >
-              <i className="fa-solid fa-location-arrow text-xs"></i>
-            </button>
-            <button
-              type="submit"
-              className="absolute right-2 rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
-            >
-              Filtrar
-            </button>
+            <div className="absolute right-2 flex items-center gap-1">
+              <button
+                type="button"
+                id="myLocationBtn"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                title="Minha localização"
+                aria-label="Ir para minha localização salva"
+              >
+                <i className="fa-solid fa-location-arrow text-xs"></i>
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              >
+                Filtrar
+              </button>
+            </div>
           </form>
           <p
             id="stationSearchStatus"
@@ -1225,8 +1254,24 @@ export default function App() {
             data-state="empty"
           >
             Selecione o estado e informe pelo menos 2 caracteres para consultar
-            as estações.
+            as estações. Você também pode buscar um local salvo.
           </p>
+        </div>
+        <div
+          className="risk-area-legend"
+          aria-label="Legenda das áreas simuladas"
+        >
+          <strong>Áreas ilustrativas</strong>
+          <span>
+            <i className="risk-area-swatch risk-area-low" />Baixo
+          </span>
+          <span>
+            <i className="risk-area-swatch risk-area-moderate" />Moderado
+          </span>
+          <span>
+            <i className="risk-area-swatch risk-area-high" />Alto
+          </span>
+          <small>Não representam alertas oficiais</small>
         </div>
         <div
           id="interactiveMap"
