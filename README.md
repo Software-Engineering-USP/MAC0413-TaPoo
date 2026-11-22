@@ -56,6 +56,11 @@ npm run format:check  # check only (CI)
 
 API health check: `http://localhost:8000/health`. Interactive docs: `http://localhost:8000/docs`.
 
+The API only accepts browser requests (CORS) from the origins in `CORS_ORIGENS`,
+comma-separated. When unset, it allows the local frontend
+(`http://localhost:3000` and `http://localhost:5173`); in production, set it to the
+public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
+
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
