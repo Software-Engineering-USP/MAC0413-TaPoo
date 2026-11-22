@@ -211,3 +211,132 @@ medições — enquanto estações usam enum e composição porque seus dados e 
 majoritariamente comuns. Os padrões apresentados são identificados pelo papel que
 desempenham no código, com limites e alternativas registrados para evitar chamar toda
 abstração de um padrão de projeto.
+
+## Princípios de projeto e boas práticas
+
+### Responsabilidade única e coesão
+
+As classes de aplicação concentram um caso de uso. `ColetarMedicoes` coordena buscar,
+salvar e monitorar medições; `ConsultarDados` reúne operações de consulta. A conversão
+do formato da ANA fica no adaptador `FonteAna`, e as rotas HTTP ficam em
+`backend/app/api/routers/`. Essa divisão mantém responsabilidades relacionadas juntas
+e reduz a necessidade de uma única classe conhecer todo o sistema.
+
+Isso não significa que cada classe deva ter somente um método. O critério é se as
+operações mudam pelas mesmas razões: por exemplo, alterações no protocolo da ANA devem
+ficar no adaptador, sem exigir mudanças em `ConsultarDados`.
+
+### Aberto para extensão e fechado para modificação
+
+`AvaliadorAlertas` trabalha com objetos `RegraAlerta`. Uma nova regra pode implementar
+esse contrato sem transformar o avaliador numa sequência de condicionais por tipo. As
+estratégias atuais incluem `RegraCotaReferencia`, `RegraChuvaAcumulada` e
+`RegraSubidaRapida`, em `backend/app/dominio/alerta.py`.
+
+O princípio não exige evitar toda mudança em código existente. Se a nova regra exigir
+uma nova grandeza ou uma nova forma de obter dados, os contratos e os casos de uso
+relacionados também podem precisar evoluir.
+
+### Substituição de Liskov
+
+As subclasses de `Medicao` oferecem `grandeza()` e podem ser usadas como medições em
+`SerieTemporal`. O código consumidor não precisa distinguir chuva, nível e vazão para
+armazenar ou ordenar as medições. As validações particulares — como chuva e vazão não
+negativas — tornam explícitas as condições específicas de cada subtipo.
+
+Esse exemplo mostra a intenção de substituição, não uma prova formal de que toda
+subclasse futura será compatível. Novos subtipos devem preservar as operações e
+invariantes esperadas pelos consumidores de `Medicao`.
+
+### Segregação de interfaces
+
+Os contratos da aplicação são separados por papel: fontes hidrológicas, repositórios de
+estações, de medições, de alertas e de regras. Os serviços recebem apenas as portas que
+usam. Isso evita que uma implementação de repositório tenha de conhecer a API externa
+da ANA.
+
+As portas ainda têm mais de uma operação quando elas pertencem ao mesmo papel — por
+exemplo, buscar e listar são responsabilidades relacionadas de `EstacaoRepositorio`.
+O objetivo não é criar uma interface para cada método, mas evitar contratos grandes que
+obriguem implementações a oferecer capacidades sem relação entre si.
+
+### Inversão de dependência
+
+`ColetarMedicoes` recebe `FonteDadosHidrologicos`, `EstacaoRepositorio` e
+`MedicaoRepositorio` no construtor. Ele depende de abstrações da aplicação, enquanto a
+composição em `backend/app/api/dependencias.py` escolhe as implementações concretas.
+Assim, os testes podem injetar fontes e repositórios falsos sem alterar o caso de uso.
+
+### Nomes, exceções e acoplamento
+
+Os nomes do domínio são em português e descrevem conceitos do problema — por exemplo,
+`EstacaoRepositorio`, `Periodo` e `RegraCotaReferencia`. Métodos que executam ações usam
+verbos como `salvar_varias`, `buscar_medicoes` e `avaliar`.
+
+As entidades validam suas próprias invariantes. `Periodo` rejeita intervalos inválidos;
+`MedicaoChuva` rejeita chuva negativa. No código atual, esses casos usam `ValueError`.
+As rotas e a infraestrutura não devem duplicar essas validações: devem deixar o domínio
+ou a camada de aplicação comunicar o erro. A adoção de exceções de domínio nomeadas é
+uma evolução possível, mas precisa estar presente na branch integrada antes de ser
+descrita como implementação atual.
+
+## Padrões considerados e não adotados
+
+Uma solução deve ser escolhida para resolver uma necessidade presente. Os padrões
+abaixo não são proibidos; apenas não são necessários para o fluxo atual.
+
+### Singleton
+
+Um Singleton faria uma única instância global de um objeto. O projeto compõe as
+dependências em `montar_container` e entrega essa instância às rotas e serviços. Esse
+arranjo deixa o ciclo de vida explícito e permite criar containers isolados nos testes,
+sem estado global compartilhado. Um Singleton só seria justificável se houvesse uma
+necessidade concreta de garantir unicidade fora desse ponto de composição.
+
+### Observer
+
+Observer permite que vários interessados recebam notificações quando um objeto muda.
+No fluxo atual, `ColetarMedicoes` chama diretamente `MonitorarEstacoes`, que avalia as
+regras e salva alertas. Há um caminho conhecido e síncrono, então uma lista de
+observadores adicionaria registro, despacho e tratamento de falhas sem benefício claro.
+Se no futuro alertas precisarem notificar vários canais independentes (por exemplo,
+e-mail, painel e mensagens), um evento ou mecanismo de publicação poderá ser avaliado.
+
+### Herança para cada tipo de estação
+
+Criar uma subclasse para cada combinação de tipo e telemetria aumentaria a hierarquia
+sem comportamento distinto suficiente para justificá-la. A decisão atual e seus
+critérios para revisão estão detalhados na seção “Decisão de modelagem: `Estacao` e
+`TipoEstacao`”.
+
+## Processo de desenvolvimento e revisão
+
+### Fluxo de mudanças
+
+O repositório organiza o trabalho em branches e pull requests direcionados à `main`.
+Uma revisão deve comparar a mudança com a issue, observar se o escopo está delimitado,
+examinar os casos de erro e verificar se os testes cobrem o comportamento alterado.
+Comentários devem apontar o arquivo e o cenário reproduzível; mudanças pedidas devem
+ser verificadas novamente na versão atualizada do PR.
+
+### Verificações automatizadas
+
+O workflow `.github/workflows/ci-cd.yml` executa os seguintes passos em pull requests
+para `main`:
+
+| Parte | Verificações configuradas |
+|---|---|
+| Backend | `uv sync --locked --extra dev`, `uv run ruff check .`, `uv run ruff format --check .` e `uv run pytest --cov=app` |
+| Frontend | `npm ci`, `npm run lint`, `npm run format:check` e `npm run build` |
+| Qualidade | SonarCloud roda depois dos jobs de backend e frontend; a cobertura mínima do backend é 80% |
+
+O Ruff verifica problemas estáticos e formatação Python; ESLint verifica problemas no
+JavaScript/React; Prettier confere formatação; pytest executa a suíte do backend; e o
+build confirma que o frontend pode ser empacotado. Essas verificações complementam a
+revisão de comportamento, mas não substituem a avaliação dos requisitos da issue.
+
+Os comandos para o frontend podem ser executados no diretório `frontend`. Para rodar
+Ruff e os testes do backend no ambiente local do projeto, use a instalação de
+desenvolvimento em `backend`; com Docker, a imagem de execução não inclui as
+dependências de desenvolvimento, então é necessário sincronizar o grupo `dev` antes
+das verificações.
