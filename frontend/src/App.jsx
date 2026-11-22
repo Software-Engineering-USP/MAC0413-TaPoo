@@ -299,8 +299,7 @@ export default function App() {
           if (stations.length === 0) {
             stationSearchStatus.textContent = "Nenhuma estação encontrada.";
           } else if (stationsWithCoordinates.length === 0) {
-            stationSearchStatus.textContent =
-              `Foram encontradas ${stations.length} estações, mas nenhuma tem coordenadas válidas para exibir.`;
+            stationSearchStatus.textContent = `Foram encontradas ${stations.length} estações, mas nenhuma tem coordenadas válidas para exibir.`;
           } else if (
             stationsWithCoordinates.length > markersRendered &&
             stationsWithoutCoordinates > 0
@@ -1263,13 +1262,16 @@ export default function App() {
         >
           <strong>Áreas ilustrativas</strong>
           <span>
-            <i className="risk-area-swatch risk-area-low" />Baixo
+            <i className="risk-area-swatch risk-area-low" />
+            Baixo
           </span>
           <span>
-            <i className="risk-area-swatch risk-area-moderate" />Moderado
+            <i className="risk-area-swatch risk-area-moderate" />
+            Moderado
           </span>
           <span>
-            <i className="risk-area-swatch risk-area-high" />Alto
+            <i className="risk-area-swatch risk-area-high" />
+            Alto
           </span>
           <small>Não representam alertas oficiais</small>
         </div>
