@@ -57,6 +57,14 @@ class DataHoraUtc(TypeDecorator[datetime]):
         return valor.replace(tzinfo=UTC) if valor.tzinfo is None else valor.astimezone(UTC)
 
 
+_CODIGO_ESTACAO = "estacoes.codigo"
+
+
+def _cascata(coluna: str) -> ForeignKey:
+    """Chave estrangeira que apaga as linhas filhas junto com a linha referenciada."""
+    return ForeignKey(coluna, ondelete="CASCADE")
+
+
 def _enum(classe: type) -> Enum:
     return Enum(classe, native_enum=False, length=20, validate_strings=True)
 
@@ -86,9 +94,7 @@ class MedicaoModelo(Base):
 
     __tablename__ = "medicoes"
 
-    codigo_estacao: Mapped[int] = mapped_column(
-        ForeignKey("estacoes.codigo", ondelete="CASCADE"), primary_key=True
-    )
+    codigo_estacao: Mapped[int] = mapped_column(_cascata(_CODIGO_ESTACAO), primary_key=True)
     grandeza: Mapped[Grandeza] = mapped_column(_enum(Grandeza), primary_key=True)
     data_hora_utc: Mapped[datetime] = mapped_column(DataHoraUtc(), primary_key=True)
     origem: Mapped[OrigemDado] = mapped_column(_enum(OrigemDado), primary_key=True)
@@ -105,7 +111,7 @@ class AlertaModelo(Base):
     __table_args__ = (Index("ix_alertas_estacao_status", "codigo_estacao", "status"),)
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
-    codigo_estacao: Mapped[int] = mapped_column(ForeignKey("estacoes.codigo", ondelete="CASCADE"))
+    codigo_estacao: Mapped[int] = mapped_column(_cascata(_CODIGO_ESTACAO))
     severidade: Mapped[Severidade] = mapped_column(_enum(Severidade))
     mensagem: Mapped[str] = mapped_column(Text)
     emitido_em: Mapped[datetime] = mapped_column(DataHoraUtc())
@@ -126,13 +132,11 @@ class FatorAlertaModelo(Base):
 
     __tablename__ = "fatores_alerta"
 
-    alerta_id: Mapped[UUID] = mapped_column(
-        ForeignKey("alertas.id", ondelete="CASCADE"), primary_key=True
-    )
+    alerta_id: Mapped[UUID] = mapped_column(_cascata("alertas.id"), primary_key=True)
     posicao: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     descricao: Mapped[str] = mapped_column(Text)
     severidade: Mapped[Severidade] = mapped_column(_enum(Severidade))
-    codigo_estacao: Mapped[int] = mapped_column(ForeignKey("estacoes.codigo", ondelete="CASCADE"))
+    codigo_estacao: Mapped[int] = mapped_column(_cascata(_CODIGO_ESTACAO))
     gatilho_grandeza: Mapped[Grandeza | None] = mapped_column(_enum(Grandeza))
     gatilho_data_hora_utc: Mapped[datetime | None] = mapped_column(DataHoraUtc())
     gatilho_origem: Mapped[OrigemDado | None] = mapped_column(_enum(OrigemDado))
