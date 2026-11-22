@@ -24,9 +24,20 @@ def listar_estacoes(
     uf: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
     tipo: TipoEstacao | None = None,
     apenas_telemetricas: bool = False,
+    q: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=100,
+            description="Busca por nome da estação, município ou rio (sem acento e maiúsculas).",
+        ),
+    ] = None,
 ) -> list[EstacaoOut]:
-    filtro = FiltroEstacoes(uf=uf, tipo=tipo, apenas_telemetricas=apenas_telemetricas)
-    sincronizar.executar(filtro)
+    filtro = FiltroEstacoes(uf=uf, tipo=tipo, apenas_telemetricas=apenas_telemetricas, texto=q)
+    # Busca sem UF fica nas estações já conhecidas: na ANA, sincronizar sem UF baixaria
+    # o inventário do país inteiro a cada tecla digitada no front.
+    if q is None or uf is not None:
+        sincronizar.executar(filtro)
     return [EstacaoOut.de(e) for e in consulta.listar_estacoes(filtro)]
 
 

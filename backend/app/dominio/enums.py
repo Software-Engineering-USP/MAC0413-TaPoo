@@ -17,8 +17,14 @@ class Grandeza(StrEnum):
     def unidade(self) -> str:
         return _UNIDADES[self]
 
+    @property
+    def rotulo(self) -> str:
+        """Nome para exibição ao usuário (ex.: "Nível")."""
+        return _ROTULOS_GRANDEZA[self]
+
 
 _UNIDADES = {Grandeza.CHUVA: "mm", Grandeza.NIVEL: "cm", Grandeza.VAZAO: "m3/s"}
+_ROTULOS_GRANDEZA = {Grandeza.CHUVA: "Chuva", Grandeza.NIVEL: "Nível", Grandeza.VAZAO: "Vazão"}
 
 
 class OrigemDado(StrEnum):
@@ -44,6 +50,11 @@ class Severidade(StrEnum):
     def nivel(self) -> int:
         return list(Severidade).index(self)
 
+    @property
+    def rotulo(self) -> str:
+        """Nome para exibição ao usuário (ex.: "Atenção")."""
+        return _ROTULOS_SEVERIDADE[self]
+
     # str já define comparações lexicográficas; sobrescrevemos as quatro
     # para que a ordem siga a gravidade, não o texto.
     def __lt__(self, outra: object) -> bool:
@@ -65,6 +76,14 @@ class Severidade(StrEnum):
         if not isinstance(outra, Severidade):
             return NotImplemented
         return self.nivel >= outra.nivel
+
+
+_ROTULOS_SEVERIDADE = {
+    Severidade.NORMAL: "Normal",
+    Severidade.ATENCAO: "Atenção",
+    Severidade.ALERTA: "Alerta",
+    Severidade.EMERGENCIA: "Emergência",
+}
 
 
 class StatusAlerta(StrEnum):
