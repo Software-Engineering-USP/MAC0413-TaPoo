@@ -261,16 +261,33 @@ classDiagram
       +int codigo_estacao
       +Severidade severidade
       +str mensagem
+      +tuple~FatorAvaliacao~ fatores
       +datetime emitido_em
       +datetime encerrado_em
       +StatusAlerta status
       +Medicao medicao_gatilho
-      +escalar(nova: Severidade)
+      +escalar(nova: Severidade, mensagem, gatilho, fatores)
+      +atualizar_motivos(mensagem, gatilho, fatores) bool
       +encerrar(quando: datetime)
+    }
+    class FatorAvaliacao {
+      <<objeto de valor>>
+      +str descricao
+      +Severidade severidade
+      +int codigo_estacao
+      +Medicao medicao_gatilho
+    }
+    class AvaliacaoDeSituacao {
+      <<objeto de valor>>
+      +tuple~FatorAvaliacao~ fatores
+      +Severidade severidade
+      +str mensagem
+      +FatorAvaliacao fator_mais_grave
     }
     class AvaliadorAlertas {
       +list~RegraAlerta~ regras
       +avaliar(serie: SerieTemporal, ativo: Alerta) Alerta
+      +avaliar_regras(series) AvaliacaoDeSituacao
     }
     class Severidade {
       <<enumeração>>
@@ -290,7 +307,11 @@ classDiagram
     RegraAlerta <|-- RegraSubidaRapida
     AvaliadorAlertas o-- "1..*" RegraAlerta
     AvaliadorAlertas ..> SerieTemporal : lê
+    AvaliadorAlertas ..> AvaliacaoDeSituacao : produz
     AvaliadorAlertas ..> Alerta : cria / atualiza
+    AvaliacaoDeSituacao o-- "0..*" FatorAvaliacao
+    Alerta o-- "0..*" FatorAvaliacao
+    FatorAvaliacao --> Severidade
     Alerta --> Severidade
     Alerta --> StatusAlerta
     RegraAlerta ..> Severidade

@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.dominio.enums import Grandeza, Severidade, TipoEstacao
+from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao, SerieTemporal
@@ -35,7 +36,7 @@ def test_polimorfismo_de_grandeza(classe: type[Medicao], grandeza: Grandeza, uni
 
 
 def test_chuva_negativa_e_invalida() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         chuva(0, -1)
 
 
@@ -55,9 +56,9 @@ def test_serie_rejeita_outra_grandeza_ou_estacao() -> None:
     serie = SerieTemporal(1, Grandeza.CHUVA)
     de_outra_grandeza = MedicaoNivel(1, T0, 100)
     de_outra_estacao = chuva(0, 1, codigo=2)
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         serie.adicionar(de_outra_grandeza)
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         serie.adicionar(de_outra_estacao)
 
 
