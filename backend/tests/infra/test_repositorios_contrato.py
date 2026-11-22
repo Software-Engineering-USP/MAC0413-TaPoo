@@ -221,7 +221,7 @@ def test_alerta_alterado_e_encerrado_e_regravado(repos: Repositorios) -> None:
     repos.alertas.salvar(outro)
 
     lido = repos.alertas.ativo_da_estacao(1)
-    lido.escalar(Severidade.EMERGENCIA, "muito acima")
+    lido.escalar(Severidade.EMERGENCIA, "muito acima", None, ())
     repos.alertas.salvar(lido)
     assert repos.alertas.ativo_da_estacao(1).severidade is Severidade.EMERGENCIA
 
