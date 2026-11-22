@@ -26,3 +26,20 @@ def test_historico_de_alertas_valida_limite_e_estacao(client: TestClient) -> Non
     assert client.get("/estacoes/90000004/alertas?limite=0").status_code == 422
     assert client.get("/estacoes/90000004/alertas?limite=501").status_code == 422
     assert client.get("/estacoes/99999999/alertas").status_code == 404
+
+
+def test_alertas_expoem_fatores_da_explicacao(client: TestClient) -> None:
+    alertas = client.get("/alertas").json()
+    alerta = next(a for a in alertas if a["codigo_estacao"] == 90000001)
+    fatores_esperados = [
+        {
+            "descricao": "Rio acima da cota de alerta (440 cm, limite 400 cm)",
+            "severidade": "ALERTA",
+            "severidade_rotulo": "Alerta",
+        }
+    ]
+
+    assert alerta["fatores"] == fatores_esperados
+    assert alerta["fatores"][0]["descricao"] in alerta["mensagem"]
+    estacao = client.get("/estacoes/90000001").json()
+    assert estacao["alerta"]["fatores"] == fatores_esperados

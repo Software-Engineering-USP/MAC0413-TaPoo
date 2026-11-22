@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query
 
 from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
 from app.api.schemas import AlertaOut, EstacaoOut, EstacaoProximaOut, SerieOut
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
+from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.periodo import Periodo
 
@@ -23,9 +24,20 @@ def listar_estacoes(
     uf: Annotated[str | None, Query(min_length=2, max_length=2)] = None,
     tipo: TipoEstacao | None = None,
     apenas_telemetricas: bool = False,
+    q: Annotated[
+        str | None,
+        Query(
+            min_length=2,
+            max_length=100,
+            description="Busca por nome da estação, município ou rio (sem acento e maiúsculas).",
+        ),
+    ] = None,
 ) -> list[EstacaoOut]:
-    filtro = FiltroEstacoes(uf=uf, tipo=tipo, apenas_telemetricas=apenas_telemetricas)
-    sincronizar.executar(filtro)
+    filtro = FiltroEstacoes(uf=uf, tipo=tipo, apenas_telemetricas=apenas_telemetricas, texto=q)
+    # Busca sem UF fica nas estações já conhecidas: na ANA, sincronizar sem UF baixaria
+    # o inventário do país inteiro a cada tecla digitada no front.
+    if q is None or uf is not None:
+        sincronizar.executar(filtro)
     return [EstacaoOut.de(e) for e in consulta.listar_estacoes(filtro)]
 
 
@@ -64,15 +76,9 @@ def serie_da_estacao(
 ) -> SerieOut:
     fim = fim or relogio()
     inicio = inicio or fim - PERIODO_PADRAO
-    try:
-        periodo = Periodo(inicio, fim)
-    except ValueError as erro:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(erro)) from erro
+    periodo = Periodo(inicio, fim)
     if periodo.duracao() > PERIODO_MAXIMO:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"período máximo é de {PERIODO_MAXIMO.days} dias",
-        )
+        raise DadoInvalido(f"período máximo é de {PERIODO_MAXIMO.days} dias")
     sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)

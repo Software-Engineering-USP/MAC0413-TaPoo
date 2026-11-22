@@ -5,6 +5,7 @@ from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.portas import AlertaRepositorio, EstacaoRepositorio, MedicaoRepositorio
 from app.dominio.alerta import Alerta
 from app.dominio.enums import Grandeza
+from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import SerieTemporal
@@ -54,7 +55,7 @@ class ConsultarDados:
     ) -> list[tuple[SituacaoEstacao, float]]:
         """Estações dentro do raio, da mais próxima para a mais distante, com a distância."""
         if raio_km <= 0:
-            raise ValueError("raio_km precisa ser positivo")
+            raise DadoInvalido("raio_km precisa ser positivo")
         com_distancia = [
             (estacao, centro.distancia_km(estacao.coordenada))
             for estacao in self._estacoes.buscar(FiltroEstacoes())

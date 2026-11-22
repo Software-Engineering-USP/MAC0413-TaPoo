@@ -8,11 +8,11 @@ from app.aplicacao.erros import EstacaoNaoEncontrada, MunicipioNaoEncontrado
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.monitoramento import MonitorarEstacoes
 from app.aplicacao.sincronizacao import SincronizarEstacoes
-from app.dominio.alerta import RegraCotaReferencia
+from app.dominio.alerta import RegraChuvaAcumulada, RegraCotaReferencia
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
-from app.dominio.medicao import MedicaoNivel
+from app.dominio.medicao import MedicaoChuva, MedicaoNivel
 from app.dominio.periodo import Periodo
 from tests.aplicacao.fakes import Alertas, Estacoes, FonteStub, Medicoes, Regras
 
@@ -113,6 +113,29 @@ def test_coleta_dispara_monitoramento_e_gera_alerta() -> None:
     [alerta] = c.consulta.alertas_ativos()
     assert alerta.codigo_estacao == 1
     assert alerta.severidade is Severidade.ALERTA
+
+
+def test_monitoramento_persiste_mudanca_de_fatores_sem_escalar(monkeypatch) -> None:
+    c = Cenario(niveis(450))
+    c.coletar.executar(1)
+    [alerta] = c.alertas.ativos()
+    c.regras.regras.append(RegraChuvaAcumulada(1, timedelta(hours=24), 30, 50, 80))
+    c.medicoes.salvar_varias([MedicaoChuva(1, AGORA - timedelta(hours=i), 3) for i in range(24)])
+    alertas_salvos = []
+    salvar = c.alertas.salvar
+
+    def registrar_salvamento(atualizado) -> None:
+        alertas_salvos.append(atualizado)
+        salvar(atualizado)
+
+    monkeypatch.setattr(c.alertas, "salvar", registrar_salvamento)
+    resultado = c.monitorar.executar(1)
+
+    assert resultado is alerta
+    assert alertas_salvos == [alerta]
+    assert alerta.severidade is Severidade.ALERTA
+    assert len(alerta.fatores) == 2
+    assert "Chuva acumulada" in alerta.mensagem
 
 
 def test_monitoramento_encerra_alerta_quando_nivel_baixa() -> None:
