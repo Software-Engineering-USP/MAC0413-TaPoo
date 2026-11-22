@@ -1276,10 +1276,7 @@ export default function App() {
         >
           <strong>Áreas ilustrativas</strong>
           <span>
-            <i
-              aria-hidden="true"
-              className="risk-area-swatch risk-area-low"
-            />{" "}
+            <i aria-hidden="true" className="risk-area-swatch risk-area-low" />{" "}
             Baixo
           </span>
           <span>
@@ -1290,10 +1287,7 @@ export default function App() {
             Moderado
           </span>
           <span>
-            <i
-              aria-hidden="true"
-              className="risk-area-swatch risk-area-high"
-            />{" "}
+            <i aria-hidden="true" className="risk-area-swatch risk-area-high" />{" "}
             Alto
           </span>
           <small>Não representam alertas oficiais</small>
