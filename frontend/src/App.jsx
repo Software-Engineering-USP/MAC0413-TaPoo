@@ -8,6 +8,36 @@ const severidadesEstacao = {
   ALERTA: { abreviacao: "AL", classe: "alerta" },
   EMERGENCIA: { abreviacao: "E", classe: "emergencia" },
 };
+const LIMITE_MARCADORES = 100;
+const unidadesFederativas = [
+  ["AC", "Acre"],
+  ["AL", "Alagoas"],
+  ["AP", "Amapá"],
+  ["AM", "Amazonas"],
+  ["BA", "Bahia"],
+  ["CE", "Ceará"],
+  ["DF", "Distrito Federal"],
+  ["ES", "Espírito Santo"],
+  ["GO", "Goiás"],
+  ["MA", "Maranhão"],
+  ["MT", "Mato Grosso"],
+  ["MS", "Mato Grosso do Sul"],
+  ["MG", "Minas Gerais"],
+  ["PA", "Pará"],
+  ["PB", "Paraíba"],
+  ["PR", "Paraná"],
+  ["PE", "Pernambuco"],
+  ["PI", "Piauí"],
+  ["RJ", "Rio de Janeiro"],
+  ["RN", "Rio Grande do Norte"],
+  ["RS", "Rio Grande do Sul"],
+  ["RO", "Rondônia"],
+  ["RR", "Roraima"],
+  ["SC", "Santa Catarina"],
+  ["SP", "São Paulo"],
+  ["SE", "Sergipe"],
+  ["TO", "Tocantins"],
+];
 
 function iconeEstacao(severidade) {
   const estilo = severidadesEstacao[severidade] || severidadesEstacao.NORMAL;
@@ -17,6 +47,68 @@ function iconeEstacao(severidade) {
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   });
+}
+
+function limitarEstacoesParaMapa(estacoes) {
+  if (estacoes.length <= LIMITE_MARCADORES) return estacoes;
+  const intervalo = estacoes.length / LIMITE_MARCADORES;
+  return Array.from(
+    { length: LIMITE_MARCADORES },
+    (_, indice) => estacoes[Math.floor(indice * intervalo)],
+  );
+}
+
+function obterCoordenadasEstacao(estacao) {
+  const latitude = Number(estacao.latitude);
+  const longitude = Number(estacao.longitude);
+  const coordenadasInvalidas =
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0);
+
+  return coordenadasInvalidas ? null : [latitude, longitude];
+}
+
+function criarPopupEstacao(estacao, nome, severidade) {
+  const popup = document.createElement("div");
+  const titulo = document.createElement("strong");
+  titulo.textContent = nome;
+  popup.appendChild(titulo);
+
+  const municipio =
+    estacao.municipio && estacao.uf
+      ? `${estacao.municipio} — ${estacao.uf}`
+      : estacao.uf;
+  const detalhes = [
+    municipio,
+    estacao.rio && `Rio: ${estacao.rio}`,
+    `Situação: ${severidade}`,
+    estacao.alerta?.mensagem,
+  ].filter(Boolean);
+
+  detalhes.forEach((detalhe) => {
+    const linha = document.createElement("div");
+    linha.textContent = detalhe;
+    popup.appendChild(linha);
+  });
+  return popup;
+}
+
+function criarMarcadorEstacao(estacao) {
+  const coordenadas = obterCoordenadasEstacao(estacao);
+  if (!coordenadas) return null;
+
+  const severidade = estacao.severidade_rotulo || "Normal";
+  const nome = estacao.nome || `Estação ${estacao.codigo}`;
+  return L.marker(coordenadas, {
+    icon: iconeEstacao(estacao.severidade),
+    title: `${nome} — ${severidade}`,
+    alt: `${nome}, severidade ${severidade}`,
+  }).bindPopup(criarPopupEstacao(estacao, nome, severidade));
 }
 
 const emergencyContacts = [
@@ -170,47 +262,8 @@ export default function App() {
       stationLayer.clearLayers();
       let markersRendered = 0;
       stations.forEach((station) => {
-        const latitude = Number(station.latitude);
-        const longitude = Number(station.longitude);
-        if (
-          !Number.isFinite(latitude) ||
-          !Number.isFinite(longitude) ||
-          latitude < -90 ||
-          latitude > 90 ||
-          longitude < -180 ||
-          longitude > 180 ||
-          (latitude === 0 && longitude === 0)
-        ) {
-          return;
-        }
-
-        const severidade = station.severidade_rotulo || "Normal";
-        const nome = station.nome || `Estação ${station.codigo}`;
-        const marker = L.marker([latitude, longitude], {
-          icon: iconeEstacao(station.severidade),
-          title: `${nome} — ${severidade}`,
-          alt: `${nome}, severidade ${severidade}`,
-        });
-
-        const popup = document.createElement("div");
-        const titulo = document.createElement("strong");
-        titulo.textContent = nome;
-        popup.appendChild(titulo);
-
-        const detalhes = [
-          station.municipio && station.uf
-            ? `${station.municipio} — ${station.uf}`
-            : station.uf,
-          station.rio && `Rio: ${station.rio}`,
-          `Situação: ${severidade}`,
-          station.alerta?.mensagem,
-        ].filter(Boolean);
-        detalhes.forEach((detalhe) => {
-          const linha = document.createElement("div");
-          linha.textContent = detalhe;
-          popup.appendChild(linha);
-        });
-        marker.bindPopup(popup);
+        const marker = criarMarcadorEstacao(station);
+        if (!marker) return;
         stationLayer.addLayer(marker);
         markersRendered += 1;
       });
@@ -222,28 +275,35 @@ export default function App() {
       return markersRendered;
     };
 
-    const carregarEstacoes = async (texto = "") => {
+    const carregarEstacoes = async (texto, uf) => {
       stationRequest?.abort();
-      stationRequest = new AbortController();
+      const requisicao = new AbortController();
+      stationRequest = requisicao;
       if (stationSearchStatus) {
-        stationSearchStatus.textContent = texto
-          ? "Buscando estações..."
-          : "Carregando estações hidrológicas...";
+        stationSearchStatus.textContent = `Buscando “${texto}” em ${uf}...`;
         stationSearchStatus.dataset.state = "loading";
       }
 
       try {
         const stations = await listarEstacoes({
           texto,
-          signal: stationRequest.signal,
+          uf,
+          signal: requisicao.signal,
         });
-        const markersRendered = renderStationMarkers(stations, true);
+        if (requisicao.signal.aborted) return;
+        const markers = limitarEstacoesParaMapa(stations);
+        const markersRendered = renderStationMarkers(markers, true);
         if (stationSearchStatus) {
-          stationSearchStatus.textContent = markersRendered
-            ? `${markersRendered} estação(ões) encontrada(s). Selecione um marcador para ver os detalhes.`
-            : stations.length
-              ? "Foram encontradas estações sem coordenadas válidas para exibir."
-              : "Nenhuma estação encontrada para essa busca.";
+          if (stations.length === 0) {
+            stationSearchStatus.textContent = "Nenhuma estação encontrada.";
+          } else if (markersRendered === 0) {
+            stationSearchStatus.textContent =
+              "Foram encontradas estações sem coordenadas válidas para exibir.";
+          } else if (stations.length > markersRendered) {
+            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stations.length} estações de ${uf}. Refine a busca para ver outras.`;
+          } else {
+            stationSearchStatus.textContent = `${markersRendered} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
+          }
           stationSearchStatus.dataset.state = markersRendered
             ? "success"
             : "empty";
@@ -257,7 +317,7 @@ export default function App() {
       }
     };
 
-    carregarEstacoes();
+    const stateInput = document.getElementById("stateInput");
 
     // Render Rivers
     const rivers = [
@@ -628,10 +688,12 @@ export default function App() {
         // Keep the new saved location in view
         setTimeout(() => {
           const isMobile = window.matchMedia("(max-width: 767px)").matches;
+          const scrollProperty = isMobile ? "left" : "top";
+          const scrollPosition = isMobile
+            ? savedLocationsContainer.scrollWidth
+            : savedLocationsContainer.scrollHeight;
           savedLocationsContainer.scrollTo({
-            [isMobile ? "left" : "top"]: isMobile
-              ? savedLocationsContainer.scrollWidth
-              : savedLocationsContainer.scrollHeight,
+            [scrollProperty]: scrollPosition,
             behavior: "smooth",
           });
         }, 50);
@@ -652,16 +714,25 @@ export default function App() {
     const handleStationSearch = (event) => {
       event.preventDefault();
       const query = searchInput.value.trim();
-      if (query && query.length < 2) {
-        stationSearchStatus.textContent = "Digite pelo menos 2 caracteres.";
+      if (query.length < 2) {
+        stationSearchStatus.textContent =
+          "Informe ao menos 2 caracteres para pesquisar.";
         stationSearchStatus.dataset.state = "error";
         searchInput.focus();
         return;
       }
-      carregarEstacoes(query);
+      void carregarEstacoes(query, stateInput.value);
       searchInput.blur();
     };
     stationSearchForm.addEventListener("submit", handleStationSearch);
+    const handleStateChange = () => {
+      searchInput.value = "";
+      stationRequest?.abort();
+      stationLayer.clearLayers();
+      stationSearchStatus.textContent = `Escolha uma cidade, estação ou rio para pesquisar em ${stateInput.value}.`;
+      stationSearchStatus.dataset.state = "empty";
+    };
+    stateInput.addEventListener("change", handleStateChange);
 
     return () => {
       savedLocationsContainer.removeEventListener(
@@ -672,6 +743,7 @@ export default function App() {
         button.removeEventListener("click", handleSaveLocation),
       );
       stationSearchForm.removeEventListener("submit", handleStationSearch);
+      stateInput.removeEventListener("change", handleStateChange);
       stationRequest?.abort();
       map.remove();
     };
@@ -1097,6 +1169,25 @@ export default function App() {
 
       <main className="app-main mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
         <div className="map-search-controls">
+          <div className="mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs shadow-lg">
+            <label
+              htmlFor="stateInput"
+              className="shrink-0 font-semibold text-slate-600"
+            >
+              Estado das estações
+            </label>
+            <select
+              id="stateInput"
+              defaultValue="SP"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            >
+              {unidadesFederativas.map(([uf, nome]) => (
+                <option key={uf} value={uf}>
+                  {nome} ({uf})
+                </option>
+              ))}
+            </select>
+          </div>
           <form
             id="stationSearchForm"
             role="search"
@@ -1107,7 +1198,7 @@ export default function App() {
               type="text"
               id="searchInput"
               aria-label="Buscar estação por cidade, nome ou rio"
-              placeholder="Buscar estação, cidade ou rio..."
+              placeholder="Município, estação ou rio..."
               className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-24 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
             <button
@@ -1123,7 +1214,7 @@ export default function App() {
               type="submit"
               className="absolute right-2 rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
             >
-              Buscar
+              Filtrar
             </button>
           </form>
           <p
@@ -1131,9 +1222,10 @@ export default function App() {
             className="mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
             role="status"
             aria-live="polite"
-            data-state="loading"
+            data-state="empty"
           >
-            Carregando estações hidrológicas...
+            Selecione o estado e informe pelo menos 2 caracteres para consultar
+            as estações.
           </p>
         </div>
         <div

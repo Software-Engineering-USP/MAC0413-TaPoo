@@ -31,7 +31,7 @@ body {
 
 .map-search-controls {
   position: absolute;
-  top: 5.5rem;
+  top: 1rem;
   left: 1rem;
   z-index: 400;
   width: min(26rem, calc(100% - 2rem));
@@ -67,7 +67,7 @@ body {
 
 .station-marker-normal > span,
 .legend-station-marker.station-marker-normal {
-  background: #0284c7;
+  background: #0369a1;
   color: white;
 }
 
@@ -79,7 +79,7 @@ body {
 
 .station-marker-alerta > span,
 .legend-station-marker.station-marker-alerta {
-  background: #ea580c;
+  background: #c2410c;
   color: white;
 }
 
@@ -94,8 +94,8 @@ body {
 }
 
 .app-main {
-  position: static;
-  z-index: auto;
+  position: relative;
+  z-index: 0;
 }
 
 .app-sidebar {
