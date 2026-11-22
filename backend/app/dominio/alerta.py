@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.erros import DadoInvalido
 from app.dominio.medicao import Medicao, SerieTemporal
 from app.dominio.tempo import exigir_utc
 
@@ -37,7 +38,7 @@ class RegraAlerta(ABC):
 
     def _validar_serie(self, serie: SerieTemporal) -> None:
         if serie.codigo_estacao != self.codigo_estacao or serie.grandeza != self.grandeza:
-            raise ValueError(f"{type(self).__name__} não se aplica a esta série")
+            raise DadoInvalido(f"{type(self).__name__} não se aplica a esta série")
 
 
 def _classificar(valor: float, limites: Sequence[tuple[float, Severidade]]) -> Severidade:
@@ -51,7 +52,7 @@ def _classificar(valor: float, limites: Sequence[tuple[float, Severidade]]) -> S
 
 def _validar_crescente(*limites: float) -> None:
     if list(limites) != sorted(limites) or len(set(limites)) != len(limites):
-        raise ValueError("limites precisam ser estritamente crescentes")
+        raise DadoInvalido("limites precisam ser estritamente crescentes")
 
 
 class RegraCotaReferencia(RegraAlerta):
@@ -129,7 +130,7 @@ class RegraChuvaAcumulada(RegraAlerta):
     ) -> None:
         super().__init__(codigo_estacao, id=id, ativa=ativa)
         if janela <= timedelta(0):
-            raise ValueError("janela precisa ser positiva")
+            raise DadoInvalido("janela precisa ser positiva")
         _validar_crescente(limite_moderado_mm, limite_alto_mm, limite_extremo_mm)
         self.janela = janela
         self.limite_moderado_mm = limite_moderado_mm
@@ -216,7 +217,7 @@ class Alerta:
 
     def __post_init__(self) -> None:
         if self.severidade is Severidade.NORMAL:
-            raise ValueError("alerta não pode ser emitido com severidade NORMAL")
+            raise DadoInvalido("alerta não pode ser emitido com severidade NORMAL")
         self.emitido_em = exigir_utc(self.emitido_em, "emitido_em")
 
     @property
@@ -232,9 +233,9 @@ class Alerta:
     ) -> None:
         """Eleva a severidade. Alertas não são rebaixados: só encerram ao normalizar."""
         if not self.ativo:
-            raise ValueError("não é possível escalar um alerta encerrado")
+            raise DadoInvalido("não é possível escalar um alerta encerrado")
         if nova <= self.severidade:
-            raise ValueError(f"{nova} não é mais grave que {self.severidade}")
+            raise DadoInvalido(f"{nova} não é mais grave que {self.severidade}")
         self.severidade = nova
         self.atualizar_motivos(mensagem, gatilho, fatores)
 
@@ -258,10 +259,10 @@ class Alerta:
 
     def encerrar(self, quando: datetime) -> None:
         if not self.ativo:
-            raise ValueError("alerta já encerrado")
+            raise DadoInvalido("alerta já encerrado")
         quando = exigir_utc(quando, "quando")
         if quando < self.emitido_em:
-            raise ValueError("encerramento anterior à emissão")
+            raise DadoInvalido("encerramento anterior à emissão")
         self.status = StatusAlerta.ENCERRADO
         self.encerrado_em = quando
 

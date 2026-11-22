@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.dominio.erros import DadoInvalido
 from app.dominio.tempo import exigir_utc
 
 
@@ -18,7 +19,7 @@ class Periodo:
         object.__setattr__(self, "inicio", exigir_utc(self.inicio, "inicio"))
         object.__setattr__(self, "fim", exigir_utc(self.fim, "fim"))
         if self.inicio >= self.fim:
-            raise ValueError("inicio precisa ser anterior a fim")
+            raise DadoInvalido("inicio precisa ser anterior a fim")
 
     @classmethod
     def ultimos(cls, duracao: timedelta, ate: datetime) -> "Periodo":
@@ -33,7 +34,7 @@ class Periodo:
     def dividir(self, max_dias: int) -> list["Periodo"]:
         """Fatia o período em pedaços de no máximo `max_dias` (limites 30/366 dias da ANA)."""
         if max_dias <= 0:
-            raise ValueError("max_dias precisa ser positivo")
+            raise DadoInvalido("max_dias precisa ser positivo")
         passo = timedelta(days=max_dias)
         fatias: list[Periodo] = []
         inicio = self.inicio

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from app.dominio.alerta import Alerta
 from app.dominio.enums import Severidade
+from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 
 
@@ -20,9 +21,9 @@ class SituacaoEstacao:
         if self.alerta is None:
             return
         if self.alerta.codigo_estacao != self.estacao.codigo:
-            raise ValueError("alerta pertence a outra estação")
+            raise DadoInvalido("alerta pertence a outra estação")
         if not self.alerta.ativo:
-            raise ValueError("situação atual só considera alertas ativos")
+            raise DadoInvalido("situação atual só considera alertas ativos")
 
     @property
     def severidade(self) -> Severidade:
@@ -37,7 +38,7 @@ class SituacaoMunicipio:
 
     def __post_init__(self) -> None:
         if not self.estacoes:
-            raise ValueError("município sem estações não tem situação")
+            raise DadoInvalido("município sem estações não tem situação")
         # Da mais grave para a menos grave; empate pelo código, para ordem estável.
         ordenadas = sorted(self.estacoes, key=lambda s: (-s.severidade.nivel, s.estacao.codigo))
         object.__setattr__(self, "estacoes", tuple(ordenadas))

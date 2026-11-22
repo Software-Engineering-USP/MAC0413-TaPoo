@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from app.dominio.enums import Grandeza, TipoEstacao
+from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.tempo import agora_utc, exigir_utc
 
@@ -33,7 +34,7 @@ class Estacao:
 
     def __post_init__(self) -> None:
         if self.codigo <= 0:
-            raise ValueError("codigo da estação precisa ser positivo")
+            raise DadoInvalido("codigo da estação precisa ser positivo")
         self.uf = self.uf.upper()
         self.atualizado_em = exigir_utc(self.atualizado_em, "atualizado_em")
 

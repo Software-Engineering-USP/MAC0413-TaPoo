@@ -1,5 +1,6 @@
 import pytest
 
+from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 
 
@@ -16,7 +17,7 @@ def test_distancia_para_si_mesma_e_zero() -> None:
 
 @pytest.mark.parametrize("lat, lon", [(-91, 0), (91, 0), (0, -181), (0, 181)])
 def test_coordenada_invalida(lat: float, lon: float) -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         Coordenada(lat, lon)
 
 

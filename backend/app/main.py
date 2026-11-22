@@ -7,9 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.dependencias import Container, carga_inicial, montar_container
+from app.api.erros import registrar_handlers
 from app.api.routers import alertas, estacoes, municipios
-from app.aplicacao.erros import RecursoNaoEncontrado
-from app.infra.fontes.ana import ErroFonteAna
 
 # Front servido pelo compose (3000) e pelo `npm run dev` do Vite (5173).
 ORIGENS_CORS_PADRAO = ("http://localhost:3000", "http://localhost:5173")
@@ -57,8 +56,7 @@ def create_app(
         allow_methods=["GET"],
     )
     app.add_api_route("/health", health, methods=["GET"], tags=["infra"])
-    app.add_exception_handler(RecursoNaoEncontrado, _nao_encontrado)
-    app.add_exception_handler(ErroFonteAna, _ana_indisponivel)
+    registrar_handlers(app)
     app.include_router(estacoes.router)
     app.include_router(alertas.router)
     app.include_router(municipios.router)
