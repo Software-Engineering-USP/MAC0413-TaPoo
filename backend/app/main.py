@@ -3,16 +3,13 @@ from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
 from app.api.dependencias import Container, carga_inicial, criar_agendador, montar_container
-from app.api.routers import alertas, estacoes, municipios
-from app.aplicacao.erros import RecursoNaoEncontrado
-from app.configuracao import intervalo_coleta
-from app.infra.fontes.ana import ErroFonteAna
 from app.api.erros import registrar_handlers
+from app.api.routers import alertas, estacoes, municipios
+from app.configuracao import intervalo_coleta
 
 # Front servido pelo compose (3000) e pelo `npm run dev` do Vite (5173).
 ORIGENS_CORS_PADRAO = ("http://localhost:3000", "http://localhost:5173")
@@ -28,17 +25,6 @@ def origens_cors() -> list[str]:
 
 def health() -> dict[str, str]:
     return {"status": "ok"}
-
-
-def _nao_encontrado(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(erro)})
-
-
-def _ana_indisponivel(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        content={"detail": str(erro)},
-    )
 
 
 def create_app(
