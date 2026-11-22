@@ -1,6 +1,6 @@
 # Relatório de conceitos de POO e padrões de projeto
 
-Este documento descreve decisões que já aparecem no backend do TaPoo. Os exemplos são
+Este documento descreve decisões que já aparecem no backend do projeto. Os exemplos são
 trechos reduzidos do código atual; os caminhos indicam onde consultar a implementação
 completa.
 
