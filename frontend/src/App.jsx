@@ -73,6 +73,33 @@ function obterCoordenadasEstacao(estacao) {
   return coordenadasInvalidas ? null : [latitude, longitude];
 }
 
+function atualizarStatusBuscaEstacoes(
+  status,
+  total,
+  comCoordenadas,
+  semCoordenadas,
+  exibidas,
+  uf,
+) {
+  if (!status) return;
+
+  if (total === 0) {
+    status.textContent = "Nenhuma estação encontrada.";
+  } else if (comCoordenadas === 0) {
+    status.textContent = `Foram encontradas ${total} estações, mas nenhuma tem coordenadas válidas para exibir.`;
+  } else if (comCoordenadas > exibidas && semCoordenadas > 0) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else if (comCoordenadas > exibidas) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}. Refine a busca para ver outras.`;
+  } else if (semCoordenadas > 0) {
+    status.textContent = `${exibidas} estação(ões) exibida(s) em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else {
+    status.textContent = `${exibidas} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
+  }
+
+  status.dataset.state = exibidas ? "success" : "empty";
+}
+
 function criarPopupEstacao(estacao, nome, severidade) {
   const popup = document.createElement("div");
   const titulo = document.createElement("strong");
@@ -295,27 +322,14 @@ export default function App() {
           stations.length - stationsWithCoordinates.length;
         const markers = limitarEstacoesParaMapa(stationsWithCoordinates);
         const markersRendered = renderStationMarkers(markers, true);
-        if (stationSearchStatus) {
-          if (stations.length === 0) {
-            stationSearchStatus.textContent = "Nenhuma estação encontrada.";
-          } else if (stationsWithCoordinates.length === 0) {
-            stationSearchStatus.textContent = `Foram encontradas ${stations.length} estações, mas nenhuma tem coordenadas válidas para exibir.`;
-          } else if (
-            stationsWithCoordinates.length > markersRendered &&
-            stationsWithoutCoordinates > 0
-          ) {
-            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stationsWithCoordinates.length} estações com coordenadas válidas em ${uf}; ${stationsWithoutCoordinates} sem coordenadas válidas.`;
-          } else if (stationsWithCoordinates.length > markersRendered) {
-            stationSearchStatus.textContent = `Exibindo ${markersRendered} de ${stationsWithCoordinates.length} estações com coordenadas válidas em ${uf}. Refine a busca para ver outras.`;
-          } else if (stationsWithoutCoordinates > 0) {
-            stationSearchStatus.textContent = `${markersRendered} estação(ões) exibida(s) em ${uf}; ${stationsWithoutCoordinates} sem coordenadas válidas.`;
-          } else {
-            stationSearchStatus.textContent = `${markersRendered} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
-          }
-          stationSearchStatus.dataset.state = markersRendered
-            ? "success"
-            : "empty";
-        }
+        atualizarStatusBuscaEstacoes(
+          stationSearchStatus,
+          stations.length,
+          stationsWithCoordinates.length,
+          stationsWithoutCoordinates,
+          markersRendered,
+          uf,
+        );
       } catch (error) {
         if (error.name === "AbortError") return;
         if (stationSearchStatus) {
@@ -1262,15 +1276,24 @@ export default function App() {
         >
           <strong>Áreas ilustrativas</strong>
           <span>
-            <i className="risk-area-swatch risk-area-low" />
+            <i
+              aria-hidden="true"
+              className="risk-area-swatch risk-area-low"
+            />{" "}
             Baixo
           </span>
           <span>
-            <i className="risk-area-swatch risk-area-moderate" />
+            <i
+              aria-hidden="true"
+              className="risk-area-swatch risk-area-moderate"
+            />{" "}
             Moderado
           </span>
           <span>
-            <i className="risk-area-swatch risk-area-high" />
+            <i
+              aria-hidden="true"
+              className="risk-area-swatch risk-area-high"
+            />{" "}
             Alto
           </span>
           <small>Não representam alertas oficiais</small>

@@ -67,23 +67,20 @@ body {
 .risk-area-swatch {
   width: 0.8rem;
   height: 0.8rem;
-  border: 1px dashed currentColor;
+  border: 1px dashed #334155;
   border-radius: 0.2rem;
 }
 
 .risk-area-low {
   background: rgb(234 179 8 / 0.35);
-  color: #854d0e;
 }
 
 .risk-area-moderate {
   background: rgb(249 115 22 / 0.35);
-  color: #9a3412;
 }
 
 .risk-area-high {
   background: rgb(220 38 38 / 0.3);
-  color: #991b1b;
 }
 
 .risk-area-legend > small {
