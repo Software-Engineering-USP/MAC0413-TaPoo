@@ -64,6 +64,8 @@ public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
+The object-oriented concepts, station-modeling decision, and design patterns used by
+the backend are discussed in [the POO report](docs/relatorio-poo.md).
 Dependencies point inward: `dominio` imports nothing from the other layers.
 
 | Layer | Folder | Contents |
