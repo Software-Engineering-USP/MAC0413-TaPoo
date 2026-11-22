@@ -60,6 +60,11 @@ npm run format:check  # check only (CI)
 
 API health check: `http://localhost:8000/health`. Interactive docs: `http://localhost:8000/docs`.
 
+The API only accepts browser requests (CORS) from the origins in `CORS_ORIGENS`,
+comma-separated. When unset, it allows the local frontend
+(`http://localhost:3000` and `http://localhost:5173`); in production, set it to the
+public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
+
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
@@ -119,7 +124,7 @@ in `America/Sao_Paulo` before converting them to UTC.
 
 | Method | Path | Description |
 |---|---|---|
-| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=` | List stations, each with its current `severidade` and active `alerta` |
+| GET | `/estacoes?uf=&tipo=&apenas_telemetricas=&q=` | List stations, each with its current `severidade` and active `alerta`. `q` searches the station name, municipality and river, ignoring accents and case; without `uf` it only searches stations already loaded |
 | GET | `/estacoes/proximas?lat=&lon=&raio_km=50` | Stations within a radius, nearest first |
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
@@ -133,8 +138,10 @@ checks. Configure these in the repository settings before enabling the workflow:
 
 - Secret: `SONAR_TOKEN`
 
-The project name and key are defined in `sonar-project.properties`. Coverage is
-intentionally excluded for the initial project phase.
+The project name and key are defined in `sonar-project.properties`. The backend job
+uploads `coverage.xml` for the scan and fails if total coverage (lines and branches)
+drops below 80%. The threshold is `fail_under` in `[tool.coverage.report]` of
+`backend/pyproject.toml`, so `uv run pytest --cov` enforces it locally too.
 
 ## CI/CD
 
