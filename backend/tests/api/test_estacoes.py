@@ -2,7 +2,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencias import montar_container
-from app.dominio.erros import FonteIndisponivel
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
 from app.infra.fontes.fake import FonteFake
 from app.main import create_app
