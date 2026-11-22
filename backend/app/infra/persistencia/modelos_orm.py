@@ -114,3 +114,25 @@ class AlertaModelo(Base):
     gatilho_grandeza: Mapped[Grandeza | None] = mapped_column(_enum(Grandeza))
     gatilho_data_hora_utc: Mapped[datetime | None] = mapped_column(DataHoraUtc())
     gatilho_origem: Mapped[OrigemDado | None] = mapped_column(_enum(OrigemDado))
+
+
+class FatorAlertaModelo(Base):
+    """Fatores de avaliação de um alerta, na ordem em que o domínio os guarda.
+
+    É uma tabela à parte, e não uma coluna em `alertas`, para que `create_all` a crie
+    também em bancos que já existem (ainda não há migrações). A medição de cada fator é
+    guardada pela chave natural, como a do alerta.
+    """
+
+    __tablename__ = "fatores_alerta"
+
+    alerta_id: Mapped[UUID] = mapped_column(
+        ForeignKey("alertas.id", ondelete="CASCADE"), primary_key=True
+    )
+    posicao: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    descricao: Mapped[str] = mapped_column(Text)
+    severidade: Mapped[Severidade] = mapped_column(_enum(Severidade))
+    codigo_estacao: Mapped[int] = mapped_column(ForeignKey("estacoes.codigo", ondelete="CASCADE"))
+    gatilho_grandeza: Mapped[Grandeza | None] = mapped_column(_enum(Grandeza))
+    gatilho_data_hora_utc: Mapped[datetime | None] = mapped_column(DataHoraUtc())
+    gatilho_origem: Mapped[OrigemDado | None] = mapped_column(_enum(OrigemDado))

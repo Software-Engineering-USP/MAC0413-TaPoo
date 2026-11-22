@@ -26,12 +26,18 @@ def test_repo_sql_guarda_os_dados_entre_reinicios(monkeypatch, tmp_path) -> None
 
     primeiro = dependencias.montar_container(FonteFake(agora), relogio=lambda: agora)
     dependencias.carga_inicial(primeiro)
-    alertas = {a.id for a in primeiro.consulta.alertas_ativos()}
-    assert alertas
+    antes = {a.id: a.fatores for a in primeiro.consulta.alertas_ativos()}
+    assert antes
+    assert all(antes.values())
 
     depois_do_reinicio = dependencias.montar_container(FonteFake(agora), relogio=lambda: agora)
-    assert {a.id for a in depois_do_reinicio.consulta.alertas_ativos()} == alertas
+    assert {a.id: a.fatores for a in depois_do_reinicio.consulta.alertas_ativos()} == antes
     assert depois_do_reinicio.coletar.executar(90000001) == 0  # nada novo para buscar
+    # Mesmas medições, mesma avaliação: o alerta lido do banco não muda nem é regravado.
+    monitorar = depois_do_reinicio.coletar._monitorar
+    assert all(
+        monitorar.executar(a.codigo_estacao) is None for a in primeiro.consulta.alertas_ativos()
+    )
 
 
 def test_repo_memoria_e_o_padrao() -> None:

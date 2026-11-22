@@ -12,7 +12,7 @@ import pytest
 
 from app.api.dependencias import Repositorios, criar_repositorios, repositorios_sql
 from app.aplicacao.filtros import FiltroEstacoes
-from app.dominio.alerta import Alerta
+from app.dominio.alerta import Alerta, FatorAvaliacao
 from app.dominio.enums import (
     Grandeza,
     NivelConsistencia,
@@ -211,6 +211,44 @@ def test_alerta_ida_e_volta_com_medicao_gatilho(repos: Repositorios) -> None:
         T0,
     )
     assert lido.medicao_gatilho == gatilho
+
+
+def test_alerta_ida_e_volta_com_fatores_em_ordem(repos: Repositorios) -> None:
+    repos.estacoes.salvar_varias([estacao(1), estacao(2)])
+    nivel = MedicaoNivel(1, T0, 420)
+    chuva = MedicaoChuva(2, T0, 80)
+    repos.medicoes.salvar_varias([nivel, chuva])
+    fatores = (
+        FatorAvaliacao("Nível acima da cota", Severidade.EMERGENCIA, 1, nivel),
+        FatorAvaliacao("Chuva forte a montante", Severidade.ALERTA, 2, chuva),
+        FatorAvaliacao("Sem medição", Severidade.ATENCAO, 1, None),
+    )
+    alerta = Alerta(1, Severidade.EMERGENCIA, "x", T0, medicao_gatilho=nivel, fatores=fatores)
+    repos.alertas.salvar(alerta)
+
+    lido = repos.alertas.ativo_da_estacao(1)
+    assert lido.fatores == fatores
+    # A mesma avaliação, aplicada ao alerta lido de volta, não conta como mudança.
+    assert lido.atualizar_motivos("x", nivel, fatores) is False
+
+
+def test_alerta_regravado_troca_os_fatores(repos: Repositorios) -> None:
+    repos.estacoes.salvar_varias([estacao(1)])
+    antes = (
+        FatorAvaliacao("a", Severidade.ALERTA, 1, None),
+        FatorAvaliacao("b", Severidade.ATENCAO, 1, None),
+    )
+    alerta = Alerta(1, Severidade.ALERTA, "a; b", T0, fatores=antes)
+    repos.alertas.salvar(alerta)
+
+    depois = (FatorAvaliacao("c", Severidade.EMERGENCIA, 1, None),)
+    alerta.escalar(Severidade.EMERGENCIA, "c", None, depois)
+    repos.alertas.salvar(alerta)
+    assert repos.alertas.ativo_da_estacao(1).fatores == depois
+
+    alerta.atualizar_motivos("c", None, ())
+    repos.alertas.salvar(alerta)
+    assert repos.alertas.ativo_da_estacao(1).fatores == ()
 
 
 def test_alerta_alterado_e_encerrado_e_regravado(repos: Repositorios) -> None:

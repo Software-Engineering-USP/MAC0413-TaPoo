@@ -9,15 +9,16 @@ from collections.abc import Iterable, Iterator, Sequence
 from datetime import datetime
 from itertools import batched
 from typing import Any
+from uuid import UUID
 
-from sqlalchemy import Engine, create_engine, event, func, select, type_coerce
+from sqlalchemy import Engine, create_engine, delete, event, func, select, type_coerce
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.portas import AlertaRepositorio, EstacaoRepositorio, MedicaoRepositorio
-from app.dominio.alerta import Alerta
+from app.dominio.alerta import Alerta, FatorAvaliacao
 from app.dominio.enums import Grandeza, StatusAlerta
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
@@ -28,6 +29,7 @@ from app.infra.persistencia.modelos_orm import (
     Base,
     DataHoraUtc,
     EstacaoModelo,
+    FatorAlertaModelo,
     MedicaoModelo,
 )
 
@@ -235,8 +237,9 @@ class MedicaoRepositorioSql(MedicaoRepositorio):
 
 
 class AlertaRepositorioSql(AlertaRepositorio):
-    """Guarda alertas ativos e encerrados. A medição que disparou o alerta é guardada pela
-    chave natural e lida de novo da tabela de medições."""
+    """Guarda alertas ativos e encerrados, com os seus fatores. As medições que dispararam
+    o alerta e cada fator são guardadas pela chave natural e lidas de novo da tabela de
+    medições."""
 
     def __init__(self, banco: BancoDeDados) -> None:
         self._sessoes = banco.sessoes
@@ -244,6 +247,12 @@ class AlertaRepositorioSql(AlertaRepositorio):
     def salvar(self, alerta: Alerta) -> None:
         with self._sessoes.begin() as sessao:
             sessao.merge(self._para_modelo(alerta))
+            # Os fatores são trocados por inteiro: a avaliação nova substitui a anterior.
+            sessao.execute(delete(FatorAlertaModelo).filter_by(alerta_id=alerta.id))
+            sessao.add_all(
+                self._para_modelo_fator(alerta.id, posicao, fator)
+                for posicao, fator in enumerate(alerta.fatores)
+            )
 
     def ativo_da_estacao(self, codigo: int) -> Alerta | None:
         return next(iter(self._listar(codigo_estacao=codigo, status=StatusAlerta.ATIVO)), None)
@@ -276,32 +285,73 @@ class AlertaRepositorioSql(AlertaRepositorio):
             emitido_em=alerta.emitido_em,
             status=alerta.status,
             encerrado_em=alerta.encerrado_em,
-            gatilho_grandeza=gatilho.grandeza() if gatilho else None,
-            gatilho_data_hora_utc=gatilho.data_hora_utc if gatilho else None,
-            gatilho_origem=gatilho.origem if gatilho else None,
+            **_colunas_do_gatilho(gatilho),
+        )
+
+    @staticmethod
+    def _para_modelo_fator(
+        alerta_id: UUID, posicao: int, fator: FatorAvaliacao
+    ) -> FatorAlertaModelo:
+        return FatorAlertaModelo(
+            alerta_id=alerta_id,
+            posicao=posicao,
+            descricao=fator.descricao,
+            severidade=fator.severidade,
+            codigo_estacao=fator.codigo_estacao,
+            **_colunas_do_gatilho(fator.medicao_gatilho),
         )
 
     @staticmethod
     def _para_alerta(sessao: Session, modelo: AlertaModelo) -> Alerta:
-        gatilho = None
-        if modelo.gatilho_grandeza is not None:
-            medicao = sessao.get(
-                MedicaoModelo,
-                (
-                    modelo.codigo_estacao,
-                    modelo.gatilho_grandeza,
-                    modelo.gatilho_data_hora_utc,
-                    modelo.gatilho_origem,
-                ),
+        consulta = (
+            select(FatorAlertaModelo)
+            .filter_by(alerta_id=modelo.id)
+            .order_by(FatorAlertaModelo.posicao)
+        )
+        fatores = tuple(
+            FatorAvaliacao(
+                f.descricao,
+                f.severidade,
+                f.codigo_estacao,
+                _ler_gatilho(sessao, f.codigo_estacao, f),
             )
-            gatilho = MedicaoRepositorioSql.para_medicao(medicao) if medicao else None
+            for f in sessao.scalars(consulta)
+        )
         return Alerta(
             modelo.codigo_estacao,
             modelo.severidade,
             modelo.mensagem,
             modelo.emitido_em,
-            medicao_gatilho=gatilho,
+            medicao_gatilho=_ler_gatilho(sessao, modelo.codigo_estacao, modelo),
             status=modelo.status,
             encerrado_em=modelo.encerrado_em,
             id=modelo.id,
+            fatores=fatores,
         )
+
+
+def _colunas_do_gatilho(gatilho: Medicao | None) -> dict[str, Any]:
+    """Chave natural da medição gatilho (sem a estação), nas colunas `gatilho_*`."""
+    return {
+        "gatilho_grandeza": gatilho.grandeza() if gatilho else None,
+        "gatilho_data_hora_utc": gatilho.data_hora_utc if gatilho else None,
+        "gatilho_origem": gatilho.origem if gatilho else None,
+    }
+
+
+def _ler_gatilho(
+    sessao: Session, codigo_estacao: int, modelo: AlertaModelo | FatorAlertaModelo
+) -> Medicao | None:
+    """Lê a medição gatilho guardada nas colunas `gatilho_*` de um alerta ou fator."""
+    if modelo.gatilho_grandeza is None:
+        return None
+    medicao = sessao.get(
+        MedicaoModelo,
+        (
+            codigo_estacao,
+            modelo.gatilho_grandeza,
+            modelo.gatilho_data_hora_utc,
+            modelo.gatilho_origem,
+        ),
+    )
+    return MedicaoRepositorioSql.para_medicao(medicao) if medicao else None
