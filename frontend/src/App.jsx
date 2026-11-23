@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import {
   AboutDialog,
   ConfirmDialog,
@@ -13,16 +14,18 @@ export default function App() {
   const appShellRef = useRef(null);
   const mapRef = useRef(null);
   const mapViewRef = useRef(null);
-  const dashboardRef = useRef(null);
   const searchInputRef = useRef(null);
+  const programmaticScrollTargetRef = useRef(null);
 
-  const [isInfoSheetOpen, setInfoSheetOpen] = useState(false);
   const [isAboutDialogOpen, setAboutDialogOpen] = useState(false);
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
   const [placeName, setPlaceName] = useState("Novo local");
   const [placeToRemove, setPlaceToRemove] = useState(null);
   const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
   const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isInfoSheetOpen = location.pathname === "/informacoes";
 
   useEffect(() => {
     try {
@@ -32,34 +35,46 @@ export default function App() {
     }
   }, [savedPlaces]);
 
-  const syncInfoSheetState = useCallback(() => {
+  const handleShellScroll = () => {
     const appShell = appShellRef.current;
-    const isMobile = window.matchMedia("(max-width: 767px)").matches;
-    setInfoSheetOpen(Boolean(isMobile && appShell?.scrollTop > 0));
-  }, []);
+    if (!appShell || !window.matchMedia("(max-width: 767px)").matches) return;
+
+    const scrollTarget = programmaticScrollTargetRef.current;
+    if (scrollTarget !== null) {
+      if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
+        programmaticScrollTargetRef.current = null;
+      }
+      return;
+    }
+
+    if (appShell.scrollTop > 0 && !isInfoSheetOpen) {
+      navigate("/informacoes", { replace: true });
+    } else if (appShell.scrollTop === 0 && isInfoSheetOpen) {
+      navigate("/", { replace: true });
+    }
+  };
 
   useEffect(() => {
-    window.addEventListener("resize", syncInfoSheetState);
-    return () => window.removeEventListener("resize", syncInfoSheetState);
-  }, [syncInfoSheetState]);
-
-  const openInfoSheet = () => {
     const appShell = appShellRef.current;
     const mapView = mapViewRef.current;
-    if (!appShell || !mapView) return;
+    if (
+      !appShell ||
+      !mapView ||
+      !window.matchMedia("(max-width: 767px)").matches
+    ) {
+      return;
+    }
 
-    setInfoSheetOpen(true);
-    requestAnimationFrame(() => {
-      const scrollOffset =
-        mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35);
-      appShell.scrollTo({ top: scrollOffset, behavior: "smooth" });
-    });
-  };
+    const scrollTarget = isInfoSheetOpen
+      ? mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35)
+      : 0;
+    if (Math.abs(appShell.scrollTop - scrollTarget) < 2) return;
 
-  const closeInfoSheet = () => {
-    setInfoSheetOpen(false);
-    appShellRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  };
+    programmaticScrollTargetRef.current = scrollTarget;
+    appShell.scrollTo({ top: scrollTarget, behavior: "smooth" });
+  }, [isInfoSheetOpen]);
+
+  const closeInfoSheet = () => navigate("/");
 
   const saveCurrentPlace = () => {
     setPlaceName("Novo local");
@@ -124,17 +139,17 @@ export default function App() {
     <div
       className="app-shell"
       ref={appShellRef}
-      onScroll={syncInfoSheetState}
+      onScroll={handleShellScroll}
     >
       <Sidebar
-        dashboardRef={dashboardRef}
         onOpenAbout={() => setAboutDialogOpen(true)}
-        onCloseInfoSheet={closeInfoSheet}
         savedPlaces={savedPlaces}
         onSavePlace={saveCurrentPlace}
         onSelectPlace={(place) => mapRef.current?.flyTo(place.center, place.zoom)}
         onRequestRemovePlace={setPlaceToRemove}
-      />
+      >
+        <Outlet context={{ onCloseInfoSheet: closeInfoSheet }} />
+      </Sidebar>
       <MapView
         mapRef={mapRef}
         mapViewRef={mapViewRef}
@@ -147,8 +162,6 @@ export default function App() {
       />
       <MobileNavigation
         isInfoSheetOpen={isInfoSheetOpen}
-        onShowMap={closeInfoSheet}
-        onShowInformation={openInfoSheet}
       />
       <SavePlaceDialog
         open={isSaveDialogOpen}

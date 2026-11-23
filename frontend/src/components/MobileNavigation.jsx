@@ -1,31 +1,26 @@
-export default function MobileNavigation({
-  isInfoSheetOpen,
-  onShowMap,
-  onShowInformation,
-}) {
+import { NavLink } from "react-router";
+
+export default function MobileNavigation({ isInfoSheetOpen }) {
   return (
     <nav className="mobile-bottom-nav" aria-label="Navegação principal">
-      <button
-        type="button"
-        onClick={onShowMap}
+      <NavLink
+        to="/"
+        end
         aria-controls="dashboardSheet"
-        aria-pressed={!isInfoSheetOpen}
-        className={!isInfoSheetOpen ? "active" : ""}
+        className={({ isActive }) => (isActive ? "active" : "")}
       >
         <i className="fa-solid fa-map-location-dot" aria-hidden="true"></i>
         <span>Mapa</span>
-      </button>
-      <button
-        type="button"
-        onClick={onShowInformation}
+      </NavLink>
+      <NavLink
+        to="/informacoes"
         aria-controls="dashboardSheet"
         aria-expanded={isInfoSheetOpen}
-        aria-pressed={isInfoSheetOpen}
-        className={isInfoSheetOpen ? "active" : ""}
+        className={({ isActive }) => (isActive ? "active" : "")}
       >
         <i className="fa-solid fa-circle-info" aria-hidden="true"></i>
         <span>Informações</span>
-      </button>
+      </NavLink>
     </nav>
   );
 }

@@ -434,7 +434,7 @@ body {
     transform: translateX(-50%);
   }
 
-  .mobile-bottom-nav > button {
+  .mobile-bottom-nav > a {
     display: flex;
     min-width: 5rem;
     flex-direction: column;
@@ -446,6 +446,7 @@ body {
     color: #94a3b8;
     font-size: 10px;
     cursor: pointer;
+    text-decoration: none;
   }
 
   .mobile-bottom-nav i {
