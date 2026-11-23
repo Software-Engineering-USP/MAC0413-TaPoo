@@ -61,6 +61,33 @@ comma-separated. When unset, it allows the local frontend
 (`http://localhost:3000` and `http://localhost:5173`); in production, set it to the
 public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
 
+## Deploy
+
+The production frontend runs on Vercel and the FastAPI backend runs on Render.
+Render builds the backend from `backend/Dockerfile` using the root `render.yaml`
+Blueprint.
+
+### First deployment
+
+1. Import this repository into Vercel and set the project root directory to
+   `frontend`. Vercel detects Vite and builds the static site.
+2. In Render, create a Blueprint connected to this repository and use its root
+   `render.yaml`. Provide
+   `ANA_IDENTIFICADOR` and `ANA_SENHA` when prompted to enable live ANA data, and
+   set `CORS_ORIGENS` to the Vercel production origin (for example,
+   `https://tapoo.vercel.app`). Keep these values in Render's environment settings.
+3. Copy the Render service URL (for example, `https://tapoo-api.onrender.com`) into
+   Vercel's `VITE_API_URL` environment variable for Production, then redeploy the
+   frontend. Vite embeds this URL into the frontend at build time.
+4. Check `https://<render-service>.onrender.com/health`, then use the deployed
+   frontend to confirm it can search stations through the API.
+
+For Vercel Preview deployments, add their origins to `CORS_ORIGENS` if they should
+be allowed to call the production API, and set `VITE_API_URL` for the Preview
+environment too. `CORS_ORIGENS` accepts comma-separated exact origins. The Render
+service health check is configured as `/health` in the Blueprint. Update this
+README with the final public frontend and API URLs after deployment.
+
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
@@ -115,14 +142,5 @@ drops below 80%. The threshold is `fail_under` in `[tool.coverage.report]` of
 ## CI/CD
 
 Pull requests and pushes to `main` run the backend checks, frontend build, and
-SonarCloud analysis. Docker images are published to GHCR only when a version
-tag is pushed or the workflow is started manually.
-
-To publish a versioned image:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The workflow can also be started from GitHub Actions using **Run workflow**.
+SonarCloud analysis. Render builds the backend image from the repository when
+deploying; CI does not publish container images.

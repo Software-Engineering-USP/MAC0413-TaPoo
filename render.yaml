@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: tapoo-api
+    runtime: docker
+    region: virginia
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health
+    envVars:
+      - key: ANA_IDENTIFICADOR
+        sync: false
+      - key: ANA_SENHA
+        sync: false
+      - key: CORS_ORIGENS
+        sync: false
+      - key: ANA_BASE_URL
+        value: https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas
+      - key: ANA_TIMEOUT_SEGUNDOS
+        value: "20"
