@@ -1,5 +1,139 @@
 import { useEffect, useState } from "react";
 import L from "leaflet";
+import { listarEstacoes } from "./api/estacoes.js";
+
+const severidadesEstacao = {
+  NORMAL: { abreviacao: "N", classe: "normal" },
+  ATENCAO: { abreviacao: "A", classe: "atencao" },
+  ALERTA: { abreviacao: "AL", classe: "alerta" },
+  EMERGENCIA: { abreviacao: "E", classe: "emergencia" },
+};
+const LIMITE_MARCADORES = 100;
+const unidadesFederativas = [
+  ["AC", "Acre"],
+  ["AL", "Alagoas"],
+  ["AP", "Amapá"],
+  ["AM", "Amazonas"],
+  ["BA", "Bahia"],
+  ["CE", "Ceará"],
+  ["DF", "Distrito Federal"],
+  ["ES", "Espírito Santo"],
+  ["GO", "Goiás"],
+  ["MA", "Maranhão"],
+  ["MT", "Mato Grosso"],
+  ["MS", "Mato Grosso do Sul"],
+  ["MG", "Minas Gerais"],
+  ["PA", "Pará"],
+  ["PB", "Paraíba"],
+  ["PR", "Paraná"],
+  ["PE", "Pernambuco"],
+  ["PI", "Piauí"],
+  ["RJ", "Rio de Janeiro"],
+  ["RN", "Rio Grande do Norte"],
+  ["RS", "Rio Grande do Sul"],
+  ["RO", "Rondônia"],
+  ["RR", "Roraima"],
+  ["SC", "Santa Catarina"],
+  ["SP", "São Paulo"],
+  ["SE", "Sergipe"],
+  ["TO", "Tocantins"],
+];
+
+function iconeEstacao(severidade) {
+  const estilo = severidadesEstacao[severidade] || severidadesEstacao.NORMAL;
+  return L.divIcon({
+    className: `station-marker station-marker-${estilo.classe}`,
+    html: `<span aria-hidden="true">${estilo.abreviacao}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
+function limitarEstacoesParaMapa(estacoes) {
+  if (estacoes.length <= LIMITE_MARCADORES) return estacoes;
+  const intervalo = estacoes.length / LIMITE_MARCADORES;
+  return Array.from(
+    { length: LIMITE_MARCADORES },
+    (_, indice) => estacoes[Math.floor(indice * intervalo)],
+  );
+}
+
+function obterCoordenadasEstacao(estacao) {
+  const latitude = Number(estacao.latitude);
+  const longitude = Number(estacao.longitude);
+  const coordenadasInvalidas =
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0);
+
+  return coordenadasInvalidas ? null : [latitude, longitude];
+}
+
+function atualizarStatusBuscaEstacoes(
+  status,
+  total,
+  comCoordenadas,
+  semCoordenadas,
+  exibidas,
+  uf,
+) {
+  if (!status) return;
+
+  if (total === 0) {
+    status.textContent = "Nenhuma estação encontrada.";
+  } else if (comCoordenadas === 0) {
+    status.textContent = `Foram encontradas ${total} estações, mas nenhuma tem coordenadas válidas para exibir.`;
+  } else if (comCoordenadas > exibidas && semCoordenadas > 0) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else if (comCoordenadas > exibidas) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}. Refine a busca para ver outras.`;
+  } else if (semCoordenadas > 0) {
+    status.textContent = `${exibidas} estação(ões) exibida(s) em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else {
+    status.textContent = `${exibidas} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
+  }
+
+  status.dataset.state = exibidas ? "success" : "empty";
+}
+
+function criarPopupEstacao(estacao, nome, severidade) {
+  const popup = document.createElement("div");
+  const titulo = document.createElement("strong");
+  titulo.textContent = nome;
+  popup.appendChild(titulo);
+
+  const municipio = [estacao.municipio, estacao.uf].filter(Boolean).join(" — ");
+  const detalhes = [
+    municipio,
+    estacao.rio && `Rio: ${estacao.rio}`,
+    `Situação: ${severidade}`,
+    estacao.alerta?.mensagem,
+  ].filter(Boolean);
+
+  detalhes.forEach((detalhe) => {
+    const linha = document.createElement("div");
+    linha.textContent = detalhe;
+    popup.appendChild(linha);
+  });
+  return popup;
+}
+
+function criarMarcadorEstacao(estacao) {
+  const coordenadas = obterCoordenadasEstacao(estacao);
+  if (!coordenadas) return null;
+
+  const severidade = estacao.severidade_rotulo || "Normal";
+  const nome = estacao.nome || `Estação ${estacao.codigo}`;
+  return L.marker(coordenadas, {
+    icon: iconeEstacao(estacao.severidade),
+    title: `${nome} — ${severidade}`,
+    alt: `${nome}, severidade ${severidade}`,
+  }).bindPopup(criarPopupEstacao(estacao, nome, severidade));
+}
 
 const emergencyContacts = [
   { number: "112", service: "Emergência" },
@@ -144,6 +278,68 @@ export default function App() {
     }).addTo(map);
 
     const floodRiskLayer = L.layerGroup().addTo(map);
+    const stationLayer = L.featureGroup().addTo(map);
+    const stationSearchStatus = document.getElementById("stationSearchStatus");
+    let stationRequest;
+
+    const renderStationMarkers = (stations, ajustarEnquadramento = false) => {
+      stationLayer.clearLayers();
+      let markersRendered = 0;
+      stations.forEach((station) => {
+        const marker = criarMarcadorEstacao(station);
+        if (!marker) return;
+        stationLayer.addLayer(marker);
+        markersRendered += 1;
+      });
+
+      const bounds = stationLayer.getBounds();
+      if (ajustarEnquadramento && bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+      }
+      return markersRendered;
+    };
+
+    const carregarEstacoes = async (texto, uf) => {
+      stationRequest?.abort();
+      const requisicao = new AbortController();
+      stationRequest = requisicao;
+      if (stationSearchStatus) {
+        stationSearchStatus.textContent = `Buscando “${texto}” em ${uf}...`;
+        stationSearchStatus.dataset.state = "loading";
+      }
+
+      try {
+        const stations = await listarEstacoes({
+          texto,
+          uf,
+          signal: requisicao.signal,
+        });
+        if (requisicao.signal.aborted) return;
+        const stationsWithCoordinates = stations.filter((station) =>
+          obterCoordenadasEstacao(station),
+        );
+        const stationsWithoutCoordinates =
+          stations.length - stationsWithCoordinates.length;
+        const markers = limitarEstacoesParaMapa(stationsWithCoordinates);
+        const markersRendered = renderStationMarkers(markers, true);
+        atualizarStatusBuscaEstacoes(
+          stationSearchStatus,
+          stations.length,
+          stationsWithCoordinates.length,
+          stationsWithoutCoordinates,
+          markersRendered,
+          uf,
+        );
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        if (stationSearchStatus) {
+          stationSearchStatus.textContent = `Não foi possível carregar as estações: ${error.message}`;
+          stationSearchStatus.dataset.state = "error";
+        }
+      }
+    };
+
+    const stateInput = document.getElementById("stateInput");
 
     // Render Rivers
     const rivers = [
@@ -514,10 +710,12 @@ export default function App() {
         // Keep the new saved location in view
         setTimeout(() => {
           const isMobile = window.matchMedia("(max-width: 767px)").matches;
+          const scrollProperty = isMobile ? "left" : "top";
+          const scrollPosition = isMobile
+            ? savedLocationsContainer.scrollWidth
+            : savedLocationsContainer.scrollHeight;
           savedLocationsContainer.scrollTo({
-            [isMobile ? "left" : "top"]: isMobile
-              ? savedLocationsContainer.scrollWidth
-              : savedLocationsContainer.scrollHeight,
+            [scrollProperty]: scrollPosition,
             behavior: "smooth",
           });
         }, 50);
@@ -533,30 +731,47 @@ export default function App() {
         map.flyTo(defaultSavedPlaces[0].center, 16),
       );
 
-    document
-      .getElementById("searchInput")
-      .addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-
-        const query = event.currentTarget.value
-          .trim()
-          .toLocaleLowerCase("pt-BR");
-        if (!query) return;
-        const place = savedPlaces.find((item) =>
-          item.name.toLocaleLowerCase("pt-BR").includes(query),
-        );
-
-        if (place) {
-          map.flyTo(place.center, place.zoom);
-        } else {
-          event.currentTarget.setCustomValidity("Local salvo não encontrado.");
-          event.currentTarget.reportValidity();
-          return;
-        }
-
-        event.currentTarget.setCustomValidity("");
-        event.currentTarget.blur();
-      });
+    const searchInput = document.getElementById("searchInput");
+    const stationSearchForm = document.getElementById("stationSearchForm");
+    const handleStationSearch = (event) => {
+      event.preventDefault();
+      stationRequest?.abort();
+      const query = searchInput.value.trim();
+      const normalizedQuery = query.toLocaleLowerCase("pt-BR");
+      const savedPlaceMatches =
+        query.length >= 2
+          ? savedPlaces.filter((place) =>
+              place.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery),
+            )
+          : [];
+      const savedPlace =
+        savedPlaceMatches.length === 1 ? savedPlaceMatches[0] : null;
+      if (savedPlace) {
+        map.flyTo(savedPlace.center, savedPlace.zoom);
+        stationSearchStatus.textContent = `Mapa centralizado em “${savedPlace.name}”.`;
+        stationSearchStatus.dataset.state = "success";
+        searchInput.blur();
+        return;
+      }
+      if (query.length < 2) {
+        stationSearchStatus.textContent =
+          "Informe ao menos 2 caracteres para pesquisar.";
+        stationSearchStatus.dataset.state = "error";
+        searchInput.focus();
+        return;
+      }
+      void carregarEstacoes(query, stateInput.value);
+      searchInput.blur();
+    };
+    stationSearchForm.addEventListener("submit", handleStationSearch);
+    const handleStateChange = () => {
+      searchInput.value = "";
+      stationRequest?.abort();
+      stationLayer.clearLayers();
+      stationSearchStatus.textContent = `Escolha uma cidade, estação ou rio para pesquisar em ${stateInput.value}.`;
+      stationSearchStatus.dataset.state = "empty";
+    };
+    stateInput.addEventListener("change", handleStateChange);
 
     return () => {
       savedLocationsContainer.removeEventListener(
@@ -566,6 +781,9 @@ export default function App() {
       saveLocationButtons.forEach((button) =>
         button.removeEventListener("click", handleSaveLocation),
       );
+      stationSearchForm.removeEventListener("submit", handleStationSearch);
+      stateInput.removeEventListener("change", handleStateChange);
+      stationRequest?.abort();
       map.remove();
     };
   }, []);
@@ -990,22 +1208,89 @@ export default function App() {
 
       <main className="app-main mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
         <div className="map-search-controls">
-          <div className="relative flex items-center">
+          <div className="mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs shadow-lg">
+            <label
+              htmlFor="stateInput"
+              className="shrink-0 font-semibold text-slate-600"
+            >
+              Estado das estações
+            </label>
+            <select
+              id="stateInput"
+              defaultValue="SP"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            >
+              {unidadesFederativas.map(([uf, nome]) => (
+                <option key={uf} value={uf}>
+                  {nome} ({uf})
+                </option>
+              ))}
+            </select>
+          </div>
+          <form
+            id="stationSearchForm"
+            role="search"
+            className="relative flex items-center"
+          >
             <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
             <input
               type="text"
               id="searchInput"
-              placeholder="Buscar cidade ou rio..."
-              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+              aria-label="Buscar local salvo, estação por cidade, nome ou rio"
+              placeholder="Local salvo, município, estação ou rio..."
+              maxLength={100}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-28 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
             />
-            <button
-              className="absolute right-3 p-1 text-slate-400 hover:text-sky-600"
-              id="myLocationBtn"
-              title="Minha localização"
-            >
-              <i className="fa-solid fa-location-arrow text-xs"></i>
-            </button>
-          </div>
+            <div className="absolute right-2 flex items-center gap-1">
+              <button
+                type="button"
+                id="myLocationBtn"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                title="Minha localização"
+                aria-label="Ir para minha localização salva"
+              >
+                <i className="fa-solid fa-location-arrow text-xs"></i>
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              >
+                Filtrar
+              </button>
+            </div>
+          </form>
+          <p
+            id="stationSearchStatus"
+            className="mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
+            role="status"
+            aria-live="polite"
+            data-state="empty"
+          >
+            Selecione o estado e informe pelo menos 2 caracteres para consultar
+            as estações. Você também pode buscar um local salvo.
+          </p>
+        </div>
+        <div
+          className="risk-area-legend"
+          aria-label="Legenda das áreas simuladas"
+        >
+          <strong>Áreas ilustrativas</strong>
+          <span>
+            <i aria-hidden="true" className="risk-area-swatch risk-area-low" />{" "}
+            Baixo
+          </span>
+          <span>
+            <i
+              aria-hidden="true"
+              className="risk-area-swatch risk-area-moderate"
+            />{" "}
+            Moderado
+          </span>
+          <span>
+            <i aria-hidden="true" className="risk-area-swatch risk-area-high" />{" "}
+            Alto
+          </span>
+          <small>Não representam alertas oficiais</small>
         </div>
         <div
           id="interactiveMap"
@@ -1102,7 +1387,7 @@ export default function App() {
         <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900 text-lg">
-              Sobre o AquaWatch AI
+              Sobre o AquaWatch
             </h3>
             <button
               id="closeModal"
@@ -1112,35 +1397,42 @@ export default function App() {
             </button>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Esta aplicação utiliza modelos preditivos de inteligência artificial
-            cruzando dados meteorológicos em tempo real com histórico de cheias
-            registradas no Brasil.
+            A plataforma apresenta as estações hidrológicas e os níveis de
+            severidade calculados pelo sistema a partir dos dados disponíveis na
+            API da ANA. A atualização depende da disponibilidade de cada estação
+            e do serviço de dados.
           </p>
           <CivilDefenseWarning />
           <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Legenda do mapa
+              Severidade das estações ANA
             </h4>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-6 h-1.5 rounded-full bg-sky-600"></span>
-              <span>Rios e córregos próximos</span>
+            <div className="space-y-2">
+              {[
+                ["station-marker-normal", "N", "Normal — sem alerta ativo"],
+                ["station-marker-atencao", "A", "Atenção"],
+                ["station-marker-alerta", "AL", "Alerta"],
+                ["station-marker-emergencia", "E", "Emergência"],
+              ].map(([markerClass, abbreviation, label]) => (
+                <div
+                  key={markerClass}
+                  className="flex items-center gap-3 text-sm text-slate-700"
+                >
+                  <span
+                    className={`legend-station-marker ${markerClass}`}
+                    aria-hidden="true"
+                  >
+                    {abbreviation}
+                  </span>
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-sky-600"></span>
-              <span>Azul: sem risco simulado</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
-              <span>Amarelo: risco baixo</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-              <span>Laranja: risco moderado</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-red-600"></span>
-              <span>Vermelho: risco alto</span>
-            </div>
+            <p className="text-xs leading-relaxed text-slate-500">
+              A cor e a sigla identificam a severidade informada pela API. As
+              áreas e linhas do mapa são ilustrações e não representam alertas
+              oficiais.
+            </p>
           </div>
           <button
             id="okModalBtn"
