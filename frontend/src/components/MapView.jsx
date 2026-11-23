@@ -121,7 +121,7 @@ export default function MapView({
         icon: savedPlaceIcon(riskLevel),
       })
         .addTo(map)
-        .bindTooltip(place.name, {
+        .bindTooltip(escapeHtml(place.name), {
           permanent: true,
           direction: "top",
           offset: [0, -8],

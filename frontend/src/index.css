@@ -92,6 +92,10 @@ body {
     padding-top: 1rem;
     gap: 1rem;
   }
+
+  .dashboard-sheet > * {
+    flex-shrink: 0;
+  }
 }
 
 .saved-places-heading {

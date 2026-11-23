@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import {
   AboutDialog,
@@ -15,7 +15,9 @@ export default function App() {
   const mapRef = useRef(null);
   const mapViewRef = useRef(null);
   const searchInputRef = useRef(null);
+  const routeChangeFromScrollRef = useRef(false);
   const programmaticScrollTargetRef = useRef(null);
+  const programmaticScrollTimeoutRef = useRef(null);
 
   const [isAboutDialogOpen, setAboutDialogOpen] = useState(false);
   const [isSaveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -35,26 +37,15 @@ export default function App() {
     }
   }, [savedPlaces]);
 
-  const handleShellScroll = () => {
-    const appShell = appShellRef.current;
-    if (!appShell || !window.matchMedia("(max-width: 767px)").matches) return;
-
-    const scrollTarget = programmaticScrollTargetRef.current;
-    if (scrollTarget !== null) {
-      if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
-        programmaticScrollTargetRef.current = null;
-      }
-      return;
+  const clearProgrammaticScrollTarget = useCallback(() => {
+    programmaticScrollTargetRef.current = null;
+    if (programmaticScrollTimeoutRef.current !== null) {
+      window.clearTimeout(programmaticScrollTimeoutRef.current);
+      programmaticScrollTimeoutRef.current = null;
     }
+  }, []);
 
-    if (appShell.scrollTop > 0 && !isInfoSheetOpen) {
-      navigate("/informacoes", { replace: true });
-    } else if (appShell.scrollTop === 0 && isInfoSheetOpen) {
-      navigate("/", { replace: true });
-    }
-  };
-
-  useEffect(() => {
+  const scrollToInfoSheet = useCallback((shouldOpen) => {
     const appShell = appShellRef.current;
     const mapView = mapViewRef.current;
     if (
@@ -65,14 +56,86 @@ export default function App() {
       return;
     }
 
-    const scrollTarget = isInfoSheetOpen
+    const requestedTarget = shouldOpen
       ? mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35)
       : 0;
-    if (Math.abs(appShell.scrollTop - scrollTarget) < 2) return;
+    const maxScrollTop = Math.max(
+      0,
+      appShell.scrollHeight - appShell.clientHeight,
+    );
+    const scrollTarget = Math.min(Math.max(0, requestedTarget), maxScrollTop);
 
+    if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
+      clearProgrammaticScrollTarget();
+      return;
+    }
+
+    clearProgrammaticScrollTarget();
     programmaticScrollTargetRef.current = scrollTarget;
+    programmaticScrollTimeoutRef.current = window.setTimeout(
+      clearProgrammaticScrollTarget,
+      1500,
+    );
     appShell.scrollTo({ top: scrollTarget, behavior: "smooth" });
-  }, [isInfoSheetOpen]);
+  }, [clearProgrammaticScrollTarget]);
+
+  const handleShellScroll = () => {
+    const appShell = appShellRef.current;
+    if (!appShell || !window.matchMedia("(max-width: 767px)").matches) return;
+
+    if (routeChangeFromScrollRef.current) return;
+
+    const scrollTarget = programmaticScrollTargetRef.current;
+    if (scrollTarget !== null) {
+      if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
+        clearProgrammaticScrollTarget();
+      }
+      return;
+    }
+
+    if (appShell.scrollTop > 0 && !isInfoSheetOpen) {
+      routeChangeFromScrollRef.current = true;
+      navigate("/informacoes");
+    } else if (appShell.scrollTop <= 1 && isInfoSheetOpen) {
+      routeChangeFromScrollRef.current = true;
+      navigate("/");
+    }
+  };
+
+  useEffect(() => {
+    if (routeChangeFromScrollRef.current) {
+      routeChangeFromScrollRef.current = false;
+      return;
+    }
+
+    scrollToInfoSheet(isInfoSheetOpen);
+  }, [isInfoSheetOpen, scrollToInfoSheet]);
+
+  useEffect(() => {
+    const appShell = appShellRef.current;
+    if (!appShell) return undefined;
+
+    appShell.addEventListener("scrollend", clearProgrammaticScrollTarget);
+    appShell.addEventListener("touchstart", clearProgrammaticScrollTarget, {
+      passive: true,
+    });
+    appShell.addEventListener("wheel", clearProgrammaticScrollTarget, {
+      passive: true,
+    });
+
+    return () => {
+      appShell.removeEventListener("scrollend", clearProgrammaticScrollTarget);
+      appShell.removeEventListener("touchstart", clearProgrammaticScrollTarget);
+      appShell.removeEventListener("wheel", clearProgrammaticScrollTarget);
+      clearProgrammaticScrollTarget();
+    };
+  }, [clearProgrammaticScrollTarget]);
+
+  useEffect(() => {
+    const handleResize = () => scrollToInfoSheet(isInfoSheetOpen);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isInfoSheetOpen, scrollToInfoSheet]);
 
   const closeInfoSheet = () => navigate("/");
 
