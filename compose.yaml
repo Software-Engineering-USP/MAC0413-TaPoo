@@ -11,7 +11,11 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        # Endereço da API visto pelo navegador, não pelo container.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy

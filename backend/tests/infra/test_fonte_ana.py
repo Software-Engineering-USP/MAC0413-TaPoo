@@ -9,6 +9,7 @@ import pytest
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, NivelConsistencia, TipoEstacao
+from app.dominio.erros import DadoInvalido, FonteIndisponivel
 from app.dominio.periodo import Periodo
 from app.infra.fontes import ana
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
@@ -65,18 +66,18 @@ def test_mapeia_estacao_pluviometrica_com_campos_opcionais() -> None:
     assert not estacao.telemetrica
     assert not estacao.operando
 
-    with pytest.raises(ValueError, match="tipo de estação desconhecido"):
+    with pytest.raises(DadoInvalido, match="tipo de estação desconhecido"):
         FonteAna._mapear_estacao({"Tipo_Estacao": "desconhecido"})
 
 
 def test_parseia_data_iso_e_rejeita_data_ausente_ou_invalida() -> None:
     assert FonteAna._data_hora(None, obrigatoria=False) is None
-    with pytest.raises(ValueError, match="sem data"):
+    with pytest.raises(DadoInvalido, match="sem data"):
         FonteAna._data_hora(None)
     assert FonteAna._data_hora("2026-11-18T12:00:00+00:00") == datetime(
         2026, 11, 18, 12, tzinfo=UTC
     )
-    with pytest.raises(ValueError, match="formato desconhecido"):
+    with pytest.raises(DadoInvalido, match="formato desconhecido"):
         FonteAna._data_hora("data inválida")
 
 
@@ -511,3 +512,7 @@ def test_renova_token_uma_vez_apos_resposta_401(monkeypatch) -> None:
     assert FonteAna("id", "senha").buscar_medicoes(15400000, periodo) == []
     assert tokens_emitidos == 2
     assert chamadas_api == 2
+
+
+def test_erro_da_ana_e_fonte_indisponivel() -> None:
+    assert issubclass(ErroFonteAna, FonteIndisponivel)

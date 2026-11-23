@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 from math import asin, cos, radians, sin, sqrt
 
+from app.dominio.erros import DadoInvalido
+
 RAIO_TERRA_KM = 6371.0
 
 
@@ -13,9 +15,9 @@ class Coordenada:
 
     def __post_init__(self) -> None:
         if not -90.0 <= self.latitude <= 90.0:
-            raise ValueError(f"latitude fora do intervalo [-90, 90]: {self.latitude}")
+            raise DadoInvalido(f"latitude fora do intervalo [-90, 90]: {self.latitude}")
         if not -180.0 <= self.longitude <= 180.0:
-            raise ValueError(f"longitude fora do intervalo [-180, 180]: {self.longitude}")
+            raise DadoInvalido(f"longitude fora do intervalo [-180, 180]: {self.longitude}")
 
     def distancia_km(self, outra: "Coordenada") -> float:
         """Distância de grande círculo (fórmula de haversine)."""

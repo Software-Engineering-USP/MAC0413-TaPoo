@@ -15,12 +15,13 @@ from fastapi import Depends, Request
 from app.aplicacao.coleta import ColetarMedicoes
 from app.aplicacao.consulta import ConsultarDados
 from app.aplicacao.monitoramento import MonitorarEstacoes
-from app.aplicacao.portas import FonteDadosHidrologicos
+from app.aplicacao.portas import FonteDadosHidrologicos, FonteDePrevisao
 from app.aplicacao.sincronizacao import SincronizarEstacoes
 from app.configuracao import base_url_ana, credenciais_ana, timeout_ana
 from app.dominio.tempo import agora_utc
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake, regras_de_exemplo
+from app.infra.fontes.openmeteo import FonteOpenMeteo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
     EstacaoRepositorioMemoria,
@@ -61,15 +62,20 @@ def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrol
 def montar_container(
     fonte: FonteDadosHidrologicos | None = None,
     relogio: Callable[[], datetime] = agora_utc,
+    fonte_previsao: FonteDePrevisao | None = None,
 ) -> Container:
     if fonte is None:
         fonte = criar_fonte(relogio)
+        if fonte_previsao is None:
+            fonte_previsao = FonteOpenMeteo()
     estacoes = EstacaoRepositorioMemoria()
     medicoes = MedicaoRepositorioMemoria()
     alertas = AlertaRepositorioMemoria()
     regras = RegraRepositorioMemoria(regras_de_exemplo())
 
-    monitorar = MonitorarEstacoes(medicoes, regras, alertas, relogio=relogio)
+    monitorar = MonitorarEstacoes(
+        medicoes, regras, alertas, fonte_previsao=fonte_previsao, relogio=relogio
+    )
     return Container(
         consulta=ConsultarDados(estacoes, medicoes, alertas),
         sincronizar=SincronizarEstacoes(fonte, estacoes),

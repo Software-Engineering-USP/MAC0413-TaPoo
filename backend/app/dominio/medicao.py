@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
 from app.dominio.enums import Grandeza, NivelConsistencia, OrigemDado
+from app.dominio.erros import DadoInvalido
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import exigir_utc
 
@@ -47,7 +48,7 @@ class MedicaoChuva(Medicao):
     def __post_init__(self) -> None:
         super().__post_init__()
         if self.valor < 0:
-            raise ValueError("chuva não pode ser negativa")
+            raise DadoInvalido("chuva não pode ser negativa")
 
     def grandeza(self) -> Grandeza:
         return Grandeza.CHUVA
@@ -62,7 +63,7 @@ class MedicaoVazao(Medicao):
     def __post_init__(self) -> None:
         super().__post_init__()
         if self.valor < 0:
-            raise ValueError("vazão não pode ser negativa")
+            raise DadoInvalido("vazão não pode ser negativa")
 
     def grandeza(self) -> Grandeza:
         return Grandeza.VAZAO
@@ -107,9 +108,9 @@ class SerieTemporal:
 
     def adicionar(self, medicao: Medicao) -> None:
         if medicao.codigo_estacao != self.codigo_estacao:
-            raise ValueError("medição pertence a outra estação")
+            raise DadoInvalido("medição pertence a outra estação")
         if medicao.grandeza() != self.grandeza:
-            raise ValueError(f"série de {self.grandeza} não aceita {medicao.grandeza()}")
+            raise DadoInvalido(f"série de {self.grandeza} não aceita {medicao.grandeza()}")
         insort(self.medicoes, medicao, key=lambda m: m.data_hora_utc)
 
     def __len__(self) -> int:

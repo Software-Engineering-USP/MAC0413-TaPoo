@@ -1,7 +1,213 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import L from "leaflet";
+import { listarEstacoes } from "./api/estacoes.js";
+
+const severidadesEstacao = {
+  NORMAL: { abreviacao: "N", classe: "normal" },
+  ATENCAO: { abreviacao: "A", classe: "atencao" },
+  ALERTA: { abreviacao: "AL", classe: "alerta" },
+  EMERGENCIA: { abreviacao: "E", classe: "emergencia" },
+};
+const LIMITE_MARCADORES = 100;
+const unidadesFederativas = [
+  ["AC", "Acre"],
+  ["AL", "Alagoas"],
+  ["AP", "Amapá"],
+  ["AM", "Amazonas"],
+  ["BA", "Bahia"],
+  ["CE", "Ceará"],
+  ["DF", "Distrito Federal"],
+  ["ES", "Espírito Santo"],
+  ["GO", "Goiás"],
+  ["MA", "Maranhão"],
+  ["MT", "Mato Grosso"],
+  ["MS", "Mato Grosso do Sul"],
+  ["MG", "Minas Gerais"],
+  ["PA", "Pará"],
+  ["PB", "Paraíba"],
+  ["PR", "Paraná"],
+  ["PE", "Pernambuco"],
+  ["PI", "Piauí"],
+  ["RJ", "Rio de Janeiro"],
+  ["RN", "Rio Grande do Norte"],
+  ["RS", "Rio Grande do Sul"],
+  ["RO", "Rondônia"],
+  ["RR", "Roraima"],
+  ["SC", "Santa Catarina"],
+  ["SP", "São Paulo"],
+  ["SE", "Sergipe"],
+  ["TO", "Tocantins"],
+];
+
+function iconeEstacao(severidade) {
+  const estilo = severidadesEstacao[severidade] || severidadesEstacao.NORMAL;
+  return L.divIcon({
+    className: `station-marker station-marker-${estilo.classe}`,
+    html: `<span aria-hidden="true">${estilo.abreviacao}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
+function limitarEstacoesParaMapa(estacoes) {
+  if (estacoes.length <= LIMITE_MARCADORES) return estacoes;
+  const intervalo = estacoes.length / LIMITE_MARCADORES;
+  return Array.from(
+    { length: LIMITE_MARCADORES },
+    (_, indice) => estacoes[Math.floor(indice * intervalo)],
+  );
+}
+
+function obterCoordenadasEstacao(estacao) {
+  const latitude = Number(estacao.latitude);
+  const longitude = Number(estacao.longitude);
+  const coordenadasInvalidas =
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude) ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180 ||
+    (latitude === 0 && longitude === 0);
+
+  return coordenadasInvalidas ? null : [latitude, longitude];
+}
+
+function atualizarStatusBuscaEstacoes(
+  status,
+  total,
+  comCoordenadas,
+  semCoordenadas,
+  exibidas,
+  uf,
+) {
+  if (!status) return;
+
+  if (total === 0) {
+    status.textContent = "Nenhuma estação encontrada.";
+  } else if (comCoordenadas === 0) {
+    status.textContent = `Foram encontradas ${total} estações, mas nenhuma tem coordenadas válidas para exibir.`;
+  } else if (comCoordenadas > exibidas && semCoordenadas > 0) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else if (comCoordenadas > exibidas) {
+    status.textContent = `Exibindo ${exibidas} de ${comCoordenadas} estações com coordenadas válidas em ${uf}. Refine a busca para ver outras.`;
+  } else if (semCoordenadas > 0) {
+    status.textContent = `${exibidas} estação(ões) exibida(s) em ${uf}; ${semCoordenadas} sem coordenadas válidas.`;
+  } else {
+    status.textContent = `${exibidas} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
+  }
+
+  status.dataset.state = exibidas ? "success" : "empty";
+}
+
+function criarPopupEstacao(estacao, nome, severidade) {
+  const popup = document.createElement("div");
+  const titulo = document.createElement("strong");
+  titulo.textContent = nome;
+  popup.appendChild(titulo);
+
+  const municipio = [estacao.municipio, estacao.uf].filter(Boolean).join(" — ");
+  const detalhes = [
+    municipio,
+    estacao.rio && `Rio: ${estacao.rio}`,
+    `Situação: ${severidade}`,
+    estacao.alerta?.mensagem,
+  ].filter(Boolean);
+
+  detalhes.forEach((detalhe) => {
+    const linha = document.createElement("div");
+    linha.textContent = detalhe;
+    popup.appendChild(linha);
+  });
+  return popup;
+}
+
+function criarMarcadorEstacao(estacao) {
+  const coordenadas = obterCoordenadasEstacao(estacao);
+  if (!coordenadas) return null;
+
+  const severidade = estacao.severidade_rotulo || "Normal";
+  const nome = estacao.nome || `Estação ${estacao.codigo}`;
+  return L.marker(coordenadas, {
+    icon: iconeEstacao(estacao.severidade),
+    title: `${nome} — ${severidade}`,
+    alt: `${nome}, severidade ${severidade}`,
+  }).bindPopup(criarPopupEstacao(estacao, nome, severidade));
+}
+
+const emergencyContacts = [
+  { number: "112", service: "Emergência" },
+  { number: "190", service: "Polícia Militar" },
+  { number: "192", service: "SAMU" },
+  { number: "193", service: "Corpo de Bombeiros" },
+  { number: "199", service: "Defesa Civil" },
+];
+
+function CivilDefenseWarning() {
+  return (
+    <div
+      role="note"
+      aria-label="Aviso sobre alertas oficiais"
+      className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
+    >
+      <div className="flex items-start gap-2">
+        <i
+          className="fa-solid fa-triangle-exclamation mt-0.5 text-amber-700"
+          aria-hidden="true"
+        ></i>
+        <p className="flex-1 text-xs font-medium leading-relaxed">
+          <strong>Aviso:</strong> Este sistema não substitui os alertas oficiais
+          da Defesa Civil. Em uma emergência, acompanhe os canais oficiais.
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
+  const [isInfoSheetOpen, setInfoSheetOpen] = useState(false);
+
+  const openInfoSheet = () => {
+    const appShell = document.getElementById("root");
+    const mapView = document.querySelector(".mobile-map-view");
+    if (!appShell || !mapView) return;
+
+    setInfoSheetOpen(true);
+    requestAnimationFrame(() => {
+      const scrollOffset =
+        mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35);
+      appShell.scrollTo({ top: scrollOffset, behavior: "smooth" });
+    });
+  };
+
+  const closeInfoSheet = () => {
+    setInfoSheetOpen(false);
+    document.getElementById("root")?.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  useEffect(() => {
+    const appShell = document.getElementById("root");
+    const mapView = document.querySelector(".mobile-map-view");
+    if (!appShell || !mapView) return;
+
+    const syncInfoSheetState = () => {
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+      setInfoSheetOpen(isMobile && appShell.scrollTop > 0);
+    };
+
+    appShell.addEventListener("scroll", syncInfoSheetState, { passive: true });
+    window.addEventListener("resize", syncInfoSheetState);
+    syncInfoSheetState();
+
+    return () => {
+      appShell.removeEventListener("scroll", syncInfoSheetState);
+      window.removeEventListener("resize", syncInfoSheetState);
+    };
+  }, []);
+
   useEffect(() => {
     const infoBtn = document.getElementById("infoBtn");
     const infoModal = document.getElementById("infoModal");
@@ -11,6 +217,7 @@ export default function App() {
       "savedLocationsContainer",
     );
     const saveLocationBtn = document.getElementById("saveLocationBtn");
+    const saveLocationButtons = document.querySelectorAll(".save-location-btn");
     const savedPlaceKey = "aquaWatchSavedPlaces";
 
     // Custom Modals References
@@ -71,6 +278,68 @@ export default function App() {
     }).addTo(map);
 
     const floodRiskLayer = L.layerGroup().addTo(map);
+    const stationLayer = L.featureGroup().addTo(map);
+    const stationSearchStatus = document.getElementById("stationSearchStatus");
+    let stationRequest;
+
+    const renderStationMarkers = (stations, ajustarEnquadramento = false) => {
+      stationLayer.clearLayers();
+      let markersRendered = 0;
+      stations.forEach((station) => {
+        const marker = criarMarcadorEstacao(station);
+        if (!marker) return;
+        stationLayer.addLayer(marker);
+        markersRendered += 1;
+      });
+
+      const bounds = stationLayer.getBounds();
+      if (ajustarEnquadramento && bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+      }
+      return markersRendered;
+    };
+
+    const carregarEstacoes = async (texto, uf) => {
+      stationRequest?.abort();
+      const requisicao = new AbortController();
+      stationRequest = requisicao;
+      if (stationSearchStatus) {
+        stationSearchStatus.textContent = `Buscando “${texto}” em ${uf}...`;
+        stationSearchStatus.dataset.state = "loading";
+      }
+
+      try {
+        const stations = await listarEstacoes({
+          texto,
+          uf,
+          signal: requisicao.signal,
+        });
+        if (requisicao.signal.aborted) return;
+        const stationsWithCoordinates = stations.filter((station) =>
+          obterCoordenadasEstacao(station),
+        );
+        const stationsWithoutCoordinates =
+          stations.length - stationsWithCoordinates.length;
+        const markers = limitarEstacoesParaMapa(stationsWithCoordinates);
+        const markersRendered = renderStationMarkers(markers, true);
+        atualizarStatusBuscaEstacoes(
+          stationSearchStatus,
+          stations.length,
+          stationsWithCoordinates.length,
+          stationsWithoutCoordinates,
+          markersRendered,
+          uf,
+        );
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        if (stationSearchStatus) {
+          stationSearchStatus.textContent = `Não foi possível carregar as estações: ${error.message}`;
+          stationSearchStatus.dataset.state = "error";
+        }
+      }
+    };
+
+    const stateInput = document.getElementById("stateInput");
 
     // Render Rivers
     const rivers = [
@@ -340,15 +609,17 @@ export default function App() {
     savedLocationsContainer.addEventListener("click", handleSavedPlaceRemoval);
 
     const renderSavedPlaces = () => {
-      savedLocationsContainer.innerHTML = "";
+      savedLocationsContainer
+        .querySelectorAll(".saved-place-chip")
+        .forEach((chip) => chip.remove());
       savedPlaceMarkers.forEach((marker) => marker.remove());
       savedPlaceMarkers.clear();
 
       savedPlaces.forEach((place, index) => {
-        // Create row element for sidebar
+        // Create a saved-location chip
         const row = document.createElement("div");
         row.className =
-          "flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
+          "saved-place-chip flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition cursor-pointer group shadow-sm";
 
         const nameContainer = document.createElement("div");
         nameContainer.className = "flex flex-col flex-1 min-w-0";
@@ -384,7 +655,7 @@ export default function App() {
 
         row.appendChild(nameContainer);
         row.appendChild(deleteBtn);
-        savedLocationsContainer.appendChild(row);
+        savedLocationsContainer.insertBefore(row, saveLocationBtn);
 
         // Map Marker Logic
         const riskDescriptionFull =
@@ -422,7 +693,7 @@ export default function App() {
     renderSavedPlaces();
 
     // Save location functionality using Custom Modal
-    saveLocationBtn.addEventListener("click", () => {
+    const handleSaveLocation = () => {
       showPromptModal((name) => {
         if (!name?.trim()) return;
 
@@ -436,13 +707,23 @@ export default function App() {
         localStorage.setItem(savedPlaceKey, JSON.stringify(savedPlaces));
         renderSavedPlaces();
 
-        // Scroll to bottom of list
+        // Keep the new saved location in view
         setTimeout(() => {
-          savedLocationsContainer.scrollTop =
-            savedLocationsContainer.scrollHeight;
+          const isMobile = window.matchMedia("(max-width: 767px)").matches;
+          const scrollProperty = isMobile ? "left" : "top";
+          const scrollPosition = isMobile
+            ? savedLocationsContainer.scrollWidth
+            : savedLocationsContainer.scrollHeight;
+          savedLocationsContainer.scrollTo({
+            [scrollProperty]: scrollPosition,
+            behavior: "smooth",
+          });
         }, 50);
       });
-    });
+    };
+    saveLocationButtons.forEach((button) =>
+      button.addEventListener("click", handleSaveLocation),
+    );
 
     document
       .querySelector("#myLocationBtn")
@@ -450,50 +731,73 @@ export default function App() {
         map.flyTo(defaultSavedPlaces[0].center, 16),
       );
 
-    document
-      .getElementById("searchInput")
-      .addEventListener("keydown", (event) => {
-        if (event.key !== "Enter") return;
-
-        const query = event.currentTarget.value
-          .trim()
-          .toLocaleLowerCase("pt-BR");
-        if (!query) return;
-        const place = savedPlaces.find((item) =>
-          item.name.toLocaleLowerCase("pt-BR").includes(query),
-        );
-
-        if (place) {
-          map.flyTo(place.center, place.zoom);
-        } else {
-          event.currentTarget.setCustomValidity("Local salvo não encontrado.");
-          event.currentTarget.reportValidity();
-          return;
-        }
-
-        event.currentTarget.setCustomValidity("");
-        event.currentTarget.blur();
-      });
+    const searchInput = document.getElementById("searchInput");
+    const stationSearchForm = document.getElementById("stationSearchForm");
+    const handleStationSearch = (event) => {
+      event.preventDefault();
+      stationRequest?.abort();
+      const query = searchInput.value.trim();
+      const normalizedQuery = query.toLocaleLowerCase("pt-BR");
+      const savedPlaceMatches =
+        query.length >= 2
+          ? savedPlaces.filter((place) =>
+              place.name.toLocaleLowerCase("pt-BR").includes(normalizedQuery),
+            )
+          : [];
+      const savedPlace =
+        savedPlaceMatches.length === 1 ? savedPlaceMatches[0] : null;
+      if (savedPlace) {
+        map.flyTo(savedPlace.center, savedPlace.zoom);
+        stationSearchStatus.textContent = `Mapa centralizado em “${savedPlace.name}”.`;
+        stationSearchStatus.dataset.state = "success";
+        searchInput.blur();
+        return;
+      }
+      if (query.length < 2) {
+        stationSearchStatus.textContent =
+          "Informe ao menos 2 caracteres para pesquisar.";
+        stationSearchStatus.dataset.state = "error";
+        searchInput.focus();
+        return;
+      }
+      void carregarEstacoes(query, stateInput.value);
+      searchInput.blur();
+    };
+    stationSearchForm.addEventListener("submit", handleStationSearch);
+    const handleStateChange = () => {
+      searchInput.value = "";
+      stationRequest?.abort();
+      stationLayer.clearLayers();
+      stationSearchStatus.textContent = `Escolha uma cidade, estação ou rio para pesquisar em ${stateInput.value}.`;
+      stationSearchStatus.dataset.state = "empty";
+    };
+    stateInput.addEventListener("change", handleStateChange);
 
     return () => {
       savedLocationsContainer.removeEventListener(
         "click",
         handleSavedPlaceRemoval,
       );
+      saveLocationButtons.forEach((button) =>
+        button.removeEventListener("click", handleSaveLocation),
+      );
+      stationSearchForm.removeEventListener("submit", handleStationSearch);
+      stateInput.removeEventListener("change", handleStateChange);
+      stationRequest?.abort();
       map.remove();
     };
   }, []);
 
   return (
     <>
-      <aside className="w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
-        <header className="shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
+      <aside className="app-sidebar w-full md:w-[450px] shrink-0 h-full flex flex-col bg-slate-50 border-r border-slate-200 z-20 shadow-[4px_0_24px_rgba(15,23,42,0.06)] relative">
+        <header className="app-header shrink-0 bg-white px-6 pt-5 pb-4 border-b border-slate-200 flex items-center justify-between z-10 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
+            <div className="app-brand-icon w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600 shadow-sm">
               <i className="fa-solid me-0.5 fa-droplet text-lg"></i>
             </div>
             <div>
-              <h1 className="font-bold text-slate-900 tracking-tight text-xl leading-tight">
+              <h1 className="app-title font-bold text-slate-900 tracking-tight text-xl leading-tight">
                 AquaWatch{" "}
                 <span className="text-sky-600 text-[10px] font-bold px-1.5 py-0.5 bg-sky-50 rounded border border-sky-100 align-middle ml-1">
                   WEB
@@ -510,91 +814,57 @@ export default function App() {
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          <div className="space-y-4">
-            <div className="relative flex items-center">
-              <i className="fa-solid fa-magnifying-glass absolute left-4 text-slate-400 text-sm"></i>
-              <input
-                type="text"
-                id="searchInput"
-                placeholder="Buscar cidade ou rio salvo..."
-                className="w-full pl-11 pr-11 py-3.5 bg-white rounded-xl shadow-sm border border-slate-200 text-sm focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100 transition placeholder:text-slate-400"
-              />
-              <button
-                className="absolute right-3 text-slate-400 hover:text-sky-600 p-2 transition"
-                id="myLocationBtn"
-                title="Minha localização"
-              >
-                <i className="fa-solid fa-location-arrow text-sm"></i>
-              </button>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
-                  <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
-                    Meus Locais Salvos
-                  </h3>
-                </div>
-                <button
-                  id="saveLocationBtn"
-                  type="button"
-                  className="text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition cursor-pointer bg-transparent border-0 p-0"
-                >
-                  + Salvar Atual
-                </button>
-              </div>
-              <div
-                id="savedLocationsContainer"
-                className="flex flex-col gap-2 max-h-40 overflow-y-auto pr-1"
-              ></div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
-              <i className="fa-solid fa-truck-medical"></i>
-            </div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
-                Acionar Autoridades
+        <div className="saved-places-track">
+          <div className="saved-places-heading">
+            <div className="flex items-center gap-2">
+              <i className="fa-solid fa-bookmark text-sky-600 text-sm"></i>
+              <h3 className="text-[13px] font-bold uppercase tracking-wider text-slate-700">
+                Meus Locais Salvos
               </h3>
             </div>
-            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Em caso de alagamento, risco de desabamento ou emergência
-              imediata, contate os órgãos responsáveis.
-            </p>
-            <div className="grid grid-cols-2 gap-3 relative z-10">
-              <a
-                href="tel:193"
-                className="flex flex-col items-center justify-center bg-red-50 border border-red-200 rounded-xl p-3.5 hover:bg-red-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-fire text-red-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Bombeiros
-                </span>
-                <span className="text-[11px] font-bold text-white bg-red-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 193
-                </span>
-              </a>
-              <a
-                href="tel:199"
-                className="flex flex-col items-center justify-center bg-orange-50 border border-orange-200 rounded-xl p-3.5 hover:bg-orange-100 transition active:scale-95 text-center group"
-              >
-                <i className="fa-solid fa-house-chimney-crack text-orange-600 text-2xl mb-2 group-hover:scale-110 transition-transform"></i>
-                <span className="text-[13px] font-bold text-slate-800">
-                  Defesa Civil
-                </span>
-                <span className="text-[11px] font-bold text-white bg-orange-600 px-3 py-1 rounded-full mt-2 shadow-sm">
-                  Ligar 199
-                </span>
-              </a>
-            </div>
+            <button
+              type="button"
+              className="save-location-btn desktop-save-location-btn text-xs text-sky-600 font-bold hover:text-sky-800 hover:underline transition"
+            >
+              + Salvar Local
+            </button>
+          </div>
+          <div
+            id="savedLocationsContainer"
+            className="location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
+          >
+            <button
+              id="saveLocationBtn"
+              className="save-location-btn mobile-save-location-btn shrink-0 whitespace-nowrap rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-[11px] text-sky-700 shadow transition hover:bg-sky-50"
+              type="button"
+            >
+              <i className="fa-solid fa-bookmark mr-1 mobile-save-icon"></i>
+              <span className="desktop-save-label">+ Salvar Atual</span>
+              <span className="mobile-save-label">Salve um local</span>
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="dashboardSheet"
+          className="dashboard-sheet min-h-0 flex-1 overflow-y-auto p-5 space-y-5"
+        >
+          <div className="mobile-sheet-handle">
+            <button
+              type="button"
+              onClick={closeInfoSheet}
+              aria-label="Voltar ao mapa"
+              className="flex w-full flex-col items-center gap-2 text-slate-400"
+            >
+              <span className="h-1 w-10 rounded-full bg-slate-300"></span>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Voltar ao mapa{" "}
+                <i className="fa-solid fa-chevron-down ml-1 text-[9px]"></i>
+              </span>
+            </button>
           </div>
 
-          <div className="bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+          <div className="high-risk-warning bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
             <div className="flex items-center justify-between mb-2">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-600 text-white shadow-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-white mr-2 animate-ping"></span>
@@ -613,6 +883,8 @@ export default function App() {
             </p>
           </div>
 
+          <CivilDefenseWarning />
+
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
               <div className="flex items-center gap-2">
@@ -629,8 +901,8 @@ export default function App() {
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+            <div className="dashboard-grid grid grid-cols-2 gap-4">
+              <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span className="text-[11px] font-medium text-slate-400 block mb-1">
                   CONDIÇÃO ATUAL
                 </span>
@@ -647,7 +919,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
                 <span className="text-[11px] font-medium text-slate-400 block mb-1">
                   NÍVEL DO RIO
                 </span>
@@ -722,7 +994,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="dashboard-grid grid grid-cols-2 gap-4">
             <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2.5">
@@ -812,16 +1084,245 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white border border-red-100 rounded-2xl p-5 shadow-sm relative overflow-hidden">
+            <div className="absolute -right-4 -bottom-4 text-red-500/5 text-7xl font-bold select-none pointer-events-none">
+              <i className="fa-solid fa-truck-medical"></i>
+            </div>
+            <div className="flex items-center gap-2.5 mb-3">
+              <i className="fa-solid fa-truck-medical text-red-600 text-lg"></i>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-red-800">
+                Acionar Autoridades
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Em caso de alagamento, risco de desabamento ou emergência
+              imediata, contate os órgãos responsáveis.
+            </p>
+            <div className="dashboard-grid grid grid-cols-2 gap-3 relative z-10">
+              {emergencyContacts.map(({ number, service }) => (
+                <a
+                  key={number}
+                  href={`tel:${number}`}
+                  aria-label={`Ligar para ${service}, ${number}`}
+                  className="flex min-h-20 flex-col items-center justify-center rounded-xl border border-red-100 bg-red-50 p-3 text-center"
+                >
+                  <span className="text-lg font-bold leading-tight text-red-800">
+                    {number}
+                  </span>
+                  <span className="mt-1 text-xs font-semibold text-slate-800">
+                    {service}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <section
+            aria-labelledby="safetyGuidanceHeading"
+            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <i
+                className="fa-solid fa-circle-info text-sky-600"
+                aria-hidden="true"
+              ></i>
+              <h3
+                id="safetyGuidanceHeading"
+                className="text-sm font-bold uppercase tracking-wider text-slate-700"
+              >
+                Orientações de segurança
+              </h3>
+            </div>
+            <ul className="space-y-3 text-xs leading-relaxed text-slate-600">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Siga as orientações das autoridades locais, como a Defesa
+                  Civil e o Corpo de Bombeiros.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Evite contato com água e lama de enchentes. Se for inevitável
+                  passar por uma área inundada, use botas impermeáveis e luvas;
+                  proteja cortes e arranhões.
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 text-sky-600" aria-hidden="true">
+                  •
+                </span>
+                <span>
+                  Não consuma alimentos que tiveram contato com a água da
+                  inundação ou lama. Para beber, use água segura e siga as
+                  orientações sanitárias.
+                </span>
+              </li>
+            </ul>
+            <div className="mt-4 border-t border-slate-100 pt-3">
+              <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Fontes oficiais
+              </h4>
+              <ul className="mt-2 space-y-2 text-xs">
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Enchentes
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-leptospirose"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a leptospirose
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/e/enchentes/cuidados-com-a-agua"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-600"
+                  >
+                    Ministério da Saúde — Cuidados com a água
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </section>
         </div>
       </aside>
 
-      <main className="flex-1 h-full relative z-0 bg-[#eaf4f8]">
+      <main className="app-main mobile-map-view flex-1 h-full relative z-0 bg-[#eaf4f8]">
+        <div className="map-search-controls">
+          <div className="mb-2 flex items-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs shadow-lg">
+            <label
+              htmlFor="stateInput"
+              className="shrink-0 font-semibold text-slate-600"
+            >
+              Estado das estações
+            </label>
+            <select
+              id="stateInput"
+              defaultValue="SP"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            >
+              {unidadesFederativas.map(([uf, nome]) => (
+                <option key={uf} value={uf}>
+                  {nome} ({uf})
+                </option>
+              ))}
+            </select>
+          </div>
+          <form
+            id="stationSearchForm"
+            role="search"
+            className="relative flex items-center"
+          >
+            <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+            <input
+              type="text"
+              id="searchInput"
+              aria-label="Buscar local salvo, estação por cidade, nome ou rio"
+              placeholder="Local salvo, município, estação ou rio..."
+              maxLength={100}
+              className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-10 pr-28 text-sm shadow-lg transition placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+            />
+            <div className="absolute right-2 flex items-center gap-1">
+              <button
+                type="button"
+                id="myLocationBtn"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                title="Minha localização"
+                aria-label="Ir para minha localização salva"
+              >
+                <i className="fa-solid fa-location-arrow text-xs"></i>
+              </button>
+              <button
+                type="submit"
+                className="rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2"
+              >
+                Filtrar
+              </button>
+            </div>
+          </form>
+          <p
+            id="stationSearchStatus"
+            className="mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
+            role="status"
+            aria-live="polite"
+            data-state="empty"
+          >
+            Selecione o estado e informe pelo menos 2 caracteres para consultar
+            as estações. Você também pode buscar um local salvo.
+          </p>
+        </div>
+        <div
+          className="risk-area-legend"
+          aria-label="Legenda das áreas simuladas"
+        >
+          <strong>Áreas ilustrativas</strong>
+          <span>
+            <i aria-hidden="true" className="risk-area-swatch risk-area-low" />{" "}
+            Baixo
+          </span>
+          <span>
+            <i
+              aria-hidden="true"
+              className="risk-area-swatch risk-area-moderate"
+            />{" "}
+            Moderado
+          </span>
+          <span>
+            <i aria-hidden="true" className="risk-area-swatch risk-area-high" />{" "}
+            Alto
+          </span>
+          <small>Não representam alertas oficiais</small>
+        </div>
         <div
           id="interactiveMap"
+          className="interactive-map"
           role="application"
           aria-label="Mapa interativo de risco de inundação"
         ></div>
       </main>
+
+      <nav className="mobile-bottom-nav" aria-label="Navegação principal">
+        <button
+          type="button"
+          onClick={closeInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-pressed={!isInfoSheetOpen}
+          className={!isInfoSheetOpen ? "active" : ""}
+        >
+          <i className="fa-solid fa-map-location-dot"></i>
+          <span>Mapa</span>
+        </button>
+        <button
+          type="button"
+          onClick={openInfoSheet}
+          aria-controls="dashboardSheet"
+          aria-expanded={isInfoSheetOpen}
+          aria-pressed={isInfoSheetOpen}
+          className={isInfoSheetOpen ? "active" : ""}
+        >
+          <i className="fa-solid fa-circle-info"></i>
+          <span>Informações</span>
+        </button>
+      </nav>
 
       <div
         id="promptModal"
@@ -886,7 +1387,7 @@ export default function App() {
         <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-slate-900 text-lg">
-              Sobre o AquaWatch AI
+              Sobre o AquaWatch
             </h3>
             <button
               id="closeModal"
@@ -896,39 +1397,42 @@ export default function App() {
             </button>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            Esta aplicação utiliza modelos preditivos de inteligência artificial
-            cruzando dados meteorológicos em tempo real com histórico de cheias
-            registradas no Brasil.
+            A plataforma apresenta as estações hidrológicas e os níveis de
+            severidade calculados pelo sistema a partir dos dados disponíveis na
+            API da ANA. A atualização depende da disponibilidade de cada estação
+            e do serviço de dados.
           </p>
-          <div className="bg-sky-50 p-4 rounded-2xl border border-sky-100 text-xs text-sky-800 leading-relaxed">
-            <i className="fa-solid fa-circle-info mr-1.5 text-sky-600"></i>
-            Em situações de emergência, siga sempre as orientações oficiais dos
-            Bombeiros e <strong>Defesa Civil</strong>.
-          </div>
+          <CivilDefenseWarning />
           <div className="rounded-2xl border border-slate-200 p-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Legenda do mapa
+              Severidade das estações ANA
             </h4>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-6 h-1.5 rounded-full bg-sky-600"></span>
-              <span>Rios e córregos próximos</span>
+            <div className="space-y-2">
+              {[
+                ["station-marker-normal", "N", "Normal — sem alerta ativo"],
+                ["station-marker-atencao", "A", "Atenção"],
+                ["station-marker-alerta", "AL", "Alerta"],
+                ["station-marker-emergencia", "E", "Emergência"],
+              ].map(([markerClass, abbreviation, label]) => (
+                <div
+                  key={markerClass}
+                  className="flex items-center gap-3 text-sm text-slate-700"
+                >
+                  <span
+                    className={`legend-station-marker ${markerClass}`}
+                    aria-hidden="true"
+                  >
+                    {abbreviation}
+                  </span>
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-sky-600"></span>
-              <span>Azul: sem risco simulado</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
-              <span>Amarelo: risco baixo</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-orange-500"></span>
-              <span>Laranja: risco moderado</span>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-red-600"></span>
-              <span>Vermelho: risco alto</span>
-            </div>
+            <p className="text-xs leading-relaxed text-slate-500">
+              A cor e a sigla identificam a severidade informada pela API. As
+              áreas e linhas do mapa são ilustrações e não representam alertas
+              oficiais.
+            </p>
           </div>
           <button
             id="okModalBtn"

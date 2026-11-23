@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.dependencias import montar_container
@@ -79,7 +80,7 @@ def test_medicoes_diretas_sincronizam_estacao_ainda_nao_carregada() -> None:
     assert resposta.json()["medicoes"]
 
 
-def test_indisponibilidade_da_ana_retorna_502(monkeypatch) -> None:
+def test_indisponibilidade_da_ana_retorna_503(monkeypatch) -> None:
     fonte = FonteAna("id", "senha")
 
     def indisponivel(codigo):
@@ -91,7 +92,7 @@ def test_indisponibilidade_da_ana_retorna_502(monkeypatch) -> None:
     with TestClient(app) as cliente:
         resposta = cliente.get("/estacoes/15400000")
 
-    assert resposta.status_code == 502
+    assert resposta.status_code == 503
     assert resposta.json()["detail"] == "ANA indisponível"
 
 
@@ -147,3 +148,66 @@ def test_serie_rejeita_periodo_invalido(client: TestClient) -> None:
 
 def test_serie_de_estacao_inexistente(client: TestClient) -> None:
     assert client.get("/estacoes/1/medicoes?grandeza=NIVEL").status_code == 404
+
+
+def test_busca_por_nome_municipio_ou_rio(client: TestClient) -> None:
+    def codigos(q: str) -> list[int]:
+        resposta = client.get("/estacoes", params={"q": q})
+        assert resposta.status_code == 200
+        return [e["codigo"] for e in resposta.json()]
+
+    assert codigos("tiete") == [90000001]
+    assert codigos("SÃO paulo") == [90000001]
+    assert codigos("petropolis") == [90000004]
+    assert codigos("rio") == [90000001, 90000003]
+    assert codigos("inexistente") == []
+
+
+def test_busca_combina_com_uf_e_traz_situacao(client: TestClient) -> None:
+    corpo = client.get("/estacoes", params={"q": "exemplo", "uf": "MG"}).json()
+    assert [e["codigo"] for e in corpo] == [90000003, 90000005]
+    assert all("severidade" in e for e in corpo)
+
+
+@pytest.mark.parametrize("q", ["a", "x" * 101])
+def test_busca_valida_tamanho_do_termo(client: TestClient, q: str) -> None:
+    assert client.get("/estacoes", params={"q": q}).status_code == 422
+
+
+def test_busca_so_com_espacos_nao_traz_nada(client: TestClient) -> None:
+    resposta = client.get("/estacoes", params={"q": "   "})
+    assert resposta.status_code == 200
+    assert resposta.json() == []
+
+
+class FonteSemCarga(FonteFake):
+    carregar_na_inicializacao = False
+
+    def __init__(self) -> None:
+        super().__init__(AGORA)
+        self.listagens: list[str | None] = []
+
+    def listar_estacoes(self, filtro):
+        self.listagens.append(filtro.uf)
+        return super().listar_estacoes(filtro)
+
+
+def test_busca_sem_uf_nao_sincroniza_o_inventario() -> None:
+    fonte = FonteSemCarga()
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    with TestClient(app) as client:
+        assert client.get("/estacoes", params={"q": "tiete"}).json() == []
+        assert fonte.listagens == []
+
+        client.get("/estacoes", params={"uf": "SP"})  # o usuário abre o estado
+        assert [e["codigo"] for e in client.get("/estacoes?q=tiete").json()] == [90000001]
+        assert fonte.listagens == ["SP"]
+
+
+def test_busca_com_uf_sincroniza_so_o_estado() -> None:
+    fonte = FonteSemCarga()
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    with TestClient(app) as client:
+        corpo = client.get("/estacoes", params={"q": "velhas", "uf": "mg"}).json()
+        assert [e["codigo"] for e in corpo] == [90000003]
+        assert fonte.listagens == ["mg"]
