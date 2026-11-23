@@ -187,7 +187,7 @@ body {
 .saved-places-track {
   position: relative;
   width: auto;
-  margin: 5rem 1.25rem 0;
+  margin: 8rem 1.25rem 0;
   padding: 1rem;
   border: 1px solid #e2e8f0;
   border-radius: 1rem;
@@ -450,7 +450,7 @@ body {
 
   .app-sidebar > .saved-places-track {
     position: fixed;
-    top: 11rem;
+    top: 12rem;
     left: 50%;
     z-index: 5;
     width: min(100vw, 28rem);

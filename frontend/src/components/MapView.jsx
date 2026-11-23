@@ -162,8 +162,7 @@ export default function MapView({
   const stationRequestRef = useRef(null);
   const [selectedUf, setSelectedUf] = useState("SP");
   const [searchStatus, setSearchStatus] = useState({
-    message:
-      "Selecione o estado e informe pelo menos 2 caracteres para consultar as estações. Você também pode buscar um local salvo.",
+    message: "",
     state: "empty",
   });
 
@@ -332,7 +331,7 @@ export default function MapView({
     searchInputRef.current?.setCustomValidity("");
     onSearchChange("");
     setSearchStatus({
-      message: `Escolha uma cidade, estação ou rio para pesquisar em ${uf}.`,
+      message: "",
       state: "empty",
     });
   };
@@ -427,15 +426,17 @@ export default function MapView({
             Filtrar
           </button>
         </form>
-        <p
-          id="stationSearchStatus"
-          className="station-search-status mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
-          role="status"
-          aria-live="polite"
-          data-state={searchStatus.state}
-        >
-          {searchStatus.message}
-        </p>
+        {searchStatus.message && (
+          <p
+            id="stationSearchStatus"
+            className="station-search-status mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
+            role="status"
+            aria-live="polite"
+            data-state={searchStatus.state}
+          >
+            {searchStatus.message}
+          </p>
+        )}
       </div>
       <div
         className="risk-area-legend"
