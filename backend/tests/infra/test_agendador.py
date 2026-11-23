@@ -33,6 +33,50 @@ def test_executa_a_acao_repetidamente_ate_parar() -> None:
     asyncio.run(cenario())
 
 
+def test_parar_aguarda_o_ciclo_em_andamento_terminar() -> None:
+    iniciou = threading.Event()
+    liberar = threading.Event()
+    terminou = threading.Event()
+    chamadas: list[int] = []
+
+    def acao() -> None:
+        chamadas.append(1)
+        iniciou.set()
+        liberar.wait(timeout=2)
+        terminou.set()
+
+    async def cenario() -> None:
+        agendador = AgendadorColeta(acao, RAPIDO)
+        agendador.iniciar()
+        await _esperar(iniciou.is_set)
+        parada = asyncio.create_task(agendador.parar())
+        await asyncio.sleep(0.05)
+        assert not parada.done()
+        liberar.set()
+        await parada
+        assert terminou.is_set()
+        await asyncio.sleep(0.05)
+        assert chamadas == [1]
+
+    asyncio.run(cenario())
+
+
+def test_pode_ser_iniciado_de_novo_depois_de_parar() -> None:
+    chamadas: list[int] = []
+
+    async def cenario() -> None:
+        agendador = AgendadorColeta(lambda: chamadas.append(1), RAPIDO)
+        agendador.iniciar()
+        await _esperar(lambda: len(chamadas) >= 1)
+        await agendador.parar()
+        total = len(chamadas)
+        agendador.iniciar()
+        await _esperar(lambda: len(chamadas) > total)
+        await agendador.parar()
+
+    asyncio.run(cenario())
+
+
 def test_falha_em_um_ciclo_nao_interrompe_os_proximos(caplog) -> None:
     chamadas: list[int] = []
 

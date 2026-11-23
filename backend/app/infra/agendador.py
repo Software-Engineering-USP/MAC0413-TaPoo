@@ -15,6 +15,10 @@ class AgendadorColeta:
     uma thread com `asyncio.to_thread`, sem travar as requisições da API. O intervalo é
     contado a partir do fim de cada ciclo, então dois ciclos nunca se sobrepõem. Uma falha
     em um ciclo vai para o log e não interrompe os próximos.
+
+    A parada é graciosa: cancelar a tarefa não interromperia a thread da ação, que seguiria
+    rodando depois de `parar()` retornar. Por isso `parar()` só interrompe a espera entre
+    ciclos e aguarda o ciclo em andamento terminar.
     """
 
     def __init__(
@@ -30,6 +34,7 @@ class AgendadorColeta:
         self._intervalo = intervalo
         self._atraso_inicial = intervalo if atraso_inicial is None else atraso_inicial
         self._tarefa: asyncio.Task[None] | None = None
+        self._parada = asyncio.Event()
 
     @property
     def rodando(self) -> bool:
@@ -38,22 +43,30 @@ class AgendadorColeta:
     def iniciar(self) -> None:
         if self.rodando:
             return
+        self._parada.clear()
         self._tarefa = asyncio.create_task(self._loop(), name="agendador-de-coleta")
 
     async def parar(self) -> None:
         tarefa, self._tarefa = self._tarefa, None
         if tarefa is None:
             return
-        tarefa.cancel()
-        # `wait` espera o fim da tarefa sem relançar o cancelamento dela; se quem chamou
-        # `parar()` for cancelado, o `CancelledError` dele continua propagando.
+        self._parada.set()
+        # `wait` não propaga para a tarefa um cancelamento de quem chamou `parar()`: o
+        # `CancelledError` sobe para quem chamou e o ciclo em andamento termina mesmo assim.
         await asyncio.wait([tarefa])
 
     async def _loop(self) -> None:
-        await asyncio.sleep(self._atraso_inicial.total_seconds())
-        while True:
+        espera = self._atraso_inicial
+        while not await self._parada_pedida_durante(espera):
             await self._executar_ciclo()
-            await asyncio.sleep(self._intervalo.total_seconds())
+            espera = self._intervalo
+
+    async def _parada_pedida_durante(self, espera: timedelta) -> bool:
+        try:
+            await asyncio.wait_for(self._parada.wait(), espera.total_seconds())
+        except TimeoutError:
+            return False
+        return True
 
     async def _executar_ciclo(self) -> None:
         try:
