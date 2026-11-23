@@ -70,6 +70,10 @@ public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
 The production frontend runs on Vercel and the FastAPI backend runs on Render.
 Render builds the backend from `backend/Dockerfile` using the root `render.yaml`
 Blueprint.
+The Blueprint also creates a Render Postgres database (`tapoo-db`) and points the
+API at it with `REPO=sql` and `DATABASE_URL`; tables are created on startup. Both
+use Render's free plan, and a free Postgres database expires 30 days after creation
+unless it is upgraded.
 
 ### First deployment
 
