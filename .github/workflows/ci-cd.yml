@@ -121,3 +121,5 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Só o front usa: endereço público da API, definido em Settings → Variables.
+          build-args: VITE_API_URL=${{ vars.VITE_API_URL }}
