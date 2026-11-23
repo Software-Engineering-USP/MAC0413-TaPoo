@@ -98,7 +98,13 @@ function stationMarker(station) {
   }).bindPopup(popup);
 }
 
-function stationSearchSummary(total, withCoordinates, withoutCoordinates, shown, uf) {
+function stationSearchSummary(
+  total,
+  withCoordinates,
+  withoutCoordinates,
+  shown,
+  uf,
+) {
   if (total === 0) return "Nenhuma estação encontrada.";
   if (withCoordinates === 0) {
     return `Foram encontradas ${total} estações, mas nenhuma tem coordenadas válidas para exibir.`;
@@ -283,10 +289,12 @@ export default function MapView({
         stations.length - stationsWithCoordinates.length;
       const stationsToShow =
         stationsWithCoordinates.length > 100
-          ? Array.from({ length: 100 }, (_, index) =>
-              stationsWithCoordinates[
-                Math.floor((index * stationsWithCoordinates.length) / 100)
-              ],
+          ? Array.from(
+              { length: 100 },
+              (_, index) =>
+                stationsWithCoordinates[
+                  Math.floor((index * stationsWithCoordinates.length) / 100)
+                ],
             )
           : stationsWithCoordinates;
       const layer = stationLayerRef.current;

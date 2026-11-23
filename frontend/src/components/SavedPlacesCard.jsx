@@ -29,7 +29,10 @@ export default function SavedPlacesCard({
     <section className="saved-places-track" aria-labelledby="savedPlacesTitle">
       <div className="saved-places-heading">
         <div className="flex items-center gap-2">
-          <i className="fa-solid fa-bookmark text-sky-600 text-sm" aria-hidden="true"></i>
+          <i
+            className="fa-solid fa-bookmark text-sky-600 text-sm"
+            aria-hidden="true"
+          ></i>
           <h2
             id="savedPlacesTitle"
             className="text-[13px] font-bold uppercase tracking-wider text-slate-700"
@@ -86,7 +89,10 @@ export default function SavedPlacesCard({
                 aria-label={`Remover ${place.name} dos locais salvos`}
                 title="Remover local"
               >
-                <i className="fa-solid fa-trash text-[11px]" aria-hidden="true"></i>
+                <i
+                  className="fa-solid fa-trash text-[11px]"
+                  aria-hidden="true"
+                ></i>
               </button>
             </div>
           );
@@ -96,7 +102,10 @@ export default function SavedPlacesCard({
           onClick={onSave}
           className="save-location-btn mobile-save-location-btn shrink-0 whitespace-nowrap rounded-full border border-sky-200 bg-white px-2.5 py-1 font-semibold text-[11px] text-sky-700 shadow transition hover:bg-sky-50"
         >
-          <i className="fa-solid fa-bookmark mr-1 mobile-save-icon" aria-hidden="true"></i>
+          <i
+            className="fa-solid fa-bookmark mr-1 mobile-save-icon"
+            aria-hidden="true"
+          ></i>
           <span className="desktop-save-label">+ Salvar Atual</span>
           <span className="mobile-save-label">Salve um local</span>
         </button>

@@ -45,39 +45,42 @@ export default function App() {
     }
   }, []);
 
-  const scrollToInfoSheet = useCallback((shouldOpen) => {
-    const appShell = appShellRef.current;
-    const mapView = mapViewRef.current;
-    if (
-      !appShell ||
-      !mapView ||
-      !window.matchMedia("(max-width: 767px)").matches
-    ) {
-      return;
-    }
+  const scrollToInfoSheet = useCallback(
+    (shouldOpen) => {
+      const appShell = appShellRef.current;
+      const mapView = mapViewRef.current;
+      if (
+        !appShell ||
+        !mapView ||
+        !window.matchMedia("(max-width: 767px)").matches
+      ) {
+        return;
+      }
 
-    const requestedTarget = shouldOpen
-      ? mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35)
-      : 0;
-    const maxScrollTop = Math.max(
-      0,
-      appShell.scrollHeight - appShell.clientHeight,
-    );
-    const scrollTarget = Math.min(Math.max(0, requestedTarget), maxScrollTop);
+      const requestedTarget = shouldOpen
+        ? mapView.offsetHeight - Math.min(180, appShell.clientHeight * 0.35)
+        : 0;
+      const maxScrollTop = Math.max(
+        0,
+        appShell.scrollHeight - appShell.clientHeight,
+      );
+      const scrollTarget = Math.min(Math.max(0, requestedTarget), maxScrollTop);
 
-    if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
+      if (Math.abs(appShell.scrollTop - scrollTarget) < 2) {
+        clearProgrammaticScrollTarget();
+        return;
+      }
+
       clearProgrammaticScrollTarget();
-      return;
-    }
-
-    clearProgrammaticScrollTarget();
-    programmaticScrollTargetRef.current = scrollTarget;
-    programmaticScrollTimeoutRef.current = window.setTimeout(
-      clearProgrammaticScrollTarget,
-      1500,
-    );
-    appShell.scrollTo({ top: scrollTarget, behavior: "smooth" });
-  }, [clearProgrammaticScrollTarget]);
+      programmaticScrollTargetRef.current = scrollTarget;
+      programmaticScrollTimeoutRef.current = window.setTimeout(
+        clearProgrammaticScrollTarget,
+        1500,
+      );
+      appShell.scrollTo({ top: scrollTarget, behavior: "smooth" });
+    },
+    [clearProgrammaticScrollTarget],
+  );
 
   const handleShellScroll = () => {
     const appShell = appShellRef.current;
@@ -164,7 +167,9 @@ export default function App() {
 
   const confirmRemovePlace = () => {
     if (placeToRemove === null) return;
-    setSavedPlaces((places) => places.filter((_, index) => index !== placeToRemove));
+    setSavedPlaces((places) =>
+      places.filter((_, index) => index !== placeToRemove),
+    );
     setPlaceToRemove(null);
   };
 
@@ -199,16 +204,14 @@ export default function App() {
   };
 
   return (
-    <div
-      className="app-shell"
-      ref={appShellRef}
-      onScroll={handleShellScroll}
-    >
+    <div className="app-shell" ref={appShellRef} onScroll={handleShellScroll}>
       <Sidebar
         onOpenAbout={() => setAboutDialogOpen(true)}
         savedPlaces={savedPlaces}
         onSavePlace={saveCurrentPlace}
-        onSelectPlace={(place) => mapRef.current?.flyTo(place.center, place.zoom)}
+        onSelectPlace={(place) =>
+          mapRef.current?.flyTo(place.center, place.zoom)
+        }
         onRequestRemovePlace={setPlaceToRemove}
       >
         <Outlet context={{ onCloseInfoSheet: closeInfoSheet }} />
@@ -223,9 +226,7 @@ export default function App() {
         onSearch={searchSavedPlaces}
         onMyLocation={showDefaultLocation}
       />
-      <MobileNavigation
-        isInfoSheetOpen={isInfoSheetOpen}
-      />
+      <MobileNavigation isInfoSheetOpen={isInfoSheetOpen} />
       <SavePlaceDialog
         open={isSaveDialogOpen}
         name={placeName}

@@ -164,7 +164,8 @@ export function AboutDialog({ open, onClose }) {
             </div>
           ))}
           <p className="text-xs leading-relaxed text-slate-500">
-            A cor e a sigla identificam a severidade informada para cada estação.
+            A cor e a sigla identificam a severidade informada para cada
+            estação.
           </p>
         </div>
         <button
