@@ -23,13 +23,13 @@ class RegraAlerta(ABC):
 O avaliador trabalha com esse contrato; não precisa conhecer os cálculos específicos de
 cota ou de chuva. A definição está em `backend/app/dominio/alerta.py`.
 
-### Interfaces e inversão de dependência
+### Interfaces e portas
 
 As portas em `backend/app/aplicacao/portas.py` são contratos abstratos. Por exemplo,
 `EstacaoRepositorio` descreve como salvar, buscar e listar estações, sem escolher banco
 de dados. `EstacaoRepositorioMemoria`, em `backend/app/infra/memoria/repositorios.py`,
-implementa o contrato. Assim, os serviços dependem da interface da aplicação, e a
-infraestrutura fornece uma implementação substituível.
+implementa o contrato. A inversão de dependência que resulta dessa separação é
+explicada na seção de SOLID abaixo.
 
 ### Encapsulamento e invariantes
 
@@ -41,7 +41,7 @@ def adicionar(self, medicao: Medicao) -> None:
     if medicao.codigo_estacao != self.codigo_estacao:
         raise ValueError("medição pertence a outra estação")
     if medicao.grandeza() != self.grandeza:
-        raise ValueError("grandeza incompatível com a série")
+        raise ValueError(f"série de {self.grandeza} não aceita {medicao.grandeza()}")
     insort(self.medicoes, medicao, key=lambda m: m.data_hora_utc)
 ```
 
@@ -85,13 +85,27 @@ validados, seus valores não podem ser alterados acidentalmente. Isso ajuda a ma
 estáveis operações como distância geográfica e validação de intervalos. Consulte
 `backend/app/dominio/geografia.py` e `backend/app/dominio/periodo.py`.
 
-### Exceções como parte do modelo
+### Exceções nomeadas e tradução na API
 
-Exceções de domínio representam situações inválidas ou indisponibilidade de uma fonte
-externa. Por exemplo, as validações de medições rejeitam valores que não fazem sentido
-para aquela grandeza. A camada de API traduz erros conhecidos em respostas HTTP; a
-exceção não precisa conhecer HTTP. Consulte `backend/app/dominio/` e
-`backend/app/main.py`.
+As camadas de aplicação e infraestrutura já definem exceções nomeadas. Em
+`backend/app/aplicacao/erros.py`, `ErroAplicacao` é a base de `RecursoNaoEncontrado`,
+que, por sua vez, é a base de `EstacaoNaoEncontrada` e `MunicipioNaoEncontrado`:
+
+```python
+class ErroAplicacao(Exception): ...
+
+class RecursoNaoEncontrado(ErroAplicacao): ...
+
+class EstacaoNaoEncontrada(RecursoNaoEncontrado): ...
+```
+
+`backend/app/main.py` registra um handler para `RecursoNaoEncontrado`; assim, as duas
+exceções específicas recebem a mesma resposta 404 sem handlers duplicados. O mesmo
+arquivo traduz `ErroFonteAna`, definido em `backend/app/infra/fontes/ana.py`, em 502.
+O handler trabalha com o contrato da exceção-base e usa a mensagem da instância
+concreta, ilustrando polimorfismo. As invariantes do domínio, como grandeza incompatível
+em `SerieTemporal`, continuam usando `ValueError`; essas exceções não precisam conhecer
+HTTP.
 
 ## Decisão de modelagem: `Estacao` e `TipoEstacao`
 
@@ -149,12 +163,16 @@ deve ser motivada por requisitos concretos; hoje a combinação de `TipoEstacao`
 
 | Ficha | Descrição |
 |---|---|
-| Problema | Avaliar situações hidrológicas por critérios que variam: cota, chuva acumulada, subida rápida. |
+| Problema | Avaliar situações hidrológicas por critérios que variam: cota e chuva acumulada. |
 | Contrato | `RegraAlerta`, com `avaliar` e `descrever`. |
-| Implementações | `RegraCotaReferencia`, `RegraChuvaAcumulada` e `RegraSubidaRapida`. |
+| Implementações | `RegraCotaReferencia` e `RegraChuvaAcumulada`. |
 | Alternativas | Um único avaliador com condicionais para cada tipo de regra. |
 | Trade-off | Novas regras podem ser adicionadas sem concentrar todas as condições em um método; há mais classes e a ordem de composição das regras ainda precisa ser configurada. |
 | Onde fica | `backend/app/dominio/alerta.py`. |
+
+A subida rápida ainda não é uma regra de alerta implementada. `SerieTemporal.variacao`,
+em `backend/app/dominio/medicao.py`, fornece uma operação que poderia ser usada por uma
+futura estratégia desse tipo.
 
 ### Repository — acesso a dados
 
@@ -203,15 +221,6 @@ fontes. A seleção entre `FonteAna` e `FonteFake` ainda ocorre diretamente em
 | Trade-off | A função é simples e suficiente para os dados de exemplo; se surgirem múltiplos perfis configuráveis, uma fábrica explícita poderá ser mais adequada. |
 | Onde fica | `backend/app/infra/fontes/fake.py`; uso em `backend/app/api/dependencias.py`. |
 
-## Síntese
-
-O projeto usa contratos abstratos, composição e polimorfismo para separar domínio,
-serviços e infraestrutura. A herança aparece onde os objetos realmente variam — as
-medições — enquanto estações usam enum e composição porque seus dados e operações são
-majoritariamente comuns. Os padrões apresentados são identificados pelo papel que
-desempenham no código, com limites e alternativas registrados para evitar chamar toda
-abstração de um padrão de projeto.
-
 ## Princípios de projeto e boas práticas
 
 ### Responsabilidade única e coesão
@@ -230,8 +239,8 @@ ficar no adaptador, sem exigir mudanças em `ConsultarDados`.
 
 `AvaliadorAlertas` trabalha com objetos `RegraAlerta`. Uma nova regra pode implementar
 esse contrato sem transformar o avaliador numa sequência de condicionais por tipo. As
-estratégias atuais incluem `RegraCotaReferencia`, `RegraChuvaAcumulada` e
-`RegraSubidaRapida`, em `backend/app/dominio/alerta.py`.
+estratégias atuais são `RegraCotaReferencia` e `RegraChuvaAcumulada`; uma estratégia de
+subida rápida seria uma extensão possível, mas ainda não existe no código.
 
 O princípio não exige evitar toda mudança em código existente. Se a nova regra exigir
 uma nova grandeza ou uma nova forma de obter dados, os contratos e os casos de uso
@@ -266,6 +275,8 @@ obriguem implementações a oferecer capacidades sem relação entre si.
 `MedicaoRepositorio` no construtor. Ele depende de abstrações da aplicação, enquanto a
 composição em `backend/app/api/dependencias.py` escolhe as implementações concretas.
 Assim, os testes podem injetar fontes e repositórios falsos sem alterar o caso de uso.
+As portas e o contrato `EstacaoRepositorio` estão apresentados na seção “Interfaces e
+portas”.
 
 ### Nomes, exceções e acoplamento
 
@@ -274,11 +285,10 @@ Os nomes do domínio são em português e descrevem conceitos do problema — po
 verbos como `salvar_varias`, `buscar_medicoes` e `avaliar`.
 
 As entidades validam suas próprias invariantes. `Periodo` rejeita intervalos inválidos;
-`MedicaoChuva` rejeita chuva negativa. No código atual, esses casos usam `ValueError`.
-As rotas e a infraestrutura não devem duplicar essas validações: devem deixar o domínio
-ou a camada de aplicação comunicar o erro. A adoção de exceções de domínio nomeadas é
-uma evolução possível, mas precisa estar presente na branch integrada antes de ser
-descrita como implementação atual.
+`MedicaoChuva` rejeita chuva negativa. Essas validações do domínio usam `ValueError`,
+enquanto a aplicação e o adaptador ANA também possuem exceções nomeadas, descritas na
+seção “Exceções nomeadas e tradução na API”. As rotas não duplicam essas validações: a
+API traduz os erros conhecidos em respostas HTTP.
 
 ## Padrões considerados e não adotados
 
@@ -335,8 +345,11 @@ JavaScript/React; Prettier confere formatação; pytest executa a suíte do back
 build confirma que o frontend pode ser empacotado. Essas verificações complementam a
 revisão de comportamento, mas não substituem a avaliação dos requisitos da issue.
 
-Os comandos para o frontend podem ser executados no diretório `frontend`. Para rodar
-Ruff e os testes do backend no ambiente local do projeto, use a instalação de
-desenvolvimento em `backend`; com Docker, a imagem de execução não inclui as
-dependências de desenvolvimento, então é necessário sincronizar o grupo `dev` antes
-das verificações.
+## Síntese
+
+O projeto usa contratos abstratos, composição e polimorfismo para separar domínio,
+serviços e infraestrutura. A herança aparece onde os objetos realmente variam — as
+medições — enquanto estações usam enum e composição porque seus dados e operações são
+majoritariamente comuns. Os padrões apresentados são identificados pelo papel que
+desempenham no código, com limites e alternativas registrados para evitar chamar toda
+abstração de um padrão de projeto.
