@@ -85,7 +85,7 @@ def test_intervalo_coleta_padrao_valor_e_desligado(monkeypatch, tmp_path) -> Non
     assert configuracao.intervalo_coleta() is None
 
 
-@pytest.mark.parametrize("valor", ["invalido", "-1"])
+@pytest.mark.parametrize("valor", ["invalido", "-1", "nan", "inf", "-inf"])
 def test_intervalo_coleta_rejeita_valores_invalidos(monkeypatch, tmp_path, valor) -> None:
     monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
     monkeypatch.setenv("COLETA_INTERVALO_MINUTOS", valor)
