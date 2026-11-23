@@ -4,6 +4,7 @@ import pytest
 
 from app.dominio.alerta import Alerta
 from app.dominio.enums import Severidade, TipoEstacao
+from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.situacao import SituacaoEstacao, SituacaoMunicipio
@@ -33,7 +34,7 @@ def test_estacao_com_alerta_usa_severidade_do_alerta() -> None:
 def test_alerta_de_outra_estacao_e_rejeitado() -> None:
     estacao_1 = estacao(1)
     alerta_da_2 = alerta(2, Severidade.ALERTA)
-    with pytest.raises(ValueError, match="outra estação"):
+    with pytest.raises(DadoInvalido, match="outra estação"):
         SituacaoEstacao(estacao_1, alerta_da_2)
 
 
@@ -41,7 +42,7 @@ def test_alerta_encerrado_e_rejeitado() -> None:
     estacao_1 = estacao(1)
     encerrado = alerta(1, Severidade.ALERTA)
     encerrado.encerrar(AGORA)
-    with pytest.raises(ValueError, match="ativos"):
+    with pytest.raises(DadoInvalido, match="ativos"):
         SituacaoEstacao(estacao_1, encerrado)
 
 
@@ -61,5 +62,5 @@ def test_municipio_assume_a_pior_situacao_e_ordena_por_gravidade() -> None:
 
 
 def test_municipio_sem_estacoes_e_rejeitado() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         SituacaoMunicipio("SP", "X", ())

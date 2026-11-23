@@ -18,7 +18,7 @@ def test_situacao_de_municipio_em_alerta(client: TestClient) -> None:
 
 def test_situacao_de_municipio_normal(client: TestClient) -> None:
     corpo = client.get("/municipios/MG/Belo Horizonte/situacao").json()
-    assert corpo["severidade"] == "NORMAL"
+    assert (corpo["severidade"], corpo["severidade_rotulo"]) == ("NORMAL", "Normal")
     assert corpo["estacoes"][0]["alerta"] is None
 
 

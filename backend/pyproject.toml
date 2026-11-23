@@ -37,3 +37,9 @@ dev = [
 [tool.coverage.run]
 source = ["app"]
 branch = true
+
+[tool.coverage.report]
+# Meta mínima de cobertura (linhas + ramos). O CI falha abaixo disso.
+fail_under = 80
+show_missing = true
+skip_covered = true

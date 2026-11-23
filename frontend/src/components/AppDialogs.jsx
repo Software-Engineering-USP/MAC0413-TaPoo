@@ -96,7 +96,7 @@ export function AboutDialog({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="aboutTitle"
-        className="w-full max-w-sm space-y-5 rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
+        className="max-h-[90dvh] w-full max-w-sm space-y-5 overflow-y-auto rounded-3xl border border-slate-100 bg-white p-6 shadow-2xl"
       >
         <div className="flex items-center justify-between">
           <h2 id="aboutTitle" className="text-lg font-bold text-slate-900">
@@ -112,9 +112,9 @@ export function AboutDialog({ open, onClose }) {
           </button>
         </div>
         <p className="text-sm leading-relaxed text-slate-600">
-          Esta aplicação utiliza modelos preditivos de inteligência artificial
-          cruzando dados meteorológicos em tempo real com histórico de cheias
-          registradas no Brasil.
+          Os marcadores mostram as estações hidrológicas consultadas na API da
+          ANA e a severidade informada. As linhas e áreas do mapa são
+          ilustrativas e representam riscos simulados.
         </p>
         <CivilDefenseWarning />
         <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
@@ -141,6 +141,31 @@ export function AboutDialog({ open, onClose }) {
             <span className="h-3 w-3 rounded-full bg-red-600"></span>
             <span>Vermelho: risco alto</span>
           </div>
+          <h4 className="pt-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+            Severidade das estações ANA
+          </h4>
+          {[
+            ["station-marker-normal", "N", "Normal — sem alerta ativo"],
+            ["station-marker-atencao", "A", "Atenção"],
+            ["station-marker-alerta", "AL", "Alerta"],
+            ["station-marker-emergencia", "E", "Emergência"],
+          ].map(([markerClass, abbreviation, label]) => (
+            <div
+              key={markerClass}
+              className="flex items-center gap-3 text-sm text-slate-700"
+            >
+              <span
+                className={`legend-station-marker ${markerClass}`}
+                aria-hidden="true"
+              >
+                {abbreviation}
+              </span>
+              <span>{label}</span>
+            </div>
+          ))}
+          <p className="text-xs leading-relaxed text-slate-500">
+            A cor e a sigla identificam a severidade informada para cada estação.
+          </p>
         </div>
         <button
           type="button"
