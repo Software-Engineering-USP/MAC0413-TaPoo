@@ -1,0 +1,128 @@
+[
+  {
+    "codigo": 90000001,
+    "nome": "Rio Tietê - São Paulo (exemplo)",
+    "tipo": "FLUVIOMETRICA",
+    "latitude": -23.52,
+    "longitude": -46.63,
+    "uf": "SP",
+    "municipio": "São Paulo",
+    "rio": "Rio Tietê",
+    "operando": true,
+    "telemetrica": true,
+    "grandezas": [
+      "CHUVA",
+      "NIVEL",
+      "VAZAO"
+    ],
+    "severidade": "ALERTA",
+    "severidade_rotulo": "Alerta",
+    "alerta": {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "codigo_estacao": 90000001,
+      "severidade": "ALERTA",
+      "severidade_rotulo": "Alerta",
+      "status": "ATIVO",
+      "mensagem": "Rio acima da cota de alerta (440 cm, limite 400 cm)",
+      "fatores": [
+        {
+          "descricao": "Rio acima da cota de alerta (440 cm, limite 400 cm)",
+          "severidade": "ALERTA",
+          "severidade_rotulo": "Alerta"
+        }
+      ],
+      "emitido_em": "2026-01-10T12:00:00Z",
+      "encerrado_em": null
+    }
+  },
+  {
+    "codigo": 90000002,
+    "nome": "Campinas (exemplo)",
+    "tipo": "PLUVIOMETRICA",
+    "latitude": -22.91,
+    "longitude": -47.06,
+    "uf": "SP",
+    "municipio": "Campinas",
+    "rio": null,
+    "operando": true,
+    "telemetrica": true,
+    "grandezas": [
+      "CHUVA"
+    ],
+    "severidade": "NORMAL",
+    "severidade_rotulo": "Normal",
+    "alerta": null
+  },
+  {
+    "codigo": 90000003,
+    "nome": "Rio das Velhas - Belo Horizonte (exemplo)",
+    "tipo": "FLUVIOMETRICA",
+    "latitude": -19.92,
+    "longitude": -43.94,
+    "uf": "MG",
+    "municipio": "Belo Horizonte",
+    "rio": "Rio das Velhas",
+    "operando": true,
+    "telemetrica": true,
+    "grandezas": [
+      "CHUVA",
+      "NIVEL",
+      "VAZAO"
+    ],
+    "severidade": "NORMAL",
+    "severidade_rotulo": "Normal",
+    "alerta": null
+  },
+  {
+    "codigo": 90000004,
+    "nome": "Petrópolis (exemplo)",
+    "tipo": "PLUVIOMETRICA",
+    "latitude": -22.51,
+    "longitude": -43.18,
+    "uf": "RJ",
+    "municipio": "Petrópolis",
+    "rio": null,
+    "operando": true,
+    "telemetrica": true,
+    "grandezas": [
+      "CHUVA"
+    ],
+    "severidade": "EMERGENCIA",
+    "severidade_rotulo": "Emergência",
+    "alerta": {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "codigo_estacao": 90000004,
+      "severidade": "EMERGENCIA",
+      "severidade_rotulo": "Emergência",
+      "status": "ATIVO",
+      "mensagem": "Chuva acumulada de 96.0 mm em 24 h (limite de emergência: 80.0 mm)",
+      "fatores": [
+        {
+          "descricao": "Chuva acumulada de 96.0 mm em 24 h (limite de emergência: 80.0 mm)",
+          "severidade": "EMERGENCIA",
+          "severidade_rotulo": "Emergência"
+        }
+      ],
+      "emitido_em": "2026-01-10T12:00:00Z",
+      "encerrado_em": null
+    }
+  },
+  {
+    "codigo": 90000005,
+    "nome": "Ouro Preto (exemplo)",
+    "tipo": "PLUVIOMETRICA",
+    "latitude": -20.39,
+    "longitude": -43.5,
+    "uf": "MG",
+    "municipio": "Ouro Preto",
+    "rio": null,
+    "operando": true,
+    "telemetrica": false,
+    "grandezas": [
+      "CHUVA"
+    ],
+    "severidade": "NORMAL",
+    "severidade_rotulo": "Normal",
+    "alerta": null
+  }
+]
