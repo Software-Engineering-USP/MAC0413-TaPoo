@@ -1,3 +1,5 @@
+import { ApiError } from "./erros";
+
 const mockAlert = {
   id: "a17b8b5c-5d80-4a36-91d3-b0a98c748f01",
   codigo_estacao: 90000001,
@@ -16,82 +18,102 @@ const mockAlert = {
   encerrado_em: null,
 };
 
+const mockEmergencyAlert = {
+  id: "d2bff5c6-4739-4e1b-9856-57af1dc3bd36",
+  codigo_estacao: 90000004,
+  severidade: "EMERGENCIA",
+  severidade_rotulo: "Emerg\u00eancia",
+  status: "ATIVO",
+  mensagem: "Chuva acumulada acima da faixa de emerg\u00eancia.",
+  fatores: [
+    {
+      descricao: "Chuva acumulada em 24 horas acima do limite extremo",
+      severidade: "EMERGENCIA",
+      severidade_rotulo: "Emerg\u00eancia",
+    },
+  ],
+  emitido_em: "2026-01-01T12:00:00Z",
+  encerrado_em: null,
+};
+
+const mockAlerts = [mockEmergencyAlert, mockAlert];
+
 const mockStations = [
   {
     codigo: 90000001,
-    nome: "Estação Rio Pinheiros",
+    nome: "Rio Tiet\u00ea - S\u00e3o Paulo (exemplo)",
     tipo: "FLUVIOMETRICA",
-    latitude: -23.5613,
-    longitude: -46.7303,
+    latitude: -23.52,
+    longitude: -46.63,
     uf: "SP",
-    municipio: "São Paulo",
-    rio: "Pinheiros",
+    municipio: "S\u00e3o Paulo",
+    rio: "Rio Tiet\u00ea",
     operando: true,
     telemetrica: true,
-    grandezas: ["NIVEL", "VAZAO"],
+    grandezas: ["CHUVA", "NIVEL", "VAZAO"],
     severidade: "ALERTA",
     severidade_rotulo: "Alerta",
     alerta: mockAlert,
   },
   {
     codigo: 90000002,
-    nome: "Estação Ribeirão Jaguaré",
-    tipo: "FLUVIOMETRICA",
-    latitude: -23.564,
-    longitude: -46.744,
+    nome: "Campinas (exemplo)",
+    tipo: "PLUVIOMETRICA",
+    latitude: -22.91,
+    longitude: -47.06,
     uf: "SP",
-    municipio: "São Paulo",
-    rio: "Jaguaré",
+    municipio: "Campinas",
+    rio: null,
     operando: true,
     telemetrica: true,
-    grandezas: ["NIVEL"],
-    severidade: "ATENCAO",
-    severidade_rotulo: "Atenção",
+    grandezas: ["CHUVA"],
+    severidade: "NORMAL",
+    severidade_rotulo: "Normal",
     alerta: null,
   },
   {
     codigo: 90000003,
-    nome: "Estação Rio Tietê",
+    nome: "Rio das Velhas - Belo Horizonte (exemplo)",
     tipo: "FLUVIOMETRICA",
-    latitude: -23.525,
-    longitude: -46.625,
-    uf: "SP",
-    municipio: "São Paulo",
-    rio: "Tietê",
+    latitude: -19.92,
+    longitude: -43.94,
+    uf: "MG",
+    municipio: "Belo Horizonte",
+    rio: "Rio das Velhas",
     operando: true,
     telemetrica: true,
-    grandezas: ["NIVEL", "VAZAO"],
+    grandezas: ["CHUVA", "NIVEL", "VAZAO"],
     severidade: "NORMAL",
     severidade_rotulo: "Normal",
     alerta: null,
   },
   {
     codigo: 90000004,
-    nome: "Estação Rio das Velhas",
-    tipo: "FLUVIOMETRICA",
-    latitude: -19.9167,
-    longitude: -43.9345,
-    uf: "MG",
-    municipio: "Belo Horizonte",
-    rio: "Rio das Velhas",
-    operando: true,
-    telemetrica: true,
-    grandezas: ["NIVEL", "VAZAO"],
-    severidade: "NORMAL",
-    severidade_rotulo: "Normal",
-    alerta: null,
-  },
-  {
-    codigo: 90000005,
-    nome: "Estação Pluviométrica Central",
+    nome: "Petr\u00f3polis (exemplo)",
     tipo: "PLUVIOMETRICA",
-    latitude: -23.5489,
-    longitude: -46.6388,
-    uf: "SP",
-    municipio: "São Paulo",
+    latitude: -22.51,
+    longitude: -43.18,
+    uf: "RJ",
+    municipio: "Petr\u00f3polis",
     rio: null,
     operando: true,
     telemetrica: true,
+    grandezas: ["CHUVA"],
+    severidade: "EMERGENCIA",
+    severidade_rotulo: "Emerg\u00eancia",
+    alerta: mockEmergencyAlert,
+  },
+  {
+    codigo: 90000005,
+    nome: "Ouro Preto (exemplo)",
+    tipo: "PLUVIOMETRICA",
+    latitude: -20.39,
+    longitude: -43.5,
+    uf: "MG",
+    municipio: "Ouro Preto",
+    rio: null,
+    operando: true,
+    telemetrica: false,
     grandezas: ["CHUVA"],
     severidade: "NORMAL",
     severidade_rotulo: "Normal",
@@ -132,17 +154,11 @@ function mockResult(signal, callback) {
 }
 
 function notFound(message) {
-  const error = new Error(message);
-  error.name = "ApiError";
-  error.status = 404;
-  return error;
+  return new ApiError(message, 404);
 }
 
 function validationError(message) {
-  const error = new Error(message);
-  error.name = "ApiError";
-  error.status = 422;
-  return error;
+  return new ApiError(message, 422);
 }
 
 export function mockHealth({ signal } = {}) {
@@ -171,17 +187,20 @@ export function mockListStations({
       throw validationError("Tipo de estação inválido.");
     }
 
-    const query = normalizedText(trimmedQuery);
+    const queryWords = normalizedText(trimmedQuery).split(" ").filter(Boolean);
 
     return mockStations.filter((station) => {
       if (uf && station.uf !== uf.toUpperCase()) return false;
       if (tipo && station.tipo !== tipo) return false;
       if (apenasTelemetricas && !station.telemetrica) return false;
-      if (!query) return true;
+      if (queryWords.length === 0) return true;
 
-      return [station.nome, station.municipio, station.rio].some((value) =>
-        normalizedText(value).includes(query),
+      const searchableText = normalizedText(
+        [station.nome, station.municipio, station.rio]
+          .filter(Boolean)
+          .join(" "),
       );
+      return queryWords.every((word) => searchableText.includes(word));
     });
   });
 }
@@ -269,18 +288,18 @@ export function mockListStationMeasurements(
 
     const hour = 60 * 60 * 1000;
     const measurements = [];
+    const valueByGrandeza = {
+      CHUVA: (index) => (index % 4) * 0.5,
+      NIVEL: (index) => 430 + (index % 7) * 2,
+      VAZAO: (index) => 18 + (index % 5) * 1.5,
+    };
     for (
       let timestamp = start.getTime();
       timestamp <= end.getTime();
       timestamp += hour
     ) {
       const index = measurements.length;
-      const value =
-        grandeza === "CHUVA"
-          ? (index % 4) * 0.5
-          : grandeza === "NIVEL"
-            ? 430 + (index % 7) * 2
-            : 18 + (index % 5) * 1.5;
+      const value = valueByGrandeza[grandeza](index);
 
       measurements.push({
         data_hora_utc: new Date(timestamp).toISOString(),
@@ -304,11 +323,17 @@ export function mockListStationMeasurements(
 
 export function mockGetMunicipalitySituation(uf, nome, { signal } = {}) {
   return mockResult(signal, () => {
-    const stations = mockStations.filter(
-      (station) =>
-        station.uf === uf.toUpperCase() &&
-        normalizedText(station.municipio) === normalizedText(nome),
-    );
+    const stations = mockStations
+      .filter(
+        (station) =>
+          station.uf === uf.toUpperCase() &&
+          normalizedText(station.municipio) === normalizedText(nome),
+      )
+      .sort(
+        (first, second) =>
+          severityRank[second.severidade] - severityRank[first.severidade] ||
+          first.codigo - second.codigo,
+      );
     if (stations.length === 0) {
       throw notFound(`Município ${nome}, ${uf.toUpperCase()} não encontrado.`);
     }
@@ -330,5 +355,26 @@ export function mockGetMunicipalitySituation(uf, nome, { signal } = {}) {
 }
 
 export function mockListActiveAlerts({ signal } = {}) {
-  return mockResult(signal, () => [mockAlert]);
+  return mockResult(signal, () => mockAlerts);
+}
+
+export function mockListStationAlertHistory(
+  codigo,
+  { limite = 50, signal } = {},
+) {
+  return mockResult(signal, () => {
+    const station = mockStations.find((item) => item.codigo === Number(codigo));
+    if (!station)
+      throw notFound(`Esta\u00e7\u00e3o ${codigo} n\u00e3o encontrada.`);
+    if (
+      !Number.isInteger(Number(limite)) ||
+      Number(limite) < 1 ||
+      Number(limite) > 500
+    ) {
+      throw validationError("O limite deve estar entre 1 e 500.");
+    }
+    return mockAlerts
+      .filter((alert) => alert.codigo_estacao === station.codigo)
+      .slice(0, Number(limite));
+  });
 }

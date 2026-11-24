@@ -6,6 +6,7 @@ export default function SavedPlacesCard({
   onSave,
   onSelect,
   onRemove,
+  variant = "sidebar",
 }) {
   const listRef = useRef(null);
   const previousPlaceCountRef = useRef(places.length);
@@ -16,17 +17,25 @@ export default function SavedPlacesCard({
     if (!placeWasAdded) return;
     if (places.length === 0 || !listRef.current) return;
 
-    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    const isMobile =
+      variant !== "panel" && window.matchMedia("(max-width: 767px)").matches;
     listRef.current.scrollTo({
       [isMobile ? "left" : "top"]: isMobile
         ? listRef.current.scrollWidth
         : listRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [places.length]);
+  }, [places.length, variant]);
 
   return (
-    <section className="saved-places-track" aria-labelledby="savedPlacesTitle">
+    <section
+      className={`saved-places-track ${
+        variant === "panel" ? "saved-places-panel" : ""
+      }`}
+      aria-labelledby={
+        variant === "panel" ? "mobileSavedPlacesTitle" : "savedPlacesTitle"
+      }
+    >
       <div className="saved-places-heading">
         <div className="flex items-center gap-2">
           <i
@@ -34,7 +43,11 @@ export default function SavedPlacesCard({
             aria-hidden="true"
           ></i>
           <h2
-            id="savedPlacesTitle"
+            id={
+              variant === "panel"
+                ? "mobileSavedPlacesTitle"
+                : "savedPlacesTitle"
+            }
             className="text-[13px] font-bold uppercase tracking-wider text-slate-700"
           >
             Meus Locais Salvos

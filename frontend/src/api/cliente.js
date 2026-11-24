@@ -4,24 +4,20 @@ import {
   mockHealth,
   mockListActiveAlerts,
   mockListNearbyStations,
+  mockListStationAlertHistory,
   mockListStations,
   mockListStationMeasurements,
 } from "./mocks";
+import { ApiError } from "./erros";
 
-const API_URL = (import.meta.env.VITE_API_URL?.trim() || "").replace(
-  /\/+$/,
-  "",
-);
+export { ApiError } from "./erros";
 
-export const usaApiReal = API_URL.length > 0;
+const API_URL = (
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8000"
+).replace(/\/+$/, "");
+const USA_MOCKS = import.meta.env.VITE_USAR_MOCKS === "true";
 
-export class ApiError extends Error {
-  constructor(message, status) {
-    super(message);
-    this.name = "ApiError";
-    this.status = status;
-  }
-}
+export const usaApiReal = !USA_MOCKS;
 
 function formatApiDetail(detail) {
   if (typeof detail === "string") return detail;
@@ -35,7 +31,10 @@ function formatApiDetail(detail) {
 }
 
 async function getJson(path, { params = {}, signal } = {}) {
-  const url = new URL(`${API_URL}${path}`);
+  const baseUrl = API_URL.startsWith("/")
+    ? `${window.location.origin}${API_URL}/`
+    : `${API_URL}/`;
+  const url = new URL(path.replace(/^\/+/, ""), baseUrl);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       url.searchParams.set(key, String(value));
@@ -141,4 +140,15 @@ export function listarAlertasAtivos({ signal } = {}) {
   return usaApiReal
     ? getJson("/alertas", { signal })
     : mockListActiveAlerts({ signal });
+}
+
+/** GET /estacoes/{codigo}/alertas?limite= */
+export function listarHistoricoAlertasEstacao(
+  codigo,
+  { limite = 50, signal } = {},
+) {
+  const path = `/estacoes/${encodeURIComponent(codigo)}/alertas`;
+  return usaApiReal
+    ? getJson(path, { params: { limite }, signal })
+    : mockListStationAlertHistory(codigo, { limite, signal });
 }

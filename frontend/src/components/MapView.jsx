@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { listarEstacoes } from "../api/cliente";
+import { listarEstacoes, usaApiReal } from "../api/cliente";
 import { floodZones, getRiskLevel, rivers } from "../mapData";
 
 const stationSeverities = {
@@ -184,12 +184,22 @@ export default function MapView({
     }[searchStatus.state];
 
   useEffect(() => {
+    const mobileBreakpoint = window.matchMedia("(max-width: 767px)");
     const mapInstance = L.map(mapContainerRef.current, {
       center: [-23.5613, -46.7303],
       zoom: 14,
       zoomControl: false,
-      scrollWheelZoom: true,
+      scrollWheelZoom: !mobileBreakpoint.matches,
     });
+
+    const syncScrollWheelZoom = () => {
+      if (mobileBreakpoint.matches) {
+        mapInstance.scrollWheelZoom.disable();
+      } else {
+        mapInstance.scrollWheelZoom.enable();
+      }
+    };
+    window.addEventListener("resize", syncScrollWheelZoom);
 
     mapRef.current = mapInstance;
 
@@ -239,6 +249,7 @@ export default function MapView({
     mapInstance.whenReady(() => mapInstance.invalidateSize());
 
     return () => {
+      window.removeEventListener("resize", syncScrollWheelZoom);
       stationRequestRef.current?.abort();
       stationLayerRef.current = null;
       mapRef.current = null;
@@ -414,6 +425,15 @@ export default function MapView({
               </option>
             ))}
           </select>
+          {!usaApiReal && (
+            <span
+              className="demo-data-badge"
+              title="Dados de demonstração: não representam alertas reais."
+              aria-label="Dados de demonstração"
+            >
+              DEMO
+            </span>
+          )}
         </div>
         <form
           role="search"
@@ -450,12 +470,23 @@ export default function MapView({
             Buscar
           </button>
         </form>
+        {["loading", "error", "empty"].includes(searchStatus.state) &&
+          searchStatus.message && (
+            <p
+              className={`map-search-feedback map-search-feedback-${searchStatus.state}`}
+              role={searchStatus.state === "error" ? "alert" : "status"}
+              aria-live={
+                searchStatus.state === "error" ? "assertive" : "polite"
+              }
+            >
+              <i
+                className={`fa-solid ${searchIndicator?.icon || "fa-circle-info"}`}
+                aria-hidden="true"
+              />
+              {searchStatus.message}
+            </p>
+          )}
       </div>
-      {searchStatus.message && (
-        <p className="sr-only" role="status" aria-live="polite">
-          {searchStatus.message}
-        </p>
-      )}
       <div
         className="risk-area-legend"
         aria-label="Legenda das áreas simuladas"
