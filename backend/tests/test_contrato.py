@@ -14,7 +14,9 @@ def test_contrato_e_mocks_estao_em_dia() -> None:
 
 
 def test_geracao_e_deterministica() -> None:
-    assert gerador.gerar_arquivos() == gerador.gerar_arquivos()
+    primeira = gerador.gerar_arquivos()
+    segunda = gerador.gerar_arquivos()
+    assert primeira == segunda
 
 
 def test_ids_de_alerta_sao_estaveis_e_compartilhados() -> None:
