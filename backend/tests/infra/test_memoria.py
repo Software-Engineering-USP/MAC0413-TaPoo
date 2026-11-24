@@ -62,3 +62,17 @@ def test_alerta_ativo_da_estacao() -> None:
     repo.salvar(alerta)
     assert repo.ativo_da_estacao(1) is None
     assert repo.ativos() == []
+
+
+def test_historico_de_alertas_da_estacao() -> None:
+    repo = AlertaRepositorioMemoria()
+    antigo = Alerta(1, Severidade.ALERTA, "antigo", T0)
+    antigo.encerrar(T0 + timedelta(hours=1))
+    recente = Alerta(1, Severidade.EMERGENCIA, "recente", T0 + timedelta(hours=2))
+    outra_estacao = Alerta(2, Severidade.ALERTA, "outra", T0)
+    for alerta in (antigo, recente, outra_estacao):
+        repo.salvar(alerta)
+
+    assert repo.historico_da_estacao(1) == [recente, antigo]
+    assert repo.historico_da_estacao(1, limite=1) == [recente]
+    assert repo.historico_da_estacao(3) == []

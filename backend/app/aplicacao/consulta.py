@@ -74,6 +74,11 @@ class ConsultarDados:
     def alertas_ativos(self) -> list[Alerta]:
         return sorted(self._alertas.ativos(), key=lambda a: a.severidade, reverse=True)
 
+    def historico_alertas(self, codigo: int, limite: int | None = None) -> list[Alerta]:
+        """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""
+        self.estacao(codigo)
+        return self._alertas.historico_da_estacao(codigo, limite)
+
     def _com_situacao(self, estacoes: Iterable[Estacao]) -> list[SituacaoEstacao]:
         """Associa a cada estação o seu alerta ativo, consultando os alertas uma só vez."""
         ativos = {a.codigo_estacao: a for a in self._alertas.ativos()}
