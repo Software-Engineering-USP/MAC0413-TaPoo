@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { listarEstacoes } from "../api/estacoes";
+import { listarEstacoes } from "../api/cliente";
 import { floodZones, getRiskLevel, rivers } from "../mapData";
 
 const stationSeverities = {
@@ -278,6 +278,7 @@ export default function MapView({
       const stations = await listarEstacoes({
         texto: query,
         uf: selectedUf,
+        apenasTelemetricas: true,
         signal: request.signal,
       });
       if (request.signal.aborted) return;
@@ -431,21 +432,15 @@ export default function MapView({
             type="submit"
             className="absolute right-2 rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800"
           >
-            Filtrar
+            Buscar
           </button>
         </form>
-        {searchStatus.message && (
-          <p
-            id="stationSearchStatus"
-            className="station-search-status mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
-            role="status"
-            aria-live="polite"
-            data-state={searchStatus.state}
-          >
-            {searchStatus.message}
-          </p>
-        )}
       </div>
+      {searchStatus.message && (
+        <p className="sr-only" role="status" aria-live="polite">
+          {searchStatus.message}
+        </p>
+      )}
       <div
         className="risk-area-legend"
         aria-label="Legenda das áreas simuladas"

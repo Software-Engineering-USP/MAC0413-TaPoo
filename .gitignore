@@ -9,6 +9,7 @@ node_modules/
 frontend/dist/
 
 .env
+frontend/.env*
 .DS_Store
 
 coverage.xml

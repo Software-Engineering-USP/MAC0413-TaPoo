@@ -99,14 +99,6 @@ body {
   line-height: 1.25;
 }
 
-#stationSearchStatus[data-state="error"] {
-  color: #b91c1c;
-}
-
-#stationSearchStatus[data-state="empty"] {
-  color: #475569;
-}
-
 .station-marker {
   border: 0;
   background: transparent;
