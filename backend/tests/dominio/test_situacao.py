@@ -70,9 +70,9 @@ def test_municipio_sem_estacoes_e_rejeitado() -> None:
 
 
 def test_municipio_rejeita_estacao_de_outro_municipio() -> None:
-    outra = SituacaoEstacao(estacao(2, Municipio("X", "MG")))
+    estacoes = (SituacaoEstacao(estacao(1)), SituacaoEstacao(estacao(2, Municipio("X", "MG"))))
     with pytest.raises(DadoInvalido, match="fora de X/SP"):
-        SituacaoMunicipio(X, (SituacaoEstacao(estacao(1)), outra))
+        SituacaoMunicipio(X, estacoes)
 
 
 def test_municipio_aceita_grafias_diferentes_do_mesmo_municipio() -> None:
