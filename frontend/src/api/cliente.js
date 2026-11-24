@@ -61,9 +61,7 @@ async function getJson(path, { params = {}, signal } = {}) {
 
 /** GET /health */
 export function verificarSaude({ signal } = {}) {
-  return usaApiReal
-    ? getJson("/health", { signal })
-    : mockHealth({ signal });
+  return usaApiReal ? getJson("/health", { signal }) : mockHealth({ signal });
 }
 
 /** GET /estacoes */

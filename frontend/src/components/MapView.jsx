@@ -171,15 +171,17 @@ export default function MapView({
     message: "",
     state: "empty",
   });
-  const searchIndicator = searchStatus.message && {
-    loading: {
-      icon: "fa-spinner fa-spin text-sky-700",
-    },
-    error: { icon: "fa-circle-exclamation text-red-600" },
-    empty: {
-      icon: "fa-circle-info text-amber-600",
-    },
-  }[searchStatus.state];
+  const searchIndicator =
+    searchStatus.message &&
+    {
+      loading: {
+        icon: "fa-spinner fa-spin text-sky-700",
+      },
+      error: { icon: "fa-circle-exclamation text-red-600" },
+      empty: {
+        icon: "fa-circle-info text-amber-600",
+      },
+    }[searchStatus.state];
 
   useEffect(() => {
     const mapInstance = L.map(mapContainerRef.current, {

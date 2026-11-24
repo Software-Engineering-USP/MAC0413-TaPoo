@@ -149,9 +149,13 @@ export function mockHealth({ signal } = {}) {
   return mockResult(signal, () => ({ status: "ok" }));
 }
 
-export function mockListStations(
-  { texto, uf, tipo, apenasTelemetricas = false, signal } = {},
-) {
+export function mockListStations({
+  texto,
+  uf,
+  tipo,
+  apenasTelemetricas = false,
+  signal,
+} = {}) {
   return mockResult(signal, () => {
     const trimmedQuery = texto == null ? undefined : texto.trim();
     if (
