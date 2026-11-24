@@ -13,6 +13,9 @@ AGORA = datetime(2026, 1, 10, 12, tzinfo=UTC)
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    app = create_app(lambda: montar_container(FonteFake(AGORA), relogio=lambda: AGORA))
+    app = create_app(
+        lambda: montar_container(FonteFake(AGORA), relogio=lambda: AGORA),
+        intervalo=lambda: None,  # sem coleta em segundo plano durante os testes
+    )
     with TestClient(app) as c:  # o "with" executa o lifespan (carga inicial)
         yield c
