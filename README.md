@@ -22,6 +22,9 @@ With both blank, the backend keeps using its fictional sample source.
 Compose also starts a PostgreSQL service (`db`) and the backend stores stations,
 measurements and alerts there (`REPO=sql`), so data survives restarts. The database
 lives in the `dados-postgres` volume; `docker compose down -v` erases it.
+The backend collects new readings for the monitored stations it already knows and
+re-evaluates their alerts every `COLETA_INTERVALO_MINUTOS` minutes (default `15`; `0`
+turns the background collection off).
 
 Open the frontend at `http://localhost:3000`. The API is available at `http://localhost:8000` and its health check is `http://localhost:8000/health`. Stop the services with `Ctrl+C`; add `-d` to run them in the background.
 

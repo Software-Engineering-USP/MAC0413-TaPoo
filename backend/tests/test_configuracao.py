@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 
 from app import configuracao
@@ -98,3 +100,22 @@ def test_url_banco_usa_sqlite_local_sem_configuracao(monkeypatch, tmp_path) -> N
 
     monkeypatch.setenv("DATABASE_URL", " postgresql://u:s@db/tapoo ")
     assert configuracao.url_banco() == "postgresql://u:s@db/tapoo"
+def test_intervalo_coleta_padrao_valor_e_desligado(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
+    monkeypatch.delenv("COLETA_INTERVALO_MINUTOS", raising=False)
+    assert configuracao.intervalo_coleta() == timedelta(minutes=15)
+
+    monkeypatch.setenv("COLETA_INTERVALO_MINUTOS", "0.5")
+    assert configuracao.intervalo_coleta() == timedelta(seconds=30)
+
+    monkeypatch.setenv("COLETA_INTERVALO_MINUTOS", "0")
+    assert configuracao.intervalo_coleta() is None
+
+
+@pytest.mark.parametrize("valor", ["invalido", "-1", "nan", "inf", "-inf"])
+def test_intervalo_coleta_rejeita_valores_invalidos(monkeypatch, tmp_path, valor) -> None:
+    monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
+    monkeypatch.setenv("COLETA_INTERVALO_MINUTOS", valor)
+
+    with pytest.raises(RuntimeError, match="COLETA_INTERVALO_MINUTOS"):
+        configuracao.intervalo_coleta()
