@@ -100,6 +100,8 @@ def test_url_banco_usa_sqlite_local_sem_configuracao(monkeypatch, tmp_path) -> N
 
     monkeypatch.setenv("DATABASE_URL", " postgresql://u:s@db/tapoo ")
     assert configuracao.url_banco() == "postgresql://u:s@db/tapoo"
+
+
 def test_intervalo_coleta_padrao_valor_e_desligado(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
     monkeypatch.delenv("COLETA_INTERVALO_MINUTOS", raising=False)
