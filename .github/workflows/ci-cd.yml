@@ -16,6 +16,23 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      # Os testes de contrato dos repositórios também rodam contra um Postgres de verdade.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: tapoo
+          POSTGRES_PASSWORD: tapoo
+          POSTGRES_DB: tapoo_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tapoo -d tapoo_teste"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      TEST_DATABASE_URL: postgresql://tapoo:tapoo@localhost:5432/tapoo_teste
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

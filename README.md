@@ -19,6 +19,9 @@ docker compose up --build
 To enable live ANA data, fill `ANA_IDENTIFICADOR` and `ANA_SENHA` in `.env` first.
 With both blank, the backend keeps using its fictional sample source.
 
+Compose also starts a PostgreSQL service (`db`) and the backend stores stations,
+measurements and alerts there (`REPO=sql`), so data survives restarts. The database
+lives in the `dados-postgres` volume; `docker compose down -v` erases it.
 The backend collects new readings for the monitored stations it already knows and
 re-evaluates their alerts every `COLETA_INTERVALO_MINUTOS` minutes (default `15`; `0`
 turns the background collection off).
@@ -70,6 +73,10 @@ public frontend URL, e.g. `CORS_ORIGENS=https://tapoo.example.org`.
 The production frontend runs on Vercel and the FastAPI backend runs on Render.
 Render builds the backend from `backend/Dockerfile` using the root `render.yaml`
 Blueprint.
+The Blueprint also creates a Render Postgres database (`tapoo-db`) and points the
+API at it with `REPO=sql` and `DATABASE_URL`; tables are created on startup. Both
+use Render's free plan, and a free Postgres database expires 30 days after creation
+unless it is upgraded.
 
 ### First deployment
 
@@ -101,10 +108,38 @@ Dependencies point inward: `dominio` imports nothing from the other layers.
 |---|---|---|
 | Domain | `app/dominio` | Entities, value objects, alert rules (Strategy) |
 | Application | `app/aplicacao` | Ports (abstract classes) and use cases |
-| Infrastructure | `app/infra` | Port implementations: in-memory repositories, example data source |
+| Infrastructure | `app/infra` | Port implementations: in-memory and SQL repositories (`infra/persistencia`), data sources |
 | API | `app/api` | FastAPI routes, response schemas, wiring (`dependencias.py`) |
 
-Stations and measurements use in-memory repositories for now. With blank ANA
+### Persistence
+
+`REPO` chooses where stations, measurements and alerts are stored:
+
+| `REPO` | Storage | Notes |
+|---|---|---|
+| `memoria` (default outside compose) | Process memory | Lost on restart; used by the tests |
+| `sql` (default in compose) | Database at `DATABASE_URL` | SQLAlchemy; PostgreSQL in compose, `sqlite:///tapoo.db` when `DATABASE_URL` is blank |
+
+`app/infra/persistencia/modelos_orm.py` maps the tables and `repositorios_sql.py`
+implements the same ports as the in-memory repositories (`EstacaoRepositorioSql`,
+`MedicaoRepositorioSql`, `AlertaRepositorioSql`). Measurements are upserted by their
+natural key `(codigo_estacao, grandeza, data_hora_utc, origem)`, and dates are stored
+in UTC. Tables are created on startup if missing; there are no migrations yet. Alert
+rules still come from `regras_de_exemplo()` in memory until the seed (#67).
+
+The repository contract tests (`tests/infra/test_repositorios_contrato.py`) run
+against memory and SQLite, and also against PostgreSQL when `TEST_DATABASE_URL` is
+set, as in CI:
+
+```bash
+docker run -d --rm --name tapoo-pg -e POSTGRES_USER=tapoo -e POSTGRES_PASSWORD=tapoo \
+  -e POSTGRES_DB=tapoo_teste -p 5432:5432 postgres:17-alpine
+TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pytest
+```
+
+### Data sources
+
+With blank ANA
 credentials, the backend uses `FonteFake` (fictional stations 9000000x). When
 `ANA_IDENTIFICADOR` and `ANA_SENHA` are set in the repository-root `.env`, it uses
 `FonteAna` to load the ANA inventory and fetch a station's adopted measurements
@@ -115,8 +150,7 @@ The ANA inventory is fetched by UF on the first station-list request, not during
 startup, so a slow ANA response does not prevent the backend from becoming healthy.
 Successful UF inventories are cached for the lifetime of the process. The service
 does not automatically request time series for every Brazilian station; measurements
-are fetched on demand through the station series route. Data is still held in memory,
-so persistence and scheduled refresh remain future work. ANA timestamps omit a
+are fetched on demand through the station series route. ANA timestamps omit a
 timezone in the documented response; the adapter currently interprets these values
 in `America/Sao_Paulo` before converting them to UTC.
 

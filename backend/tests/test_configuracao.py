@@ -73,6 +73,35 @@ def test_timeout_ana_rejeita_valores_invalidos(monkeypatch, tmp_path, valor) -> 
         configuracao.timeout_ana()
 
 
+def test_tipo_repositorio_padrao_e_valores_aceitos(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
+    monkeypatch.delenv("REPO", raising=False)
+    assert configuracao.tipo_repositorio() == "memoria"
+
+    monkeypatch.setenv("REPO", " SQL ")
+    assert configuracao.tipo_repositorio() == "sql"
+
+    monkeypatch.setenv("REPO", "")
+    assert configuracao.tipo_repositorio() == "memoria"
+
+
+def test_tipo_repositorio_rejeita_valor_desconhecido(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
+    monkeypatch.setenv("REPO", "mongo")
+
+    with pytest.raises(RuntimeError, match="REPO"):
+        configuracao.tipo_repositorio()
+
+
+def test_url_banco_usa_sqlite_local_sem_configuracao(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    assert configuracao.url_banco() == "sqlite:///tapoo.db"
+
+    monkeypatch.setenv("DATABASE_URL", " postgresql://u:s@db/tapoo ")
+    assert configuracao.url_banco() == "postgresql://u:s@db/tapoo"
+
+
 def test_intervalo_coleta_padrao_valor_e_desligado(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(configuracao, "_ARQUIVO_ENV", tmp_path / "ausente")
     monkeypatch.delenv("COLETA_INTERVALO_MINUTOS", raising=False)
