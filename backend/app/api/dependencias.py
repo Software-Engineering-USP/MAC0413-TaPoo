@@ -1,12 +1,12 @@
 """Composição da aplicação: liga as portas às implementações concretas.
 
-É o único lugar que conhece `app.infra`. Trocar memória por SQL, ou `FonteFake` por
-`FonteAna`, muda só este arquivo.
+É o único lugar que conhece `app.infra`. Trocar memória por SQL (`REPO`), ou `FonteFake`
+por `FonteAna`, muda só este arquivo.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, Request
@@ -14,10 +14,23 @@ from fastapi import Depends, Request
 from app.aplicacao.coleta import ColetarMedicoes
 from app.aplicacao.consulta import ConsultarDados
 from app.aplicacao.monitoramento import MonitorarEstacoes
-from app.aplicacao.portas import FonteDadosHidrologicos
+from app.aplicacao.portas import (
+    AlertaRepositorio,
+    EstacaoRepositorio,
+    FonteDadosHidrologicos,
+    MedicaoRepositorio,
+    RegraRepositorio,
+)
 from app.aplicacao.sincronizacao import SincronizarEstacoes
-from app.configuracao import base_url_ana, credenciais_ana, timeout_ana
+from app.configuracao import (
+    base_url_ana,
+    credenciais_ana,
+    timeout_ana,
+    tipo_repositorio,
+    url_banco,
+)
 from app.dominio.tempo import agora_utc
+from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake, regras_de_exemplo
 from app.infra.memoria.repositorios import (
@@ -25,6 +38,12 @@ from app.infra.memoria.repositorios import (
     EstacaoRepositorioMemoria,
     MedicaoRepositorioMemoria,
     RegraRepositorioMemoria,
+)
+from app.infra.persistencia.repositorios_sql import (
+    AlertaRepositorioSql,
+    BancoDeDados,
+    EstacaoRepositorioSql,
+    MedicaoRepositorioSql,
 )
 
 
@@ -37,9 +56,45 @@ class Container:
     carregar_na_inicializacao: bool = True
 
 
+@dataclass(frozen=True, slots=True)
+class Repositorios:
+    estacoes: EstacaoRepositorio
+    medicoes: MedicaoRepositorio
+    alertas: AlertaRepositorio
+    regras: RegraRepositorio
+
+
+def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repositorios:
+    """Escolhe os repositórios por `REPO=memoria|sql` (e `DATABASE_URL` no caso SQL).
+
+    As regras de alerta ainda vêm de `regras_de_exemplo()`, em memória, nos dois casos:
+    carregá-las de um arquivo é o seed (#67).
+    """
+    if (tipo or tipo_repositorio()) == "sql":
+        return repositorios_sql(BancoDeDados(url or url_banco()))
+    return Repositorios(
+        EstacaoRepositorioMemoria(),
+        MedicaoRepositorioMemoria(),
+        AlertaRepositorioMemoria(),
+        RegraRepositorioMemoria(regras_de_exemplo()),
+    )
+
+
+def repositorios_sql(banco: BancoDeDados) -> Repositorios:
+    """Repositórios SQL sobre `banco`, criando as tabelas que ainda não existem."""
+    banco.criar_tabelas()
+    return Repositorios(
+        EstacaoRepositorioSql(banco),
+        MedicaoRepositorioSql(banco),
+        AlertaRepositorioSql(banco),
+        RegraRepositorioMemoria(regras_de_exemplo()),
+    )
+
+
 def montar_container(
     fonte: FonteDadosHidrologicos | None = None,
     relogio: Callable[[], datetime] = agora_utc,
+    repositorios: Repositorios | None = None,
 ) -> Container:
     if fonte is None:
         credenciais = credenciais_ana()
@@ -52,10 +107,9 @@ def montar_container(
             if credenciais
             else FonteFake(relogio())
         )
-    estacoes = EstacaoRepositorioMemoria()
-    medicoes = MedicaoRepositorioMemoria()
-    alertas = AlertaRepositorioMemoria()
-    regras = RegraRepositorioMemoria(regras_de_exemplo())
+    repositorios = repositorios or criar_repositorios()
+    estacoes, medicoes = repositorios.estacoes, repositorios.medicoes
+    alertas, regras = repositorios.alertas, repositorios.regras
 
     monitorar = MonitorarEstacoes(medicoes, regras, alertas, relogio=relogio)
     return Container(
@@ -71,7 +125,20 @@ def carga_inicial(container: Container) -> None:
     """Sincroniza estações; fontes pequenas também carregam séries de exemplo."""
     if container.carregar_na_inicializacao:
         container.sincronizar.executar()
-        container.coletar.executar_todas()
+        executar_ciclo(container)
+
+
+def executar_ciclo(container: Container) -> int:
+    """Um ciclo do agendador: coleta as estações monitoradas e reavalia os alertas.
+
+    Não sincroniza o inventário: na ANA isso baixaria todas as estações do país. As
+    estações entram no repositório na carga inicial ou sob demanda, pelas rotas.
+    """
+    return container.coletar.executar_todas()
+
+
+def criar_agendador(container: Container, intervalo: timedelta) -> AgendadorColeta:
+    return AgendadorColeta(lambda: executar_ciclo(container), intervalo)
 
 
 def _container(request: Request) -> Container:

@@ -1,14 +1,15 @@
 import os
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 
-from app.api.dependencias import Container, carga_inicial, montar_container
+from app.api.dependencias import Container, carga_inicial, criar_agendador, montar_container
 from app.api.erros import registrar_handlers
 from app.api.routers import alertas, estacoes, municipios
+from app.configuracao import intervalo_coleta
 
 # Front servido pelo compose (3000) e pelo `npm run dev` do Vite (5173).
 ORIGENS_CORS_PADRAO = ("http://localhost:3000", "http://localhost:5173")
@@ -26,19 +27,9 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _nao_encontrado(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": str(erro)})
-
-
-def _ana_indisponivel(_: Request, erro: Exception) -> JSONResponse:
-    return JSONResponse(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        content={"detail": str(erro)},
-    )
-
-
 def create_app(
     fabrica: Callable[[], Container] = montar_container,
+    intervalo: Callable[[], timedelta | None] = intervalo_coleta,
     origens: Sequence[str] | None = None,
 ) -> FastAPI:
     @asynccontextmanager
@@ -46,7 +37,15 @@ def create_app(
         container = fabrica()
         carga_inicial(container)
         app.state.container = container
-        yield
+        periodo = intervalo()
+        app.state.agendador = criar_agendador(container, periodo) if periodo else None
+        if app.state.agendador is not None:
+            app.state.agendador.iniciar()
+        try:
+            yield
+        finally:
+            if app.state.agendador is not None:
+                await app.state.agendador.parar()
 
     app = FastAPI(title="TaPoo API", version="0.1.0", lifespan=lifespan)
     # A API é só de leitura e não usa cookies: basta liberar GET das origens do front.
