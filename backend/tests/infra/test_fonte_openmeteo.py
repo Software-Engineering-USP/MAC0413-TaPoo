@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
-from zoneinfo import ZoneInfo
+from urllib.parse import parse_qs, urlparse
+
+import pytest
 
 from app.aplicacao.portas import FonteDePrevisao
 from app.dominio.geografia import Coordenada
@@ -29,19 +31,31 @@ def test_fonte_openmeteo_e_uma_fonte_de_previsao() -> None:
 
 def test_buscar_previsao_mapeia_horas(monkeypatch) -> None:
     corpo = {
-        "timezone": "America/Sao_Paulo",
+        "timezone": "GMT",
         "hourly": {
-            "time": ["2026-11-21T08:00", "2026-11-21T09:00"],
+            "time": ["2026-11-21T11:00", "2026-11-21T12:00"],
             "precipitation": [2.5, 0.0],
         },
     }
-    monkeypatch.setattr(openmeteo, "urlopen", lambda req, timeout: RespostaFake(corpo))
+    requisicoes = []
+
+    def abrir(req, timeout):
+        requisicoes.append((req, timeout))
+        return RespostaFake(corpo)
+
+    monkeypatch.setattr(openmeteo, "urlopen", abrir)
 
     previsoes = FonteOpenMeteo().buscar_previsao(Coordenada(-23.5, -46.6))
 
     assert [p.chuva_mm for p in previsoes] == [2.5, 0.0]
     for previsao in previsoes:
         assert previsao.data_hora_utc.tzinfo is not None
+    requisicao, timeout = requisicoes[0]
+    parametros = parse_qs(urlparse(requisicao.full_url).query)
+    assert parametros["timezone"] == ["GMT"]
+    assert parametros["forecast_days"] == ["7"]
+    assert requisicao.get_header("User-agent") == "tapoo-backend"
+    assert timeout == openmeteo._TIMEOUT
 
 
 def test_buscar_previsao_sem_horas_retorna_lista_vazia(monkeypatch) -> None:
@@ -50,9 +64,7 @@ def test_buscar_previsao_sem_horas_retorna_lista_vazia(monkeypatch) -> None:
 
 
 def test_previsao_chuva_valida_valor_negativo() -> None:
-    try:
+    from app.dominio.erros import DadoInvalido
+
+    with pytest.raises(DadoInvalido):
         PrevisaoChuva(datetime(2026, 1, 1, tzinfo=ZoneInfo("UTC")), -1.0)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("chuva negativa deveria ser rejeitada")

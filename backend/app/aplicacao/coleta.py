@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from app.aplicacao.erros import EstacaoNaoEncontrada
 from app.aplicacao.monitoramento import MonitorarEstacoes
 from app.aplicacao.portas import EstacaoRepositorio, FonteDadosHidrologicos, MedicaoRepositorio
+from app.dominio.erros import FonteIndisponivel
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import agora_utc
 
@@ -45,7 +46,7 @@ class ColetarMedicoes:
             inicio = desde if desde is not None else agora - self._janela_inicial
             try:
                 novas = self._fonte.buscar_medicoes(codigo, Periodo(inicio, agora), desde)
-            except Exception as erro:  # noqa: BLE001
+            except FonteIndisponivel as erro:
                 # Falha da fonte: a coleta continua para as outras estações, sem parar.
                 logger.warning("coleta da estação %s falhou: %s", codigo, erro)
                 return 0
@@ -57,11 +58,7 @@ class ColetarMedicoes:
         """Atualiza sob demanda uma série para o período solicitado pelo usuário."""
         if self._estacoes.por_codigo(codigo) is None:
             raise EstacaoNaoEncontrada(codigo)
-        try:
-            novas = self._fonte.buscar_medicoes(codigo, periodo)
-        except Exception as erro:  # noqa: BLE001
-            logger.warning("coleta da estação %s falhou: %s", codigo, erro)
-            return 0
+        novas = self._fonte.buscar_medicoes(codigo, periodo)
         salvas = self._medicoes.salvar_varias(novas)
         self._monitorar.executar(codigo)
         return salvas

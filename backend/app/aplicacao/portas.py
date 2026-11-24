@@ -78,6 +78,10 @@ class AlertaRepositorio(ABC):
     @abstractmethod
     def ativos(self) -> list[Alerta]: ...
 
+    @abstractmethod
+    def historico_da_estacao(self, codigo: int, limite: int | None = None) -> list[Alerta]:
+        """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""
+
 
 class RegraRepositorio(ABC):
     @abstractmethod

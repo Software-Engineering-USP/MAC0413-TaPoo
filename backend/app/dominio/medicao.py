@@ -79,7 +79,7 @@ class PrevisaoChuva:
     def __post_init__(self) -> None:
         object.__setattr__(self, "data_hora_utc", exigir_utc(self.data_hora_utc, "data_hora_utc"))
         if self.chuva_mm < 0:
-            raise ValueError("previsão de chuva não pode ser negativa")
+            raise DadoInvalido("previsão de chuva não pode ser negativa")
 
 
 _CLASSE_POR_GRANDEZA: dict[Grandeza, type[Medicao]] = {

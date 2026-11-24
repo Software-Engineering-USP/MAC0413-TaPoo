@@ -25,6 +25,12 @@ def test_fonte_simulada_retorna_fonte_fake(monkeypatch: pytest.MonkeyPatch) -> N
     assert isinstance(criar_fonte(), FonteFake)
 
 
+def test_fonte_desconhecida_falha_com_erro_explicito(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FONTE", "anaa")
+    with pytest.raises(RuntimeError, match="FONTE precisa ser um de"):
+        criar_fonte()
+
+
 def test_sem_fonte_env_e_com_credencial_ana(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("FONTE", raising=False)
     monkeypatch.setenv("ANA_IDENTIFICADOR", "id")

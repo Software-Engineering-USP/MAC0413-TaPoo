@@ -36,7 +36,7 @@ def test_municipio_com_uf_invalida(client: TestClient) -> None:
 def test_situacao_sincroniza_uf_quando_carga_inicial_foi_adiada() -> None:
     fonte = FonteFake(AGORA)
     fonte.carregar_na_inicializacao = False
-    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA), intervalo=lambda: None)
 
     with TestClient(app) as cliente:
         resposta = cliente.get("/municipios/SP/São Paulo/situacao")

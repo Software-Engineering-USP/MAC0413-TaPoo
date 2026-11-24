@@ -14,7 +14,7 @@ from app.dominio.medicao import PrevisaoChuva
 from app.dominio.tempo import exigir_utc
 
 _BASE_URL = "https://api.open-meteo.com/v1/forecast"
-_USER_AGENT = "taploo-backend"
+_USER_AGENT = "tapoo-backend"
 _TIMEOUT = 10
 
 
@@ -24,7 +24,8 @@ class FonteOpenMeteo(FonteDePrevisao):
             "latitude": coordenada.latitude,
             "longitude": coordenada.longitude,
             "hourly": "precipitation",
-            "timezone": "auto",
+            "timezone": "GMT",
+            "forecast_days": 7,
         }
         url = f"{_BASE_URL}?{urlencode(params)}"
         try:
