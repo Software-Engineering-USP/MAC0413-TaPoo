@@ -19,6 +19,7 @@ from app.dominio.erros import DadoInvalido, FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import exigir_utc
 
@@ -151,7 +152,7 @@ class FonteAna(FonteDadosHidrologicos):
         estacoes = []
         for item in self._itens(resposta):
             try:
-                estacoes.append(self._mapear_estacao(item))
+                estacoes.append(self._mapear_estacao(item, uf_padrao=uf))
             except (KeyError, TypeError, ValueError):
                 # Registros incompletos ou sem coordenadas não vão ao mapa.
                 continue
@@ -294,7 +295,8 @@ class FonteAna(FonteDadosHidrologicos):
         return []
 
     @staticmethod
-    def _mapear_estacao(item: dict[str, Any]) -> Estacao:
+    def _mapear_estacao(item: dict[str, Any], uf_padrao: str = "") -> Estacao:
+        """Sem `UF_Estacao`, usa `uf_padrao` (a UF consultada); sem nenhuma, é inválido."""
         tipo_texto = str(item.get("Tipo_Estacao", "")).casefold()
         if "fluvi" in tipo_texto:
             tipo = TipoEstacao.FLUVIOMETRICA
@@ -312,8 +314,10 @@ class FonteAna(FonteDadosHidrologicos):
             nome=str(item.get("Estacao_Nome") or f"Estação {codigo}").strip(),
             tipo=tipo,
             coordenada=Coordenada(latitude, longitude),
-            uf=str(item.get("UF_Estacao") or "").upper(),
-            municipio=str(item.get("Municipio_Nome") or "Não informado").strip(),
+            municipio=Municipio(
+                str(item.get("Municipio_Nome") or "Não informado"),
+                str(item.get("UF_Estacao") or uf_padrao),
+            ),
             rio=item.get("Rio_Nome") or item.get("Rio"),
             operando=str(item.get("Operando", "1")) == "1",
             telemetrica=telemetrica,

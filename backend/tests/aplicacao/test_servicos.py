@@ -13,24 +13,32 @@ from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import MedicaoChuva, MedicaoNivel
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from tests.aplicacao.fakes import Alertas, Estacoes, FonteStub, Medicoes, Regras
 
 AGORA = datetime(2026, 1, 10, 12, tzinfo=UTC)
 
 SAO_PAULO = Estacao(
-    1, "Rio Tietê - SP", TipoEstacao.FLUVIOMETRICA, Coordenada(-23.55, -46.63), "SP", "São Paulo"
+    1,
+    "Rio Tietê - SP",
+    TipoEstacao.FLUVIOMETRICA,
+    Coordenada(-23.55, -46.63),
+    Municipio("São Paulo", "SP"),
 )
 CAMPINAS = Estacao(
-    2, "Campinas", TipoEstacao.PLUVIOMETRICA, Coordenada(-22.90, -47.06), "SP", "Campinas"
+    2,
+    "Campinas",
+    TipoEstacao.PLUVIOMETRICA,
+    Coordenada(-22.90, -47.06),
+    Municipio("Campinas", "SP"),
 )
 BH = Estacao(
     3,
     "Belo Horizonte",
     TipoEstacao.PLUVIOMETRICA,
     Coordenada(-19.92, -43.94),
-    "MG",
-    "Belo Horizonte",
+    Municipio("Belo Horizonte", "MG"),
     telemetrica=False,
 )
 
@@ -231,7 +239,8 @@ def test_situacao_municipio_ignora_acentos_e_maiusculas() -> None:
     c = Cenario(niveis(420))
     c.coletar.executar(1)
     situacao = c.consulta.situacao_municipio("sp", "  SAO   paulo ")
-    assert (situacao.uf, situacao.municipio) == ("SP", "São Paulo")
+    assert situacao.municipio == Municipio("São Paulo", "SP")
+    assert situacao.municipio.nome == "São Paulo"  # grafia do cadastro, não a digitada
     assert situacao.severidade is Severidade.ALERTA
     assert [s.estacao.codigo for s in situacao.estacoes] == [1]
 

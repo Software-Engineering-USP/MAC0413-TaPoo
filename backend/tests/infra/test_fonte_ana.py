@@ -10,6 +10,7 @@ import pytest
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, NivelConsistencia, TipoEstacao
 from app.dominio.erros import DadoInvalido, FonteIndisponivel
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.fontes import ana
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
@@ -57,12 +58,14 @@ def test_mapeia_estacao_pluviometrica_com_campos_opcionais() -> None:
             "Longitude": "-46.6",
             "Data_Periodo_Telemetrica_Inicio": "0",
             "Operando": "0",
-        }
+        },
+        uf_padrao="sp",
     )
 
     assert estacao.tipo is TipoEstacao.PLUVIOMETRICA
     assert estacao.nome == "Estação 15400000"
-    assert estacao.municipio == "Não informado"
+    assert estacao.municipio.nome == "Não informado"
+    assert estacao.uf == "SP"
     assert not estacao.telemetrica
     assert not estacao.operando
 
@@ -201,6 +204,34 @@ def test_listagem_uf_ignora_registros_malformados(monkeypatch) -> None:
     estacoes = fonte.listar_estacoes(FiltroEstacoes(uf="RO"))
 
     assert [estacao.codigo for estacao in estacoes] == [15400000]
+
+
+def test_listagem_uf_completa_uf_ausente_com_a_uf_consultada(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+    sem_uf = {
+        "codigoestacao": "15400000",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7",
+        "Longitude": "-63.9",
+        "Municipio_Nome": "PORTO VELHO",
+    }
+    monkeypatch.setattr(fonte, "_get", lambda rota, parametros: {"items": [sem_uf]})
+
+    [estacao] = fonte.listar_estacoes(FiltroEstacoes(uf="RO"))
+
+    assert estacao.municipio == Municipio("Porto Velho", "RO")
+
+
+def test_estacao_sem_uf_e_dado_invalido() -> None:
+    with pytest.raises(DadoInvalido, match="UF"):
+        FonteAna._mapear_estacao(
+            {
+                "codigoestacao": "15400000",
+                "Tipo_Estacao": "Fluviometrica",
+                "Latitude": "-8.7",
+                "Longitude": "-63.9",
+            }
+        )
 
 
 def test_buscar_estacao_ignora_resposta_invalida_e_nao_encontrada(monkeypatch) -> None:

@@ -7,14 +7,18 @@ from app.dominio.enums import Severidade, TipoEstacao
 from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
+from app.dominio.municipio import Municipio
 from app.dominio.situacao import SituacaoEstacao, SituacaoMunicipio
 
 AGORA = datetime(2026, 1, 10, 12, tzinfo=UTC)
 
 
-def estacao(codigo: int) -> Estacao:
+X = Municipio("X", "SP")
+
+
+def estacao(codigo: int, municipio: Municipio = X) -> Estacao:
     return Estacao(
-        codigo, f"Estação {codigo}", TipoEstacao.PLUVIOMETRICA, Coordenada(-23, -46), "SP", "X"
+        codigo, f"Estação {codigo}", TipoEstacao.PLUVIOMETRICA, Coordenada(-23, -46), municipio
     )
 
 
@@ -48,8 +52,7 @@ def test_alerta_encerrado_e_rejeitado() -> None:
 
 def test_municipio_assume_a_pior_situacao_e_ordena_por_gravidade() -> None:
     situacao = SituacaoMunicipio(
-        "SP",
-        "X",
+        X,
         (
             SituacaoEstacao(estacao(1)),
             SituacaoEstacao(estacao(3), alerta(3, Severidade.ATENCAO)),
@@ -63,4 +66,22 @@ def test_municipio_assume_a_pior_situacao_e_ordena_por_gravidade() -> None:
 
 def test_municipio_sem_estacoes_e_rejeitado() -> None:
     with pytest.raises(DadoInvalido):
-        SituacaoMunicipio("SP", "X", ())
+        SituacaoMunicipio(X, ())
+
+
+def test_municipio_rejeita_estacao_de_outro_municipio() -> None:
+    outra = SituacaoEstacao(estacao(2, Municipio("X", "MG")))
+    with pytest.raises(DadoInvalido, match="fora de X/SP"):
+        SituacaoMunicipio(X, (SituacaoEstacao(estacao(1)), outra))
+
+
+def test_municipio_aceita_grafias_diferentes_do_mesmo_municipio() -> None:
+    sp = Municipio("São Paulo", "SP")
+    situacao = SituacaoMunicipio(
+        sp,
+        (
+            SituacaoEstacao(estacao(1, sp)),
+            SituacaoEstacao(estacao(2, Municipio("SAO PAULO", "sp"))),
+        ),
+    )
+    assert len(situacao.estacoes) == 2
