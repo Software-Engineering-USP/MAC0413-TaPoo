@@ -103,6 +103,8 @@ README with the final public frontend and API URLs after deployment.
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
 Dependencies point inward: `dominio` imports nothing from the other layers.
+Modeling decisions (why `Estacao` uses `TipoEstacao` instead of subclasses, and why
+`Municipio` is a value object) are recorded in `docs/decisoes.md`.
 
 | Layer | Folder | Contents |
 |---|---|---|
