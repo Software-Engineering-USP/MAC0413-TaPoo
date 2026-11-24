@@ -171,6 +171,15 @@ export default function MapView({
     message: "",
     state: "empty",
   });
+  const searchIndicator = searchStatus.message && {
+    loading: {
+      icon: "fa-spinner fa-spin text-sky-700",
+    },
+    error: { icon: "fa-circle-exclamation text-red-600" },
+    empty: {
+      icon: "fa-circle-info text-amber-600",
+    },
+  }[searchStatus.state];
 
   useEffect(() => {
     const mapInstance = L.map(mapContainerRef.current, {
@@ -409,7 +418,11 @@ export default function MapView({
           className="map-search-form relative flex items-center"
           onSubmit={handleSearch}
         >
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+          <i
+            className={`fa-solid ${searchIndicator?.icon || "fa-magnifying-glass text-slate-400"} absolute left-3.5 text-sm`}
+            title={searchIndicator ? searchStatus.message : undefined}
+            aria-hidden="true"
+          />
           <input
             ref={searchInputRef}
             type="text"
