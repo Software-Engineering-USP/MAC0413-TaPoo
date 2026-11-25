@@ -165,7 +165,7 @@ class FonteAna(FonteDadosHidrologicos):
         medicoes: dict[tuple[int, str, datetime], Medicao] = {}
         cursor = periodo.fim
         while cursor >= periodo.inicio:
-            inicio_janela = max(periodo.inicio, cursor - timedelta(days=29))
+            inicio_janela = max(periodo.inicio, cursor - timedelta(days=30))
             data_fim_ana = cursor.astimezone(_FUSO_ANA).date()
             data_inicio_ana = inicio_janela.astimezone(_FUSO_ANA).date()
             dias = max(1, (data_fim_ana - data_inicio_ana).days + 1)

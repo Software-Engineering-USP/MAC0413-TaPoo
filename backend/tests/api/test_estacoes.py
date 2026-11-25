@@ -12,6 +12,36 @@ def test_health(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_metadados_informa_origem_simulada(client: TestClient) -> None:
+    resposta = client.get("/metadados")
+
+    assert resposta.status_code == 200
+    assert resposta.json() == {"origem_dados": "simulado"}
+
+
+def test_limites_da_estacao(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000001/limites")
+
+    assert resposta.status_code == 200
+    assert resposta.json() == [
+        {
+            "grandeza": "NIVEL",
+            "descricao": "Cotas de referência do nível do rio",
+            "unidade": "cm",
+            "janela_horas": None,
+            "atencao": 300,
+            "alerta": 400,
+            "emergencia": 500,
+        }
+    ]
+
+
+def test_limites_de_estacao_inexistente_retorna_404(client: TestClient) -> None:
+    resposta = client.get("/estacoes/1/limites")
+
+    assert resposta.status_code == 404
+
+
 def test_listar_todas(client: TestClient) -> None:
     resposta = client.get("/estacoes")
     assert resposta.status_code == 200
