@@ -1,6 +1,8 @@
 import json
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.alerta import RegraCotaReferencia
 from app.dominio.enums import Grandeza
@@ -62,3 +64,11 @@ def test_fonte_simulada_usa_estacoes_do_arquivo_configurado(tmp_path) -> None:
     assert [estacao.codigo for estacao in fonte.listar_estacoes(FiltroEstacoes())] == [123]
     periodo = Periodo.ultimos(timedelta(hours=1), ate=AGORA)
     assert [m.valor for m in fonte.buscar_medicoes(123, periodo)] == [2]
+
+
+def test_fonte_simulada_rejeita_lista_de_estacoes_com_tipo_invalido(tmp_path) -> None:
+    arquivo = tmp_path / "cenario.json"
+    arquivo.write_text('{"estacoes": {}}', encoding="utf-8")
+
+    with pytest.raises(TypeError, match="lista de estações"):
+        FonteSimulada(AGORA, arquivo=arquivo)

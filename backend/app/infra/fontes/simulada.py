@@ -36,7 +36,7 @@ def _ler_cenario(arquivo: Path = ARQUIVO_CENARIO) -> dict[str, Any]:
     except (OSError, json.JSONDecodeError) as erro:
         raise RuntimeError(f"Não foi possível carregar o cenário simulado: {arquivo}.") from erro
     if not isinstance(dados, dict) or not isinstance(dados.get("estacoes"), list):
-        raise RuntimeError("Cenário simulado inválido: informe a lista de estações.")
+        raise TypeError("Cenário simulado inválido: informe a lista de estações.")
     return dados
 
 
