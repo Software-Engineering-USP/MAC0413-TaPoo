@@ -59,7 +59,7 @@ def test_listar_traz_situacao_de_cada_estacao(client: TestClient) -> None:
 def test_acesso_direto_sincroniza_estacao_ainda_nao_carregada() -> None:
     fonte = FonteFake(AGORA)
     fonte.carregar_na_inicializacao = False
-    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA), intervalo=lambda: None)
 
     with TestClient(app) as cliente:
         resposta = cliente.get("/estacoes/90000001")
@@ -71,7 +71,7 @@ def test_acesso_direto_sincroniza_estacao_ainda_nao_carregada() -> None:
 def test_medicoes_diretas_sincronizam_estacao_ainda_nao_carregada() -> None:
     fonte = FonteFake(AGORA)
     fonte.carregar_na_inicializacao = False
-    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA), intervalo=lambda: None)
 
     with TestClient(app) as cliente:
         resposta = cliente.get("/estacoes/90000001/medicoes?grandeza=NIVEL")
@@ -80,19 +80,19 @@ def test_medicoes_diretas_sincronizam_estacao_ainda_nao_carregada() -> None:
     assert resposta.json()["medicoes"]
 
 
-def test_indisponibilidade_da_ana_retorna_502(monkeypatch) -> None:
+def test_indisponibilidade_da_ana_retorna_503(monkeypatch) -> None:
     fonte = FonteAna("id", "senha")
 
     def indisponivel(codigo):
         raise ErroFonteAna("ANA indisponível")
 
     monkeypatch.setattr(fonte, "buscar_estacao", indisponivel)
-    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA))
+    app = create_app(lambda: montar_container(fonte, relogio=lambda: AGORA), intervalo=lambda: None)
 
     with TestClient(app) as cliente:
         resposta = cliente.get("/estacoes/15400000")
 
-    assert resposta.status_code == 502
+    assert resposta.status_code == 503
     assert resposta.json()["detail"] == "ANA indisponível"
 
 

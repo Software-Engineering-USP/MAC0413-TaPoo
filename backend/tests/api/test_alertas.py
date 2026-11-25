@@ -16,6 +16,18 @@ def test_alertas_trazem_rotulo_da_severidade(client: TestClient) -> None:
     assert rotulos == ["Emergência", "Alerta"]
 
 
+def test_historico_de_alertas_da_estacao(client: TestClient) -> None:
+    corpo = client.get("/estacoes/90000004/alertas").json()
+    assert [(a["severidade"], a["status"]) for a in corpo] == [("EMERGENCIA", "ATIVO")]
+    assert client.get("/estacoes/90000003/alertas").json() == []
+
+
+def test_historico_de_alertas_valida_limite_e_estacao(client: TestClient) -> None:
+    assert client.get("/estacoes/90000004/alertas?limite=0").status_code == 422
+    assert client.get("/estacoes/90000004/alertas?limite=501").status_code == 422
+    assert client.get("/estacoes/99999999/alertas").status_code == 404
+
+
 def test_alertas_expoem_fatores_da_explicacao(client: TestClient) -> None:
     alertas = client.get("/alertas").json()
     alerta = next(a for a in alertas if a["codigo_estacao"] == 90000001)

@@ -3,13 +3,14 @@ from itertools import pairwise
 
 import pytest
 
+from app.dominio.erros import DadoInvalido
 from app.dominio.periodo import Periodo
 
 INICIO = datetime(2026, 1, 1, tzinfo=UTC)
 
 
 def test_rejeita_datetime_sem_fuso() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         Periodo(datetime(2026, 1, 1), datetime(2026, 1, 2))
 
 
@@ -21,7 +22,7 @@ def test_normaliza_para_utc() -> None:
 
 
 def test_rejeita_inicio_depois_do_fim() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(DadoInvalido):
         Periodo(INICIO, INICIO)
 
 

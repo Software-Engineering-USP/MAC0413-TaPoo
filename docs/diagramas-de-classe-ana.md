@@ -540,12 +540,16 @@ classDiagram
     ConsultarDados --> EstacaoRepositorio
     ConsultarDados --> MedicaoRepositorio
     ConsultarDados --> AlertaRepositorio
-    AgendadorColeta --> ColetarMedicoes
-    AgendadorColeta --> SincronizarEstacoes
+    AgendadorColeta --> ColetarMedicoes : a cada COLETA_INTERVALO_MINUTOS
+    note for AgendadorColeta "Não chama SincronizarEstacoes a cada ciclo:\nna ANA isso baixaria o inventário do país inteiro.\nVer Decisões de modelagem."
 ```
 
 Os repositórios SQL (`EstacaoRepositorioSql`, etc.) implementam as interfaces acima na camada
 `infra/persistencia`; as rotas FastAPI dependem apenas dos serviços (via `Depends`).
+
+O `AgendadorColeta` (`infra/agendador.py`) roda só a coleta (`ColetarMedicoes.executar_todas`)
+a cada `COLETA_INTERVALO_MINUTOS`. A sincronização do inventário (`SincronizarEstacoes`)
+acontece na carga inicial, quando a fonte permite, e sob demanda, pelas rotas.
 
 ## 7. Fluxo de coleta incremental (sequência)
 
@@ -586,6 +590,11 @@ sequenceDiagram
   dados quando são corrigidos; a coleta incremental por `DATA_ULTIMA_ATUALIZACAO` depende disso.
 - **Guardar o status/consistência da fonte** em `Medicao` — dados brutos telemétricos podem ser
   revisados depois; alertas devem saber se se basearam em dado bruto.
+- **O agendador não sincroniza o inventário a cada ciclo.** Sem filtro de UF,
+  `SincronizarEstacoes` baixaria o inventário de todas as UFs da ANA a cada ciclo; é pelo
+  mesmo motivo que `FonteAna` não faz carga inicial. Por isso o ciclo do `AgendadorColeta` só
+  coleta as estações monitoradas que já estão no repositório: elas entram na carga inicial
+  (fontes pequenas, como a `FonteFake`) ou quando uma rota abre a UF ou a estação.
 - **Começar pelas telemétricas** (adotada): são as únicas próximas do tempo real e servem para
   alertas. Convencionais servem para histórico/estatística e podem ficar para uma segunda fase.
 - **HidroSat, qualidade da água, sedimentos, perfil transversal, curva de descarga** ficam fora do
