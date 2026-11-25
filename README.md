@@ -52,6 +52,13 @@ npm install
 npm run dev
 ```
 
+The frontend calls the FastAPI server by default (`http://localhost:8000`). To
+use local mock responses for development, explicitly set `VITE_USAR_MOCKS=true`
+in `frontend/.env.local` when running Vite directly, or in the root `.env` when
+using Docker Compose. The interface displays a demonstration data warning in
+mock mode. `VITE_API_URL` is embedded into the frontend build; set it to the
+publicly reachable FastAPI base URL for deployments.
+
 Lint and format (the same checks run in CI):
 
 ```bash
