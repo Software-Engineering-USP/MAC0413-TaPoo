@@ -1,0 +1,13 @@
+{
+  "status": "OK",
+  "items": [
+    {
+      "Data_Hora_Medicao": "2026-11-16 12:00:00",
+      "Cota_Adotada": "valor-invalido"
+    },
+    {
+      "Data_Hora_Medicao": "2026-11-16 12:00:00",
+      "Cota_Adotada": "781"
+    }
+  ]
+}
