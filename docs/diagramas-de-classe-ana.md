@@ -251,11 +251,6 @@ classDiagram
       +float limite_extremo_mm
       +avaliar(serie) Severidade
     }
-    class RegraSubidaRapida {
-      +timedelta janela
-      +float variacao_maxima_cm
-      +avaliar(serie) Severidade
-    }
     class Alerta {
       +UUID id
       +int codigo_estacao
@@ -304,7 +299,6 @@ classDiagram
 
     RegraAlerta <|-- RegraCotaReferencia
     RegraAlerta <|-- RegraChuvaAcumulada
-    RegraAlerta <|-- RegraSubidaRapida
     AvaliadorAlertas o-- "1..*" RegraAlerta
     AvaliadorAlertas ..> SerieTemporal : lê
     AvaliadorAlertas ..> AvaliacaoDeSituacao : produz
@@ -316,6 +310,9 @@ classDiagram
     Alerta --> StatusAlerta
     RegraAlerta ..> Severidade
 ```
+
+Uma regra de subida rápida poderia ser adicionada no futuro usando
+`SerieTemporal.variacao()`, mas ainda não existe no código.
 
 ## 5. Infra — cliente da API da ANA (adaptador)
 

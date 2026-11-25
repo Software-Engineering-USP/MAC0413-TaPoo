@@ -18,7 +18,12 @@ from math import sin
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.portas import FonteDadosHidrologicos
-from app.dominio.alerta import RegraAlerta, RegraChuvaAcumulada, RegraCotaReferencia
+from app.dominio.alerta import (
+    RegraAlerta,
+    RegraChuvaAcumulada,
+    RegraChuvaPrevisao,
+    RegraCotaReferencia,
+)
 from app.dominio.enums import TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
@@ -146,6 +151,14 @@ def regras_de_exemplo() -> list[RegraAlerta]:
             90000003, cota_atencao_cm=250, cota_alerta_cm=320, cota_inundacao_cm=400
         ),
         RegraChuvaAcumulada(90000004, **chuva_24h),
+        RegraChuvaPrevisao(
+            90000004,
+            Coordenada(-22.51, -43.18),
+            janela=timedelta(hours=24),
+            limite_moderado_mm=30,
+            limite_alto_mm=50,
+            limite_extremo_mm=80,
+        ),
     ]
 
 

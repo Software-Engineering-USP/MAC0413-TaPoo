@@ -4,7 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
-from app.api.schemas import EstacaoOut, EstacaoProximaOut, LimiteEstacaoOut, SerieOut
+from app.api.schemas import (
+    AlertaOut,
+    EstacaoOut,
+    EstacaoProximaOut,
+    LimiteEstacaoOut,
+    SerieOut,
+)
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
 from app.dominio.erros import DadoInvalido
@@ -91,3 +97,15 @@ def limites_da_estacao(
     """Limites cadastrados para avaliar a estação; lista vazia significa sem regra."""
     sincronizar.garantir(codigo)
     return [LimiteEstacaoOut.de(regra.limites()) for regra in consulta.regras_estacao(codigo)]
+
+
+@router.get("/{codigo}/alertas")
+def historico_de_alertas(
+    codigo: int,
+    consulta: Consulta,
+    sincronizar: Sincronizar,
+    limite: Annotated[int, Query(ge=1, le=500)] = 50,
+) -> list[AlertaOut]:
+    """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""
+    sincronizar.garantir(codigo)
+    return [AlertaOut.de(a) for a in consulta.historico_alertas(codigo, limite)]

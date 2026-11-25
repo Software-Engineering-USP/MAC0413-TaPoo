@@ -434,9 +434,10 @@ export default function StationDetailRoute() {
       <article className="station-detail-card">
         <h3>Previsão hidrológica</h3>
         <p className="station-detail-empty">
-          A fonte consultada disponibiliza medições observadas, mas não fornece
-          previsão para esta estação. O sistema não estima horário de pico nem
-          nível futuro.
+          A previsão de chuva é considerada pelas regras de alerta quando há uma
+          fonte disponível. Se ela contribuir para um alerta, aparecerá nos
+          fatores acima. Esta tela ainda não apresenta a série horária completa
+          da previsão.
         </p>
       </article>
 

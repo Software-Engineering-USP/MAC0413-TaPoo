@@ -4,6 +4,7 @@
 por `FonteAna`, muda só este arquivo.
 """
 
+import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -18,6 +19,7 @@ from app.aplicacao.portas import (
     AlertaRepositorio,
     EstacaoRepositorio,
     FonteDadosHidrologicos,
+    FonteDePrevisao,
     MedicaoRepositorio,
     RegraRepositorio,
 )
@@ -33,6 +35,7 @@ from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake, regras_de_exemplo
+from app.infra.fontes.openmeteo import FonteOpenMeteo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
     EstacaoRepositorioMemoria,
@@ -65,12 +68,29 @@ class Repositorios:
     regras: RegraRepositorio
 
 
-def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repositorios:
-    """Escolhe os repositórios por `REPO=memoria|sql` (e `DATABASE_URL` no caso SQL).
+def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrologicos:
+    """Escolhe a `FonteDadosHidrologicos` pela variável de ambiente `FONTE`.
 
-    As regras de alerta ainda vêm de `regras_de_exemplo()`, em memória, nos dois casos:
-    carregá-las de um arquivo é o seed (#67).
+    `FONTE=ana` exige credenciais. `FONTE=fake`/`simulada` usa dados fictícios.
+    Sem `FONTE`, mantém o comportamento anterior: ANA com credenciais, simulada sem.
     """
+    credencial = credenciais_ana()
+    var = (os.getenv("FONTE") or "").strip().casefold()
+    if var not in ("", "ana", "fake", "simulada"):
+        raise RuntimeError("FONTE precisa ser um de: ana, fake, simulada.")
+    if var == "ana":
+        if credencial is None:
+            raise RuntimeError("FONTE=ana exige ANA_IDENTIFICADOR e ANA_SENHA.")
+        return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
+    if var in ("fake", "simulada"):
+        return FonteFake(relogio())
+    if credencial is not None:
+        return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
+    return FonteFake(relogio())
+
+
+def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repositorios:
+    """Escolhe repositórios por `REPO=memoria|sql` e `DATABASE_URL` no caso SQL."""
     if (tipo or tipo_repositorio()) == "sql":
         return repositorios_sql(BancoDeDados(url or url_banco()))
     return Repositorios(
@@ -95,28 +115,36 @@ def repositorios_sql(banco: BancoDeDados) -> Repositorios:
 def montar_container(
     fonte: FonteDadosHidrologicos | None = None,
     relogio: Callable[[], datetime] = agora_utc,
+    fonte_previsao: FonteDePrevisao | None = None,
     repositorios: Repositorios | None = None,
 ) -> Container:
     if fonte is None:
-        credenciais = credenciais_ana()
-        fonte = (
-            FonteAna(
-                *credenciais,
-                base_url=base_url_ana(),
-                timeout=timeout_ana(),
-            )
-            if credenciais
-            else FonteFake(relogio())
-        )
+        fonte = criar_fonte(relogio)
+        if fonte_previsao is None:
+            fonte_previsao = FonteOpenMeteo()
     repositorios = repositorios or criar_repositorios()
-    estacoes, medicoes = repositorios.estacoes, repositorios.medicoes
-    alertas, regras = repositorios.alertas, repositorios.regras
-
-    monitorar = MonitorarEstacoes(medicoes, regras, alertas, relogio=relogio)
+    monitorar = MonitorarEstacoes(
+        repositorios.medicoes,
+        repositorios.regras,
+        repositorios.alertas,
+        fonte_previsao=fonte_previsao,
+        relogio=relogio,
+    )
     return Container(
-        consulta=ConsultarDados(estacoes, medicoes, alertas, regras),
-        sincronizar=SincronizarEstacoes(fonte, estacoes),
-        coletar=ColetarMedicoes(fonte, estacoes, medicoes, monitorar, relogio=relogio),
+        consulta=ConsultarDados(
+            repositorios.estacoes,
+            repositorios.medicoes,
+            repositorios.alertas,
+            repositorios.regras,
+        ),
+        sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes),
+        coletar=ColetarMedicoes(
+            fonte,
+            repositorios.estacoes,
+            repositorios.medicoes,
+            monitorar,
+            relogio=relogio,
+        ),
         relogio=relogio,
         carregar_na_inicializacao=fonte.carregar_na_inicializacao,
         origem_dados=fonte.origem_dados,
@@ -131,11 +159,7 @@ def carga_inicial(container: Container) -> None:
 
 
 def executar_ciclo(container: Container) -> int:
-    """Um ciclo do agendador: coleta as estações monitoradas e reavalia os alertas.
-
-    Não sincroniza o inventário: na ANA isso baixaria todas as estações do país. As
-    estações entram no repositório na carga inicial ou sob demanda, pelas rotas.
-    """
+    """Coleta as estações monitoradas e reavalia os alertas, sem sincronizar inventário."""
     return container.coletar.executar_todas()
 
 

@@ -88,6 +88,11 @@ class ConsultarDados:
             return []
         return [regra for regra in self._regras.da_estacao(codigo) if regra.ativa]
 
+    def historico_alertas(self, codigo: int, limite: int | None = None) -> list[Alerta]:
+        """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""
+        self.estacao(codigo)
+        return self._alertas.historico_da_estacao(codigo, limite)
+
     def _com_situacao(self, estacoes: Iterable[Estacao]) -> list[SituacaoEstacao]:
         """Associa a cada estação o seu alerta ativo, consultando os alertas uma só vez."""
         ativos = {a.codigo_estacao: a for a in self._alertas.ativos()}

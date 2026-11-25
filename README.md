@@ -109,6 +109,10 @@ README with the final public frontend and API URLs after deployment.
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
+The object-oriented concepts, station-modeling decision, and design patterns used by
+the backend are discussed in [the POO report](docs/relatorio-poo.md).
+Testing, refactoring examples, and a manual validation checklist are documented in
+[the test report](docs/relatorio-testes.md).
 Dependencies point inward: `dominio` imports nothing from the other layers.
 
 | Layer | Folder | Contents |
@@ -146,12 +150,16 @@ TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pyt
 
 ### Data sources
 
-With blank ANA
-credentials, the backend uses `FonteFake` (fictional stations 9000000x). When
-`ANA_IDENTIFICADOR` and `ANA_SENHA` are set in the repository-root `.env`, it uses
-`FonteAna` to load the ANA inventory and fetch a station's adopted measurements
-when its time-series route is requested. The API token is cached until shortly
-before expiration. Do not commit `.env`; `.env.example` lists the required keys.
+`FONTE` selects the hydrological source: `ana` uses the ANA API and requires both
+`ANA_IDENTIFICADOR` and `ANA_SENHA`; `fake` and `simulada` use fictional stations
+9000000x. If `FONTE` is blank, the backend selects ANA when credentials are present
+and the simulated source otherwise. Unknown values fail at startup instead of silently
+choosing a source. Do not commit `.env`; `.env.example` lists the available settings.
+
+`FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
+its time-series route is requested. The API token is cached until shortly before
+expiration. Rainfall alerts also use hourly precipitation forecasts from Open-Meteo;
+forecast failures are logged and do not stop collection for other stations.
 
 The ANA inventory is fetched by UF on the first station-list request, not during
 startup, so a slow ANA response does not prevent the backend from becoming healthy.
@@ -168,6 +176,7 @@ in `America/Sao_Paulo` before converting them to UTC.
 | GET | `/estacoes?uf=&tipo=&apenas_telemetricas=&q=` | List stations, each with its current `severidade` and active `alerta`. `q` searches the station name, municipality and river, ignoring accents and case; without `uf` it only searches stations already loaded |
 | GET | `/estacoes/proximas?lat=&lon=&raio_km=50` | Stations within a radius, nearest first |
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
+| GET | `/estacoes/{codigo}/alertas?limite=50` | Alert history of one station (active and closed), newest first |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
 | GET | `/alertas` | Active alerts, most severe first |
 | GET | `/municipios/{uf}/{nome}/situacao` | Worst severity among the municipality's stations (name matched ignoring accents and case; 404 if none) |

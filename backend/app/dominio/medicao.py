@@ -69,6 +69,19 @@ class MedicaoVazao(Medicao):
         return Grandeza.VAZAO
 
 
+@dataclass(frozen=True, slots=True)
+class PrevisaoChuva:
+    """Previsão de precipitação futura em uma data/hora, em mm."""
+
+    data_hora_utc: datetime
+    chuva_mm: float
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "data_hora_utc", exigir_utc(self.data_hora_utc, "data_hora_utc"))
+        if self.chuva_mm < 0:
+            raise DadoInvalido("previsão de chuva não pode ser negativa")
+
+
 _CLASSE_POR_GRANDEZA: dict[Grandeza, type[Medicao]] = {
     Grandeza.CHUVA: MedicaoChuva,
     Grandeza.NIVEL: MedicaoNivel,
