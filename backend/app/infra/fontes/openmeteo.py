@@ -55,8 +55,6 @@ class FonteOpenMeteo(FonteDePrevisao):
         except (
             URLError,
             TimeoutError,
-            UnicodeDecodeError,
-            json.JSONDecodeError,
             TypeError,
             ValueError,
         ) as erro:

@@ -75,6 +75,7 @@ def test_executar_todas_continua_quando_fonte_falha(caplog) -> None:
 
 def test_executar_periodo_propaga_falha_da_fonte() -> None:
     coletar = _coletar(FonteStub(falhar_em={1}))
+    periodo = Periodo(T0 - timedelta(minutes=1), T0)
 
     with pytest.raises(FonteIndisponivel, match="fonte indisponível"):
-        coletar.executar_periodo(1, Periodo(T0 - timedelta(minutes=1), T0))
+        coletar.executar_periodo(1, periodo)
