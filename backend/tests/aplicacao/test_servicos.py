@@ -7,12 +7,14 @@ from app.aplicacao.consulta import ConsultarDados
 from app.aplicacao.erros import EstacaoNaoEncontrada, MunicipioNaoEncontrado
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.monitoramento import MonitorarEstacoes
+from app.aplicacao.portas import FonteDePrevisao
 from app.aplicacao.sincronizacao import SincronizarEstacoes
-from app.dominio.alerta import RegraChuvaAcumulada, RegraCotaReferencia
+from app.dominio.alerta import RegraChuvaAcumulada, RegraChuvaPrevisao, RegraCotaReferencia
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoEstacao
+from app.dominio.erros import FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
-from app.dominio.medicao import MedicaoChuva, MedicaoNivel
+from app.dominio.medicao import MedicaoChuva, MedicaoNivel, PrevisaoChuva
 from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from tests.aplicacao.fakes import Alertas, Estacoes, FonteStub, Medicoes, Regras
@@ -68,6 +70,19 @@ class Cenario:
         )
         self.consulta = ConsultarDados(self.estacoes, self.medicoes, self.alertas)
         SincronizarEstacoes(self.fonte, self.estacoes).executar()
+
+
+class FontePrevisaoStub(FonteDePrevisao):
+    def __init__(self, previsoes=None, erro=None) -> None:
+        self.previsoes = previsoes or []
+        self.erro = erro
+        self.chamadas = 0
+
+    def buscar_previsao(self, coordenada: Coordenada) -> list[PrevisaoChuva]:
+        self.chamadas += 1
+        if self.erro:
+            raise self.erro
+        return self.previsoes
 
 
 def test_sincronizar_respeita_filtro() -> None:
@@ -156,6 +171,41 @@ def test_monitoramento_encerra_alerta_quando_nivel_baixa() -> None:
     c.monitorar.executar(1)
     assert alerta.status is StatusAlerta.ENCERRADO
     assert c.consulta.alertas_ativos() == []
+
+
+def test_regra_previsao_recebe_dados_prontos_e_busca_a_fonte_uma_vez() -> None:
+    c = Cenario([])
+    c.regras.regras = [RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)]
+    fonte_previsao = FontePrevisaoStub([PrevisaoChuva(AGORA + timedelta(hours=1), 40)])
+    monitorar = MonitorarEstacoes(
+        c.medicoes,
+        c.regras,
+        c.alertas,
+        fonte_previsao=fonte_previsao,
+        relogio=lambda: AGORA,
+    )
+
+    alerta = monitorar.executar(1)
+
+    assert alerta is not None
+    assert alerta.severidade is Severidade.EMERGENCIA
+    assert fonte_previsao.chamadas == 1
+
+
+def test_falha_da_previsao_nao_impede_avaliacao_da_estacao(caplog) -> None:
+    c = Cenario([])
+    c.regras.regras = [RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)]
+    fonte_previsao = FontePrevisaoStub(erro=FonteIndisponivel("Open-Meteo indisponível"))
+    monitorar = MonitorarEstacoes(
+        c.medicoes,
+        c.regras,
+        c.alertas,
+        fonte_previsao=fonte_previsao,
+        relogio=lambda: AGORA,
+    )
+
+    assert monitorar.executar(1) is None
+    assert "previsão de chuva da estação 1 falhou" in caplog.text
 
 
 def test_historico_mantem_alerta_encerrado_e_o_novo() -> None:

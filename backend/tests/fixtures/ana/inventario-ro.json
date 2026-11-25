@@ -1,0 +1,16 @@
+{
+  "status": "OK",
+  "items": [
+    {
+      "codigoestacao": "15400000",
+      "Estacao_Nome": "PORTO VELHO",
+      "Tipo_Estacao": "Fluviometrica",
+      "Latitude": "-8.7483",
+      "Longitude": "-63.9169",
+      "UF_Estacao": "RO",
+      "Municipio_Nome": "PORTO VELHO",
+      "Operando": "1",
+      "Data_Periodo_Telemetrica_Inicio": "2001-06-01"
+    }
+  ]
+}

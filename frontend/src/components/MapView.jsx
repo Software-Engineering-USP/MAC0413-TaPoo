@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { listarEstacoes } from "../api/estacoes";
+import { listarEstacoes, usaApiReal } from "../api/cliente";
 import { floodZones, getRiskLevel, rivers } from "../mapData";
 
 const stationSeverities = {
@@ -171,14 +171,35 @@ export default function MapView({
     message: "",
     state: "empty",
   });
+  const searchIndicator =
+    searchStatus.message &&
+    {
+      loading: {
+        icon: "fa-spinner fa-spin text-sky-700",
+      },
+      error: { icon: "fa-circle-exclamation text-red-600" },
+      empty: {
+        icon: "fa-circle-info text-amber-600",
+      },
+    }[searchStatus.state];
 
   useEffect(() => {
+    const mobileBreakpoint = window.matchMedia("(max-width: 767px)");
     const mapInstance = L.map(mapContainerRef.current, {
       center: [-23.5613, -46.7303],
       zoom: 14,
       zoomControl: false,
-      scrollWheelZoom: true,
+      scrollWheelZoom: !mobileBreakpoint.matches,
     });
+
+    const syncScrollWheelZoom = () => {
+      if (mobileBreakpoint.matches) {
+        mapInstance.scrollWheelZoom.disable();
+      } else {
+        mapInstance.scrollWheelZoom.enable();
+      }
+    };
+    window.addEventListener("resize", syncScrollWheelZoom);
 
     mapRef.current = mapInstance;
 
@@ -228,6 +249,7 @@ export default function MapView({
     mapInstance.whenReady(() => mapInstance.invalidateSize());
 
     return () => {
+      window.removeEventListener("resize", syncScrollWheelZoom);
       stationRequestRef.current?.abort();
       stationLayerRef.current = null;
       mapRef.current = null;
@@ -278,6 +300,7 @@ export default function MapView({
       const stations = await listarEstacoes({
         texto: query,
         uf: selectedUf,
+        apenasTelemetricas: true,
         signal: request.signal,
       });
       if (request.signal.aborted) return;
@@ -402,13 +425,26 @@ export default function MapView({
               </option>
             ))}
           </select>
+          {!usaApiReal && (
+            <span
+              className="demo-data-badge"
+              title="Dados de demonstração: não representam alertas reais."
+              aria-label="Dados de demonstração"
+            >
+              DEMO
+            </span>
+          )}
         </div>
         <form
           role="search"
           className="map-search-form relative flex items-center"
           onSubmit={handleSearch}
         >
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+          <i
+            className={`fa-solid ${searchIndicator?.icon || "fa-magnifying-glass text-slate-400"} absolute left-3.5 text-sm`}
+            title={searchIndicator ? searchStatus.message : undefined}
+            aria-hidden="true"
+          />
           <input
             ref={searchInputRef}
             type="text"
@@ -431,20 +467,24 @@ export default function MapView({
             type="submit"
             className="absolute right-2 rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800"
           >
-            Filtrar
+            Buscar
           </button>
         </form>
-        {searchStatus.message && (
-          <p
-            id="stationSearchStatus"
-            className="station-search-status mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
-            role="status"
-            aria-live="polite"
-            data-state={searchStatus.state}
-          >
-            {searchStatus.message}
-          </p>
-        )}
+        {["loading", "error", "empty"].includes(searchStatus.state) &&
+          searchStatus.message && (
+            <output
+              className={`map-search-feedback map-search-feedback-${searchStatus.state}`}
+              aria-live={
+                searchStatus.state === "error" ? "assertive" : "polite"
+              }
+            >
+              <i
+                className={`fa-solid ${searchIndicator?.icon || "fa-circle-info"}`}
+                aria-hidden="true"
+              />
+              {searchStatus.message}
+            </output>
+          )}
       </div>
       <div
         className="risk-area-legend"

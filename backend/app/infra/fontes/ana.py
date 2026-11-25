@@ -207,7 +207,7 @@ class FonteAna(FonteDadosHidrologicos):
                 raise ErroFonteAna(
                     f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
                 ) from erro
-            except (OSError, json.JSONDecodeError) as erro:
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as erro:
                 raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
             return self._validar_resposta(dados)
         raise ErroFonteAna("A consulta à API da ANA falhou após renovar a sessão.")
@@ -264,7 +264,7 @@ class FonteAna(FonteDadosHidrologicos):
             raise ErroFonteAna(
                 f"A ANA não respondeu à autenticação em {self._timeout:g} segundos."
             ) from erro
-        except (OSError, json.JSONDecodeError) as erro:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as erro:
             raise ErroFonteAna("Não foi possível autenticar na API da ANA.") from erro
 
         items = dados.get("items", {}) if isinstance(dados, dict) else {}
