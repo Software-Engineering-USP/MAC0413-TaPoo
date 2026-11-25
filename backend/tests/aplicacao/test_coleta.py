@@ -69,7 +69,7 @@ def test_executar_todas_continua_quando_fonte_falha(caplog) -> None:
     with caplog.at_level(logging.WARNING):
         assert coletar.executar_todas() == 1
 
-    assert medicoes.serie(2, Grandeza.CHUVA, Periodo(T0, T0)).medicoes
+    assert medicoes.serie(2, Grandeza.CHUVA, Periodo(T0 - timedelta(minutes=1), T0)).medicoes
     assert "coleta da estação 1 falhou" in caplog.text
 
 
@@ -77,4 +77,4 @@ def test_executar_periodo_propaga_falha_da_fonte() -> None:
     coletar = _coletar(FonteStub(falhar_em={1}))
 
     with pytest.raises(FonteIndisponivel, match="fonte indisponível"):
-        coletar.executar_periodo(1, Periodo(T0, T0))
+        coletar.executar_periodo(1, Periodo(T0 - timedelta(minutes=1), T0))
