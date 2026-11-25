@@ -102,6 +102,10 @@ README with the final public frontend and API URLs after deployment.
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
+The object-oriented concepts, station-modeling decision, and design patterns used by
+the backend are discussed in [the POO report](docs/relatorio-poo.md).
+Testing, refactoring examples, and a manual validation checklist are documented in
+[the test report](docs/relatorio-testes.md).
 Dependencies point inward: `dominio` imports nothing from the other layers.
 
 | Layer | Folder | Contents |
