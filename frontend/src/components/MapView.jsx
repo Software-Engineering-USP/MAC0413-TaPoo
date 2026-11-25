@@ -65,7 +65,7 @@ function stationCoordinates(station) {
   return invalidCoordinates ? null : [latitude, longitude];
 }
 
-function stationMarker(station) {
+function stationMarker(station, onOpenStation) {
   const coordinates = stationCoordinates(station);
   if (!coordinates) return null;
 
@@ -90,6 +90,13 @@ function stationMarker(station) {
     row.textContent = detail;
     popup.appendChild(row);
   });
+
+  const detailButton = document.createElement("button");
+  detailButton.type = "button";
+  detailButton.className = "station-popup-action";
+  detailButton.textContent = "Ver detalhes da estação";
+  detailButton.addEventListener("click", () => onOpenStation(station.codigo));
+  popup.appendChild(detailButton);
 
   return L.marker(coordinates, {
     icon: stationIcon(station.severidade),
@@ -162,6 +169,7 @@ export default function MapView({
   onSearchChange,
   onSearch,
   onMyLocation,
+  onOpenStation,
 }) {
   const mapContainerRef = useRef(null);
   const stationLayerRef = useRef(null);
@@ -325,7 +333,7 @@ export default function MapView({
 
       layer.clearLayers();
       stationsToShow.forEach((station) => {
-        const marker = stationMarker(station);
+        const marker = stationMarker(station, onOpenStation);
         if (marker) layer.addLayer(marker);
       });
 

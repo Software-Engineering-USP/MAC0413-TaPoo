@@ -20,6 +20,11 @@ from app.dominio.periodo import Periodo
 class FonteDadosHidrologicos(ABC):
     carregar_na_inicializacao = True
 
+    @property
+    def origem_dados(self) -> str:
+        """Identifica se a implementação entrega dados reais ou simulados."""
+        return "real"
+
     @abstractmethod
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]: ...
 

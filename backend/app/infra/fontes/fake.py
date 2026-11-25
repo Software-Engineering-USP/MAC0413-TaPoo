@@ -150,6 +150,10 @@ def regras_de_exemplo() -> list[RegraAlerta]:
 
 
 class FonteFake(FonteDadosHidrologicos):
+    @property
+    def origem_dados(self) -> str:
+        return "simulado"
+
     def __init__(self, agora: datetime | None = None) -> None:
         agora = exigir_utc(agora or agora_utc())
         self._agora = agora.replace(minute=0, second=0, microsecond=0)

@@ -19,6 +19,19 @@ from app.dominio.tempo import exigir_utc
 _ROTULO_ATENCAO = "atenção"
 
 
+@dataclass(frozen=True, slots=True)
+class LimitesClassificacao:
+    """Limites de severidade que podem ser apresentados ao usuário."""
+
+    grandeza: Grandeza
+    descricao: str
+    unidade: str
+    atencao: float
+    alerta: float
+    emergencia: float
+    janela_horas: float | None = None
+
+
 class RegraAlerta(ABC):
     def __init__(self, codigo_estacao: int, *, id: int | None = None, ativa: bool = True) -> None:
         self.id = id
@@ -35,6 +48,10 @@ class RegraAlerta(ABC):
 
     @abstractmethod
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str: ...
+
+    @abstractmethod
+    def limites(self) -> LimitesClassificacao:
+        """Expõe os limites configurados sem acoplar a API à regra concreta."""
 
     def _validar_serie(self, serie: SerieTemporal) -> None:
         if serie.codigo_estacao != self.codigo_estacao or serie.grandeza != self.grandeza:
@@ -90,6 +107,16 @@ class RegraCotaReferencia(RegraAlerta):
                 (self.cota_alerta_cm, Severidade.ALERTA),
                 (self.cota_inundacao_cm, Severidade.EMERGENCIA),
             ],
+        )
+
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            descricao="Cotas de referência do nível do rio",
+            unidade="cm",
+            atencao=self.cota_atencao_cm,
+            alerta=self.cota_alerta_cm,
+            emergencia=self.cota_inundacao_cm,
         )
 
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
@@ -150,6 +177,17 @@ class RegraChuvaAcumulada(RegraAlerta):
                 (self.limite_alto_mm, Severidade.ALERTA),
                 (self.limite_extremo_mm, Severidade.EMERGENCIA),
             ],
+        )
+
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            descricao="Limites de chuva acumulada",
+            unidade="mm",
+            atencao=self.limite_moderado_mm,
+            alerta=self.limite_alto_mm,
+            emergencia=self.limite_extremo_mm,
+            janela_horas=self.janela.total_seconds() / 3600,
         )
 
     def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:

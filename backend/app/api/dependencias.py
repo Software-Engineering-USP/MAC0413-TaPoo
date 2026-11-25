@@ -54,6 +54,7 @@ class Container:
     coletar: ColetarMedicoes
     relogio: Callable[[], datetime]
     carregar_na_inicializacao: bool = True
+    origem_dados: str = "real"
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,11 +114,12 @@ def montar_container(
 
     monitorar = MonitorarEstacoes(medicoes, regras, alertas, relogio=relogio)
     return Container(
-        consulta=ConsultarDados(estacoes, medicoes, alertas),
+        consulta=ConsultarDados(estacoes, medicoes, alertas, regras),
         sincronizar=SincronizarEstacoes(fonte, estacoes),
         coletar=ColetarMedicoes(fonte, estacoes, medicoes, monitorar, relogio=relogio),
         relogio=relogio,
         carregar_na_inicializacao=fonte.carregar_na_inicializacao,
+        origem_dados=fonte.origem_dados,
     )
 
 

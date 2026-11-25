@@ -9,10 +9,15 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.dominio.alerta import Alerta, FatorAvaliacao
+from app.dominio.alerta import (
+    Alerta,
+    FatorAvaliacao,
+    LimitesClassificacao,
+)
 from app.dominio.enums import (
     Grandeza,
     NivelConsistencia,
+    OrigemDado,
     Severidade,
     StatusAlerta,
     TipoEstacao,
@@ -112,6 +117,8 @@ class MedicaoOut(BaseModel):
     valor: float
     consistencia: NivelConsistencia
     status_fonte: str | None
+    origem: OrigemDado
+    atualizado_na_fonte_em: datetime | None
 
     @classmethod
     def de(cls, medicao: Medicao) -> "MedicaoOut":
@@ -120,6 +127,30 @@ class MedicaoOut(BaseModel):
             valor=medicao.valor,
             consistencia=medicao.consistencia,
             status_fonte=medicao.status_fonte,
+            origem=medicao.origem,
+            atualizado_na_fonte_em=medicao.atualizado_na_fonte_em,
+        )
+
+
+class LimiteEstacaoOut(BaseModel):
+    grandeza: Grandeza
+    descricao: str
+    unidade: str
+    janela_horas: float | None
+    atencao: float
+    alerta: float
+    emergencia: float
+
+    @classmethod
+    def de(cls, limites: LimitesClassificacao) -> "LimiteEstacaoOut":
+        return cls(
+            grandeza=limites.grandeza,
+            descricao=limites.descricao,
+            unidade=limites.unidade,
+            janela_horas=limites.janela_horas,
+            atencao=limites.atencao,
+            alerta=limites.alerta,
+            emergencia=limites.emergencia,
         )
 
 

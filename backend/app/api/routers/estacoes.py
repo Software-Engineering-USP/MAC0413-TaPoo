@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
-from app.api.schemas import EstacaoOut, EstacaoProximaOut, SerieOut
+from app.api.schemas import EstacaoOut, EstacaoProximaOut, LimiteEstacaoOut, SerieOut
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, TipoEstacao
 from app.dominio.erros import DadoInvalido
@@ -82,3 +82,12 @@ def serie_da_estacao(
     sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)
+
+
+@router.get("/{codigo}/limites")
+def limites_da_estacao(
+    codigo: int, consulta: Consulta, sincronizar: Sincronizar
+) -> list[LimiteEstacaoOut]:
+    """Limites cadastrados para avaliar a estação; lista vazia significa sem regra."""
+    sincronizar.garantir(codigo)
+    return [LimiteEstacaoOut.de(regra.limites()) for regra in consulta.regras_estacao(codigo)]
