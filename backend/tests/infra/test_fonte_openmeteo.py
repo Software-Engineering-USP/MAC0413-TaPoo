@@ -1,10 +1,11 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 
 from app.aplicacao.portas import FonteDePrevisao
+from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import PrevisaoChuva
 from app.infra.fontes import openmeteo
@@ -64,7 +65,5 @@ def test_buscar_previsao_sem_horas_retorna_lista_vazia(monkeypatch) -> None:
 
 
 def test_previsao_chuva_valida_valor_negativo() -> None:
-    from app.dominio.erros import DadoInvalido
-
     with pytest.raises(DadoInvalido):
-        PrevisaoChuva(datetime(2026, 1, 1, tzinfo=ZoneInfo("UTC")), -1.0)
+        PrevisaoChuva(datetime(2026, 1, 1, tzinfo=UTC), -1.0)
