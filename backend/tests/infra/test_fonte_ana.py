@@ -15,7 +15,6 @@ from app.dominio.periodo import Periodo
 from app.infra.fontes import ana
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
 
-
 _FIXTURES_ANA = Path(__file__).parents[1] / "fixtures" / "ana"
 
 
