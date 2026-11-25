@@ -143,12 +143,16 @@ TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pyt
 
 ### Data sources
 
-With blank ANA
-credentials, the backend uses `FonteFake` (fictional stations 9000000x). When
-`ANA_IDENTIFICADOR` and `ANA_SENHA` are set in the repository-root `.env`, it uses
-`FonteAna` to load the ANA inventory and fetch a station's adopted measurements
-when its time-series route is requested. The API token is cached until shortly
-before expiration. Do not commit `.env`; `.env.example` lists the required keys.
+`FONTE` selects the hydrological source: `ana` uses the ANA API and requires both
+`ANA_IDENTIFICADOR` and `ANA_SENHA`; `fake` and `simulada` use fictional stations
+9000000x. If `FONTE` is blank, the backend selects ANA when credentials are present
+and the simulated source otherwise. Unknown values fail at startup instead of silently
+choosing a source. Do not commit `.env`; `.env.example` lists the available settings.
+
+`FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
+its time-series route is requested. The API token is cached until shortly before
+expiration. Rainfall alerts also use hourly precipitation forecasts from Open-Meteo;
+forecast failures are logged and do not stop collection for other stations.
 
 The ANA inventory is fetched by UF on the first station-list request, not during
 startup, so a slow ANA response does not prevent the backend from becoming healthy.

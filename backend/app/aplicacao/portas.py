@@ -13,7 +13,8 @@ from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.alerta import Alerta, RegraAlerta
 from app.dominio.enums import Grandeza
 from app.dominio.estacao import Estacao
-from app.dominio.medicao import Medicao, SerieTemporal
+from app.dominio.geografia import Coordenada
+from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
 from app.dominio.periodo import Periodo
 
 
@@ -45,6 +46,14 @@ class EstacaoRepositorio(ABC):
     @abstractmethod
     def monitoradas(self) -> list[Estacao]:
         """Estações operando e telemétricas, cujas medições são coletadas."""
+
+
+class FonteDePrevisao(ABC):
+    """Fonte de previsão de chuva por coordenada (a porta externa, Open-Meteo)."""
+
+    @abstractmethod
+    def buscar_previsao(self, coordenada: Coordenada) -> list[PrevisaoChuva]:
+        """Previsão de chuva por hora, em ordem cronológica."""
 
 
 class MedicaoRepositorio(ABC):
