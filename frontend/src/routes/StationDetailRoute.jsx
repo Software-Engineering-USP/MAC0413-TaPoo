@@ -165,80 +165,147 @@ function LimitCards({ limites, grandeza }) {
   );
 }
 
+function chooseGranularity(current, granularities) {
+  if (current && granularities.includes(current)) return current;
+  if (granularities.includes("NIVEL")) return "NIVEL";
+  return granularities[0] || null;
+}
+
+function stationTypeLabel(station) {
+  return station.tipo === "FLUVIOMETRICA" ? "Fluviométrica" : "Pluviométrica";
+}
+
+function dataOriginLabel(metadados) {
+  if (metadados?.origem_dados === "simulado") return "Dados simulados";
+  return "Dados reais";
+}
+
+function useStationDetails(codigo) {
+  const [station, setStation] = useState(null);
+  const [limites, setLimites] = useState([]);
+  const [metadados, setMetadados] = useState(null);
+  const [grandeza, setGrandeza] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStation(null);
+    setLimites([]);
+    setMetadados(null);
+    setLoading(true);
+    setError("");
+
+    async function carregarDetalhes() {
+      try {
+        const stationResult = await obterEstacao(codigo, {
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        setStation(stationResult);
+        setGrandeza((current) =>
+          chooseGranularity(current, stationResult.grandezas),
+        );
+
+        const [limitResult, metadataResult] = await Promise.all([
+          obterLimitesEstacao(codigo, { signal: controller.signal }),
+          obterMetadados({ signal: controller.signal }),
+        ]);
+        if (controller.signal.aborted) return;
+        setLimites(limitResult);
+        setMetadados(metadataResult);
+      } catch (requestError) {
+        if (!controller.signal.aborted) setError(requestError.message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void carregarDetalhes();
+    return () => controller.abort();
+  }, [codigo]);
+
+  return { station, limites, metadados, grandeza, setGrandeza, loading, error };
+}
+
+function useStationMeasurements(codigo, station, grandeza, periodoHoras) {
+  const [serie, setSerie] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setSerie(null);
+    setError("");
+    if (!station || String(station.codigo) !== String(codigo) || !grandeza) {
+      setLoading(false);
+      return () => controller.abort();
+    }
+
+    const fim = new Date();
+    const inicio = new Date(fim.getTime() - periodoHoras * 60 * 60 * 1000);
+    setLoading(true);
+
+    async function carregarMedicoes() {
+      try {
+        const resultado = await listarMedicoesEstacao(codigo, {
+          grandeza,
+          inicio: inicio.toISOString(),
+          fim: fim.toISOString(),
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) setSerie(resultado);
+      } catch (requestError) {
+        if (!controller.signal.aborted) setError(requestError.message);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    void carregarMedicoes();
+    return () => controller.abort();
+  }, [codigo, grandeza, periodoHoras, station]);
+
+  return { serie, loading, error };
+}
+
+function MeasurementResult({ loading, error, serie, limite }) {
+  if (loading) return <output>Carregando medições...</output>;
+  if (error) {
+    return (
+      <p role="alert" className="station-detail-error">
+        {error}
+      </p>
+    );
+  }
+  if (!serie) {
+    return (
+      <p className="station-detail-empty">
+        Esta estação não informa grandezas para consulta.
+      </p>
+    );
+  }
+  return <MeasurementChart serie={serie} limite={limite} />;
+}
+
 export default function StationDetailRoute() {
   const { codigo } = useParams();
   const navigate = useNavigate();
   const { onCloseInfoSheet } = useOutletContext();
-  const [station, setStation] = useState(null);
-  const [limites, setLimites] = useState([]);
-  const [metadados, setMetadados] = useState(null);
-  const [serie, setSerie] = useState(null);
-  const [grandeza, setGrandeza] = useState(null);
   const [periodoHoras, setPeriodoHoras] = useState(24);
-  const [loading, setLoading] = useState(true);
-  const [measurementLoading, setMeasurementLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [measurementError, setMeasurementError] = useState("");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setSerie(null);
-    setStation(null);
-    setLimites([]);
-    setLoading(true);
-    setError("");
-    obterEstacao(codigo, { signal: controller.signal })
-      .then((stationResult) => {
-        setStation(stationResult);
-        setGrandeza((current) =>
-          current && stationResult.grandezas.includes(current)
-            ? current
-            : stationResult.grandezas.includes("NIVEL")
-              ? "NIVEL"
-              : stationResult.grandezas[0] || null,
-        );
-        return Promise.all([
-          obterLimitesEstacao(codigo, { signal: controller.signal }),
-          obterMetadados({ signal: controller.signal }),
-        ]);
-      })
-      .then(([limitResult, metadataResult]) => {
-        setLimites(limitResult);
-        setMetadados(metadataResult);
-      })
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError") setError(requestError.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [codigo]);
-
-  useEffect(() => {
-    if (!station || !grandeza) return undefined;
-    const controller = new AbortController();
-    setSerie(null);
-    const fim = new Date();
-    const inicio = new Date(fim.getTime() - periodoHoras * 60 * 60 * 1000);
-    setMeasurementLoading(true);
-    setMeasurementError("");
-    listarMedicoesEstacao(codigo, {
-      grandeza,
-      inicio: inicio.toISOString(),
-      fim: fim.toISOString(),
-      signal: controller.signal,
-    })
-      .then(setSerie)
-      .catch((requestError) => {
-        if (requestError.name !== "AbortError")
-          setMeasurementError(requestError.message);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setMeasurementLoading(false);
-      });
-    return () => controller.abort();
-  }, [codigo, grandeza, periodoHoras, station]);
+  const { station, limites, metadados, grandeza, setGrandeza, loading, error } =
+    useStationDetails(codigo);
+  const measurements = useStationMeasurements(
+    codigo,
+    station,
+    grandeza,
+    periodoHoras,
+  );
+  const {
+    serie,
+    loading: measurementLoading,
+    error: measurementError,
+  } = measurements;
 
   const matchingLimit = useMemo(
     () => limites.find((item) => item.grandeza === grandeza),
@@ -248,7 +315,7 @@ export default function StationDetailRoute() {
   if (loading)
     return (
       <section className="station-detail">
-        <p role="status">Carregando dados da estação...</p>
+        <output>Carregando dados da estação...</output>
       </section>
     );
   if (error) {
@@ -273,6 +340,8 @@ export default function StationDetailRoute() {
   const latest = serie?.medicoes?.at(-1);
   const lastUpdated = latest?.atualizado_na_fonte_em || latest?.data_hora_utc;
   const severity = station.severidade || "NORMAL";
+  const typeLabel = stationTypeLabel(station);
+  const sourceLabel = dataOriginLabel(metadados);
 
   return (
     <section className="station-detail">
@@ -291,10 +360,7 @@ export default function StationDetailRoute() {
             </span>
           )}
           <p className="station-detail-eyebrow">
-            Estação {station.codigo} ·{" "}
-            {station.tipo === "FLUVIOMETRICA"
-              ? "Fluviométrica"
-              : "Pluviométrica"}
+            Estação {station.codigo} · {typeLabel}
           </p>
           <h2>{station.nome}</h2>
           <p className="station-detail-muted">
@@ -302,9 +368,7 @@ export default function StationDetailRoute() {
             {station.rio ? ` · ${station.rio}` : ""}
           </p>
           <p className="station-detail-source">
-            {metadados?.origem_dados === "simulado"
-              ? "Dados simulados"
-              : "Dados reais"}
+            {sourceLabel}
             {" · última atualização: "}
             {lastUpdated ? formatDate(lastUpdated) : "sem leitura disponível"}
           </p>
@@ -360,7 +424,7 @@ export default function StationDetailRoute() {
           <div className="station-measure-controls">
             {station.grandezas.length > 0 && (
               <label className="station-measure-select">
-                Grandeza
+                <span>Grandeza</span>
                 <select
                   value={grandeza || ""}
                   onChange={(event) => setGrandeza(event.target.value)}
@@ -374,7 +438,7 @@ export default function StationDetailRoute() {
               </label>
             )}
             <label className="station-measure-select">
-              Período
+              <span>Período</span>
               <select
                 value={periodoHoras}
                 onChange={(event) =>
@@ -388,19 +452,12 @@ export default function StationDetailRoute() {
             </label>
           </div>
         </div>
-        {measurementLoading ? (
-          <p role="status">Carregando medições...</p>
-        ) : measurementError ? (
-          <p role="alert" className="station-detail-error">
-            {measurementError}
-          </p>
-        ) : serie ? (
-          <MeasurementChart serie={serie} limite={matchingLimit} />
-        ) : (
-          <p className="station-detail-empty">
-            Esta estação não informa grandezas para consulta.
-          </p>
-        )}
+        <MeasurementResult
+          loading={measurementLoading}
+          error={measurementError}
+          serie={serie}
+          limite={matchingLimit}
+        />
         {latest && (
           <p className="station-detail-muted">
             Consistência:{" "}
