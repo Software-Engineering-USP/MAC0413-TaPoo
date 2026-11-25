@@ -167,9 +167,7 @@ def test_monitoramento_encerra_alerta_quando_nivel_baixa() -> None:
 
 def test_regra_previsao_recebe_dados_prontos_e_busca_a_fonte_uma_vez() -> None:
     c = Cenario([])
-    c.regras.regras = [
-        RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)
-    ]
+    c.regras.regras = [RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)]
     fonte_previsao = FontePrevisaoStub([PrevisaoChuva(AGORA + timedelta(hours=1), 40)])
     monitorar = MonitorarEstacoes(
         c.medicoes,
@@ -188,9 +186,7 @@ def test_regra_previsao_recebe_dados_prontos_e_busca_a_fonte_uma_vez() -> None:
 
 def test_falha_da_previsao_nao_impede_avaliacao_da_estacao(caplog) -> None:
     c = Cenario([])
-    c.regras.regras = [
-        RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)
-    ]
+    c.regras.regras = [RegraChuvaPrevisao(1, SAO_PAULO.coordenada, timedelta(hours=24), 10, 20, 30)]
     fonte_previsao = FontePrevisaoStub(erro=FonteIndisponivel("Open-Meteo indisponível"))
     monitorar = MonitorarEstacoes(
         c.medicoes,
