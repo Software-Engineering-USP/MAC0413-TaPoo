@@ -27,9 +27,10 @@ cota ou de chuva. A definição está em `backend/app/dominio/alerta.py`.
 
 As portas em `backend/app/aplicacao/portas.py` são contratos abstratos. Por exemplo,
 `EstacaoRepositorio` descreve como salvar, buscar e listar estações, sem escolher banco
-de dados. `EstacaoRepositorioMemoria`, em `backend/app/infra/memoria/repositorios.py`,
-implementa o contrato. A inversão de dependência que resulta dessa separação é
-explicada na seção de SOLID abaixo.
+de dados. `EstacaoRepositorioMemoria` e `EstacaoRepositorioSql` implementam esse contrato
+em `backend/app/infra/memoria/repositorios.py` e
+`backend/app/infra/persistencia/repositorios_sql.py`. A inversão de dependência que
+resulta dessa separação é explicada na seção de SOLID abaixo.
 
 ### Encapsulamento e invariantes
 
@@ -39,9 +40,9 @@ medição precisam corresponder à série, e os elementos permanecem ordenados p
 ```python
 def adicionar(self, medicao: Medicao) -> None:
     if medicao.codigo_estacao != self.codigo_estacao:
-        raise ValueError("medição pertence a outra estação")
+        raise DadoInvalido("medição pertence a outra estação")
     if medicao.grandeza() != self.grandeza:
-        raise ValueError(f"série de {self.grandeza} não aceita {medicao.grandeza()}")
+        raise DadoInvalido(f"série de {self.grandeza} não aceita {medicao.grandeza()}")
     insort(self.medicoes, medicao, key=lambda m: m.data_hora_utc)
 ```
 
@@ -60,23 +61,24 @@ class MedicaoChuva(Medicao):
     def __post_init__(self) -> None:
         super().__post_init__()
         if self.valor < 0:
-            raise ValueError("chuva não pode ser negativa")
+            raise DadoInvalido("chuva não pode ser negativa")
 
     def grandeza(self) -> Grandeza:
         return Grandeza.CHUVA
 ```
 
 O polimorfismo aparece quando o restante do sistema chama `grandeza()` através de uma
-referência do tipo `Medicao`: cada subtipo responde de acordo com sua grandeza. A
-implementação está em `backend/app/dominio/medicao.py`.
+referência do tipo `Medicao`: cada subtipo responde de acordo com sua grandeza. As
+validações de chuva e vazão negativas lançam `DadoInvalido`. A implementação está em
+`backend/app/dominio/medicao.py`.
 
 ### Composição
 
 `Container`, em `backend/app/api/dependencias.py`, reúne os serviços usados pela API.
-`montar_container` cria repositórios, fonte de dados e serviços, e injeta as dependências
-nos objetos que precisam delas. O serviço de consulta, por exemplo, recebe repositórios
-em vez de criá-los por conta própria. Isso mantém a montagem em um lugar conhecido e
-facilita trocar implementações nos testes.
+`montar_container` seleciona a fonte, chama `criar_repositorios()` e injeta as portas nos
+serviços. O serviço de consulta, por exemplo, recebe repositórios em vez de criá-los por
+conta própria. Isso mantém a montagem em um lugar conhecido e facilita trocar
+implementações nos testes.
 
 ### Imutabilidade
 
@@ -87,25 +89,43 @@ estáveis operações como distância geográfica e validação de intervalos. C
 
 ### Exceções nomeadas e tradução na API
 
-As camadas de aplicação e infraestrutura já definem exceções nomeadas. Em
-`backend/app/aplicacao/erros.py`, `ErroAplicacao` é a base de `RecursoNaoEncontrado`,
-que, por sua vez, é a base de `EstacaoNaoEncontrada` e `MunicipioNaoEncontrado`:
+O domínio define exceções que nomeiam as falhas sem acoplá-las a HTTP. `DadoInvalido`
+representa uma invariante violada e também herda de `ValueError`, preservando
+compatibilidade com código que captura esse tipo. `FonteIndisponivel` representa falhas
+de qualquer fonte externa; `ErroFonteAna` especializa esse contrato para o adaptador da
+ANA:
 
-```python
-class ErroAplicacao(Exception): ...
-
-class RecursoNaoEncontrado(ErroAplicacao): ...
-
-class EstacaoNaoEncontrada(RecursoNaoEncontrado): ...
+```text
+ErroDominio
+├── DadoInvalido (também é ValueError)
+└── FonteIndisponivel
+    └── ErroFonteAna
 ```
 
-`backend/app/main.py` registra um handler para `RecursoNaoEncontrado`; assim, as duas
-exceções específicas recebem a mesma resposta 404 sem handlers duplicados. O mesmo
-arquivo traduz `ErroFonteAna`, definido em `backend/app/infra/fontes/ana.py`, em 502.
-O handler trabalha com o contrato da exceção-base e usa a mensagem da instância
-concreta, ilustrando polimorfismo. As invariantes do domínio, como grandeza incompatível
-em `SerieTemporal`, continuam usando `ValueError`; essas exceções não precisam conhecer
-HTTP.
+A aplicação tem outra hierarquia, para recursos que não foram encontrados:
+
+```text
+ErroAplicacao
+└── RecursoNaoEncontrado
+    ├── EstacaoNaoEncontrada
+    └── MunicipioNaoEncontrado
+```
+
+Em `backend/app/api/erros.py`, `registrar_handlers` traduz as exceções-base sem conhecer
+as classes concretas dos adaptadores. O `main.py` chama essa função ao criar a API.
+Isso faz com que qualquer fonte que lance `FonteIndisponivel` receba o mesmo tratamento;
+`ErroFonteAna` resulta em 503 e inclui o cabeçalho `Retry-After`.
+
+| Exceção tratada | Resposta HTTP |
+|---|---|
+| `RecursoNaoEncontrado` | 404 |
+| `ErroAplicacao` (demais erros) | 400 |
+| `DadoInvalido` e `RequestValidationError` | 422 |
+| `FonteIndisponivel` | 503 e `Retry-After: 60` |
+
+As classes estão em `backend/app/dominio/erros.py`, `backend/app/aplicacao/erros.py` e
+`backend/app/infra/fontes/ana.py`; o registro central fica em
+`backend/app/api/erros.py`.
 
 ## Decisão de modelagem: `Estacao` e `TipoEstacao`
 
@@ -125,7 +145,10 @@ def mede(self, grandeza: Grandeza) -> bool:
     return grandeza in grandezas
 ```
 
-O código real está em `backend/app/dominio/estacao.py`.
+O código real está em `backend/app/dominio/estacao.py`. Na `main` atual, município e UF
+ainda são campos separados. A proposta de agrupá-los no value object `Municipio` está em
+revisão na [PR #160](https://github.com/Software-Engineering-USP/MAC0413-TaPoo/pull/160);
+ela ainda não faz parte do modelo descrito aqui.
 
 ### Por que manter uma entidade com enum agora
 
@@ -180,10 +203,17 @@ futura estratégia desse tipo.
 |---|---|
 | Problema | Separar os casos de uso dos detalhes de armazenar e consultar estações, medições e alertas. |
 | Contratos | `EstacaoRepositorio`, `MedicaoRepositorio`, `AlertaRepositorio` e `RegraRepositorio`. |
-| Implementações atuais | Repositórios em memória em `backend/app/infra/memoria/repositorios.py`. |
+| Implementações atuais | Repositórios em memória (`backend/app/infra/memoria/repositorios.py`) e SQL (`backend/app/infra/persistencia/repositorios_sql.py`). |
 | Alternativas | Acessar diretamente estruturas em memória nos serviços ou acoplar os serviços a um banco específico. |
 | Trade-off | A porta facilita substituição e testes, mas precisa permanecer alinhada às operações que os casos de uso realmente precisam. |
-| Onde fica | Contratos em `backend/app/aplicacao/portas.py`; implementações em `backend/app/infra/memoria/repositorios.py`. |
+| Onde fica | Contratos em `backend/app/aplicacao/portas.py`; implementações em `backend/app/infra/memoria/repositorios.py` e `backend/app/infra/persistencia/repositorios_sql.py`. |
+
+`criar_repositorios()` escolhe a implementação por `REPO=memoria|sql`. Os serviços usam
+a mesma porta nos dois casos. Com `REPO=sql`, estações, medições e alertas usam SQL; as
+regras de alerta continuam em `RegraRepositorioMemoria`, carregadas por
+`regras_de_exemplo()`. O contrato comum é exercitado contra memória, SQLite e, quando
+`TEST_DATABASE_URL` está definida, PostgreSQL em
+`backend/tests/infra/test_repositorios_contrato.py`.
 
 ### Adapter — fontes hidrológicas
 
@@ -201,7 +231,7 @@ futura estratégia desse tipo.
 | Ficha | Descrição |
 |---|---|
 | Problema | Decidir em um lugar quais implementações concretas compõem a aplicação e entregar cada dependência ao serviço que precisa dela. |
-| Mecanismo | `montar_container` instancia fontes e repositórios e injeta-os em serviços. FastAPI entrega os serviços às rotas por dependências. |
+| Mecanismo | `montar_container` seleciona `FonteAna` ou `FonteFake`, chama `criar_repositorios()` e injeta as portas nos serviços. FastAPI entrega os serviços às rotas por dependências. |
 | Alternativas | Instanciar dependências dentro de cada rota ou serviço. |
 | Trade-off | A composição explícita facilita testes e substituição; o arquivo de composição conhece as implementações concretas e precisa ser atualizado quando a configuração muda. |
 | Onde fica | `backend/app/api/dependencias.py` e `backend/app/main.py`. |
@@ -210,9 +240,11 @@ futura estratégia desse tipo.
 
 `regras_de_exemplo()` em `backend/app/infra/fontes/fake.py` centraliza a criação das
 regras e cotas usadas pela fonte de demonstração. É uma função fábrica pequena: esconde
-os detalhes de construção e devolve uma coleção pronta. Ela não é uma fábrica geral de
-fontes. A seleção entre `FonteAna` e `FonteFake` ainda ocorre diretamente em
-`montar_container`; portanto, o projeto não tem hoje uma `FonteFactory` separada.
+os detalhes de construção e devolve uma coleção pronta. `criar_repositorios()` em
+`backend/app/api/dependencias.py` também centraliza a escolha entre repositórios em
+memória e SQL. Nenhuma dessas funções é uma fábrica geral de fontes: a seleção entre
+`FonteAna` e `FonteFake` ainda ocorre diretamente em `montar_container`, sem uma
+`FonteFactory` separada.
 
 | Ficha | Descrição |
 |---|---|
@@ -284,11 +316,12 @@ Os nomes do domínio são em português e descrevem conceitos do problema — po
 `EstacaoRepositorio`, `Periodo` e `RegraCotaReferencia`. Métodos que executam ações usam
 verbos como `salvar_varias`, `buscar_medicoes` e `avaliar`.
 
-As entidades validam suas próprias invariantes. `Periodo` rejeita intervalos inválidos;
-`MedicaoChuva` rejeita chuva negativa. Essas validações do domínio usam `ValueError`,
-enquanto a aplicação e o adaptador ANA também possuem exceções nomeadas, descritas na
-seção “Exceções nomeadas e tradução na API”. As rotas não duplicam essas validações: a
-API traduz os erros conhecidos em respostas HTTP.
+As entidades validam suas próprias invariantes. `Periodo`, `SerieTemporal` e
+`MedicaoChuva` lançam `DadoInvalido` quando os valores violam as regras do domínio. Essa
+exceção também herda de `ValueError` por compatibilidade, mas dá um nome específico à
+falha. A aplicação e a fonte ANA têm exceções próprias, descritas na seção “Exceções
+nomeadas e tradução na API”. As rotas não duplicam essas validações: a API traduz os
+erros conhecidos em respostas HTTP.
 
 ## Padrões considerados e não adotados
 
