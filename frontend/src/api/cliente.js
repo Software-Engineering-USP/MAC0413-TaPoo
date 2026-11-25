@@ -12,9 +12,15 @@ import { ApiError } from "./erros";
 
 export { ApiError } from "./erros";
 
-const API_URL = (
-  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8000"
-).replace(/\/+$/, "");
+function removeTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value[end - 1] === "/") end -= 1;
+  return value.slice(0, end);
+}
+
+const API_URL = removeTrailingSlashes(
+  import.meta.env.VITE_API_URL?.trim() || "http://localhost:8000",
+);
 const USA_MOCKS = import.meta.env.VITE_USAR_MOCKS === "true";
 
 export const usaApiReal = !USA_MOCKS;

@@ -472,9 +472,8 @@ export default function MapView({
         </form>
         {["loading", "error", "empty"].includes(searchStatus.state) &&
           searchStatus.message && (
-            <p
+            <output
               className={`map-search-feedback map-search-feedback-${searchStatus.state}`}
-              role={searchStatus.state === "error" ? "alert" : "status"}
               aria-live={
                 searchStatus.state === "error" ? "assertive" : "polite"
               }
@@ -484,7 +483,7 @@ export default function MapView({
                 aria-hidden="true"
               />
               {searchStatus.message}
-            </p>
+            </output>
           )}
       </div>
       <div

@@ -338,10 +338,12 @@ export function mockGetMunicipalitySituation(uf, nome, { signal } = {}) {
       throw notFound(`Município ${nome}, ${uf.toUpperCase()} não encontrado.`);
     }
 
-    const worstStation = stations.reduce((worst, station) =>
-      severityRank[station.severidade] > severityRank[worst.severidade]
-        ? station
-        : worst,
+    const worstStation = stations.reduce(
+      (worst, station) =>
+        severityRank[station.severidade] > severityRank[worst.severidade]
+          ? station
+          : worst,
+      stations[0],
     );
 
     return {
