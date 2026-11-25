@@ -128,8 +128,9 @@ Dependencies point inward: `dominio` imports nothing from the other layers.
 implements the same ports as the in-memory repositories (`EstacaoRepositorioSql`,
 `MedicaoRepositorioSql`, `AlertaRepositorioSql`). Measurements are upserted by their
 natural key `(codigo_estacao, grandeza, data_hora_utc, origem)`, and dates are stored
-in UTC. Tables are created on startup if missing; there are no migrations yet. Alert
-rules still come from `regras_de_exemplo()` in memory until the seed (#67).
+in UTC. Tables are created on startup if missing; there are no migrations yet. The
+simulated stations, measurement profiles, and alert thresholds are loaded from
+`backend/app/infra/fontes/dados/cenario-demo.json`.
 
 The repository contract tests (`tests/infra/test_repositorios_contrato.py`) run
 against memory and SQLite, and also against PostgreSQL when `TEST_DATABASE_URL` is
@@ -145,9 +146,10 @@ TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pyt
 
 `FONTE` selects the hydrological source: `ana` uses the ANA API and requires both
 `ANA_IDENTIFICADOR` and `ANA_SENHA`; `fake` and `simulada` use fictional stations
-9000000x. If `FONTE` is blank, the backend selects ANA when credentials are present
-and the simulated source otherwise. Unknown values fail at startup instead of silently
-choosing a source. Do not commit `.env`; `.env.example` lists the available settings.
+9000000x from the JSON scenario. `fake` remains an alias for `simulada`. If `FONTE` is
+blank, the backend selects ANA when credentials are present and the simulated source
+otherwise. Unknown values fail at startup instead of silently choosing a source. Do
+not commit `.env`; `.env.example` lists the available settings.
 
 `FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
 its time-series route is requested. The API token is cached until shortly before
