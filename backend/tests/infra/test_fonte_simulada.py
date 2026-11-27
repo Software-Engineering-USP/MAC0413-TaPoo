@@ -5,7 +5,7 @@ import pytest
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.alerta import RegraCotaReferencia
-from app.dominio.enums import Grandeza
+from app.dominio.enums import Grandeza, OrigemDados
 from app.dominio.periodo import Periodo
 from app.infra.fontes.simulada import FonteSimulada, regras_de_exemplo
 
@@ -15,6 +15,7 @@ AGORA = datetime(2026, 1, 10, 12, 34, tzinfo=UTC)
 def test_cenario_json_define_estacoes_e_perfis() -> None:
     fonte = FonteSimulada(AGORA)
 
+    assert fonte.origem_dados is OrigemDados.SIMULADO
     estacoes_sp = fonte.listar_estacoes(FiltroEstacoes(uf="SP"))
     assert {estacao.codigo for estacao in estacoes_sp} == {90000001, 90000002}
     assert fonte.buscar_estacao(90000001).rio == "Rio Tietê"

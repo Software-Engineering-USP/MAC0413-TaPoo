@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoRegraAlerta
 from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
@@ -32,6 +32,20 @@ class ContextoAvaliacao:
         object.__setattr__(self, "agora", exigir_utc(self.agora, "agora"))
         if self.previsoes_chuva is not None:
             object.__setattr__(self, "previsoes_chuva", tuple(self.previsoes_chuva))
+
+
+@dataclass(frozen=True, slots=True)
+class LimitesClassificacao:
+    """Limites de severidade que podem ser apresentados ao usuário."""
+
+    grandeza: Grandeza
+    tipo: TipoRegraAlerta
+    descricao: str
+    unidade: str
+    atencao: float
+    alerta: float
+    emergencia: float
+    janela_horas: float | None = None
 
 
 class RegraAlerta(ABC):
@@ -57,6 +71,10 @@ class RegraAlerta(ABC):
     def descrever(
         self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao
     ) -> str: ...
+
+    @abstractmethod
+    def limites(self) -> LimitesClassificacao:
+        """Expõe os limites configurados sem acoplar a API à regra concreta."""
 
     def possui_dados(self, entrada: SerieTemporal | ContextoAvaliacao) -> bool:
         if isinstance(entrada, ContextoAvaliacao) and self.grandeza not in entrada.series:
@@ -131,6 +149,17 @@ class RegraCotaReferencia(RegraAlerta):
             ],
         )
 
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.COTA,
+            descricao="Cotas de referência do nível do rio",
+            unidade="cm",
+            atencao=self.cota_atencao_cm,
+            alerta=self.cota_alerta_cm,
+            emergencia=self.cota_inundacao_cm,
+        )
+
     def descrever(self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao) -> str:
         serie = self._serie(entrada)
         ultimo = serie.ultimo()
@@ -190,6 +219,18 @@ class RegraChuvaAcumulada(RegraAlerta):
                 (self.limite_alto_mm, Severidade.ALERTA),
                 (self.limite_extremo_mm, Severidade.EMERGENCIA),
             ],
+        )
+
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_ACUMULADA,
+            descricao="Limites de chuva acumulada",
+            unidade="mm",
+            atencao=self.limite_moderado_mm,
+            alerta=self.limite_alto_mm,
+            emergencia=self.limite_extremo_mm,
+            janela_horas=self.janela.total_seconds() / 3600,
         )
 
     def descrever(self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao) -> str:
@@ -259,6 +300,18 @@ class RegraChuvaPrevisao(RegraAlerta):
         contexto = self._contexto(entrada)
         horas = self.janela.total_seconds() / 3600
         return f"Chuva prevista de {self._chuva_prevista(contexto):.1f} mm em {horas:.0f} h"
+
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_PREVISTA,
+            descricao="Limites de chuva prevista",
+            unidade="mm",
+            atencao=self.limite_moderado_mm,
+            alerta=self.limite_alto_mm,
+            emergencia=self.limite_extremo_mm,
+            janela_horas=self.janela.total_seconds() / 3600,
+        )
 
     def medicao_gatilho(self, entrada: SerieTemporal | ContextoAvaliacao) -> Medicao | None:
         return None

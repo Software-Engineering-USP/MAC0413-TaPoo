@@ -29,6 +29,7 @@ from app.configuracao import (
     tipo_repositorio,
     url_banco,
 )
+from app.dominio.enums import OrigemDados
 from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
@@ -55,6 +56,7 @@ class Container:
     coletar: ColetarMedicoes
     relogio: Callable[[], datetime]
     carregar_na_inicializacao: bool = True
+    origem_dados: OrigemDados = OrigemDados.REAL
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,7 +140,12 @@ def montar_container(
         relogio=relogio,
     )
     return Container(
-        consulta=ConsultarDados(repositorios.estacoes, repositorios.medicoes, repositorios.alertas),
+        consulta=ConsultarDados(
+            repositorios.estacoes,
+            repositorios.medicoes,
+            repositorios.alertas,
+            repositorios.regras,
+        ),
         sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes),
         coletar=ColetarMedicoes(
             fonte,
@@ -149,6 +156,7 @@ def montar_container(
         ),
         relogio=relogio,
         carregar_na_inicializacao=fonte.carregar_na_inicializacao,
+        origem_dados=fonte.origem_dados,
     )
 
 

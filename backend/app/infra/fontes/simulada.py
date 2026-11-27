@@ -14,7 +14,7 @@ from app.dominio.alerta import (
     RegraChuvaPrevisao,
     RegraCotaReferencia,
 )
-from app.dominio.enums import TipoEstacao
+from app.dominio.enums import OrigemDados, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
@@ -143,6 +143,10 @@ class FonteSimulada(FonteDadosHidrologicos):
                 raise ValueError(f"Perfis de medição inválidos para a estação {codigo}.")
             self._validar_perfis(codigo, perfis)
             self._dados.append((estacao, perfis))
+
+    @property
+    def origem_dados(self) -> OrigemDados:
+        return OrigemDados.SIMULADO
 
     @staticmethod
     def _validar_perfis(codigo: int, perfis: dict[str, Perfil]) -> None:

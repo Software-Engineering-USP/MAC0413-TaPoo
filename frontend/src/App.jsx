@@ -28,6 +28,9 @@ export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
   const isInfoSheetOpen = location.pathname === "/informacoes";
+  const isLocationsOpen = location.pathname === "/locais";
+  const isStationOpen = location.pathname.startsWith("/estacoes/");
+  const isSheetOpen = isInfoSheetOpen || isLocationsOpen || isStationOpen;
 
   useEffect(() => {
     try {
@@ -96,10 +99,10 @@ export default function App() {
       return;
     }
 
-    if (appShell.scrollTop > 0 && !isInfoSheetOpen) {
+    if (appShell.scrollTop > 0 && !isSheetOpen) {
       routeChangeFromScrollRef.current = true;
       navigate("/informacoes");
-    } else if (appShell.scrollTop <= 1 && isInfoSheetOpen) {
+    } else if (appShell.scrollTop <= 1 && isSheetOpen) {
       routeChangeFromScrollRef.current = true;
       navigate("/");
     }
@@ -111,8 +114,8 @@ export default function App() {
       return;
     }
 
-    scrollToInfoSheet(isInfoSheetOpen);
-  }, [isInfoSheetOpen, scrollToInfoSheet]);
+    scrollToInfoSheet(isSheetOpen);
+  }, [location.pathname, isSheetOpen, scrollToInfoSheet]);
 
   useEffect(() => {
     const appShell = appShellRef.current;
@@ -135,12 +138,17 @@ export default function App() {
   }, [clearProgrammaticScrollTarget]);
 
   useEffect(() => {
-    const handleResize = () => scrollToInfoSheet(isInfoSheetOpen);
+    const handleResize = () => scrollToInfoSheet(isSheetOpen);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isInfoSheetOpen, scrollToInfoSheet]);
+  }, [isSheetOpen, scrollToInfoSheet]);
 
-  const closeInfoSheet = () => navigate("/");
+  const closeInfoSheet = () => {
+    routeChangeFromScrollRef.current = true;
+    clearProgrammaticScrollTarget();
+    if (appShellRef.current) appShellRef.current.scrollTop = 0;
+    navigate("/", { replace: true });
+  };
 
   const saveCurrentPlace = () => {
     setPlaceName("Novo local");
@@ -203,6 +211,11 @@ export default function App() {
     mapRef.current?.flyTo(defaultSavedPlaces[0].center, 16);
   };
 
+  const selectSavedPlace = (place) => {
+    mapRef.current?.flyTo(place.center, place.zoom);
+    if (window.matchMedia("(max-width: 767px)").matches) navigate("/");
+  };
+
   return (
     <div className="app-shell" ref={appShellRef} onScroll={handleShellScroll}>
       <Sidebar
@@ -214,7 +227,16 @@ export default function App() {
         }
         onRequestRemovePlace={setPlaceToRemove}
       >
-        <Outlet context={{ onCloseInfoSheet: closeInfoSheet }} />
+        <Outlet
+          context={{
+            onCloseInfoSheet: closeInfoSheet,
+            onOpenStation: (codigo) => navigate(`/estacoes/${codigo}`),
+            savedPlaces,
+            onSavePlace: saveCurrentPlace,
+            onSelectSavedPlace: selectSavedPlace,
+            onRequestRemovePlace: setPlaceToRemove,
+          }}
+        />
       </Sidebar>
       <MapView
         mapRef={mapRef}
@@ -225,8 +247,13 @@ export default function App() {
         onSearchChange={updateSearchQuery}
         onSearch={searchSavedPlaces}
         onMyLocation={showDefaultLocation}
+        onOpenStation={(codigo) => navigate(`/estacoes/${codigo}`)}
       />
-      <MobileNavigation isInfoSheetOpen={isInfoSheetOpen} />
+      <MobileNavigation
+        isInfoSheetOpen={isInfoSheetOpen}
+        isLocationsOpen={isLocationsOpen}
+        onCloseSheet={closeInfoSheet}
+      />
       <SavePlaceDialog
         open={isSaveDialogOpen}
         name={placeName}
