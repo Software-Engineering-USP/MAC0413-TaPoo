@@ -43,10 +43,11 @@ def test_normal_exige_doze_meses_e_valores_nao_negativos() -> None:
 
 
 def test_chuva_do_mes() -> None:
-    assert normal().chuva_do_mes(1) == 200.0
-    assert normal().chuva_do_mes(2) is None
+    referencia = normal()
+    assert referencia.chuva_do_mes(1) == 200.0
+    assert referencia.chuva_do_mes(2) is None
     with pytest.raises(DadoInvalido, match="mês"):
-        normal().chuva_do_mes(13)
+        referencia.chuva_do_mes(13)
 
 
 def test_percentual_e_classificacao() -> None:

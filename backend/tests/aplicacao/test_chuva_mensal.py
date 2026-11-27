@@ -126,8 +126,9 @@ def test_referencia_ignora_estacao_sem_normal_do_mes() -> None:
 
 
 def test_sem_normal_para_o_mes() -> None:
+    servico = _servico(Fonte([]), [LONGE_SEM_JANEIRO])
     with pytest.raises(NormalNaoEncontrada, match="mês 1"):
-        _servico(Fonte([]), [LONGE_SEM_JANEIRO]).executar(1)
+        servico.executar(1)
 
 
 def test_fonte_fora_usa_medicoes_ja_salvas(caplog) -> None:
