@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { listarEstacoes } from "../api/estacoes";
-import { floodZones, getRiskLevel, rivers } from "../mapData";
+import { listarEstacoes, usaApiReal } from "../api/cliente";
+import { rivers } from "../mapData";
+import {
+  chaveLocal,
+  classeSituacao,
+  descreverSituacao,
+} from "../situacaoLocal";
 
 const stationSeverities = {
   NORMAL: { abbreviation: "N", className: "normal" },
@@ -65,7 +70,7 @@ function stationCoordinates(station) {
   return invalidCoordinates ? null : [latitude, longitude];
 }
 
-function stationMarker(station) {
+function stationMarker(station, onOpenStation) {
   const coordinates = stationCoordinates(station);
   if (!coordinates) return null;
 
@@ -90,6 +95,13 @@ function stationMarker(station) {
     row.textContent = detail;
     popup.appendChild(row);
   });
+
+  const detailButton = document.createElement("button");
+  detailButton.type = "button";
+  detailButton.className = "station-popup-action";
+  detailButton.textContent = "Ver detalhes da estação";
+  detailButton.addEventListener("click", () => onOpenStation(station.codigo));
+  popup.appendChild(detailButton);
 
   return L.marker(coordinates, {
     icon: stationIcon(station.severidade),
@@ -121,20 +133,9 @@ function stationSearchSummary(
   return `${shown} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
 }
 
-function savedPlaceIcon(riskLevel) {
-  const riskClasses = {
-    Baixo: "low",
-    Moderado: "moderate",
-    Alto: "high",
-  };
-  const riskClassName = riskClasses[riskLevel]
-    ? `risk-${riskClasses[riskLevel]}`
-    : "";
-
+function savedPlaceIcon(situacao) {
   return L.divIcon({
-    className: ["city-marker", "saved-place-marker", riskClassName]
-      .filter(Boolean)
-      .join(" "),
+    className: `city-marker saved-place-marker situacao-${classeSituacao(situacao)}`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
   });
@@ -157,11 +158,13 @@ export default function MapView({
   mapRef,
   mapViewRef,
   savedPlaces,
+  situacoes,
   searchInputRef,
   searchQuery,
   onSearchChange,
   onSearch,
   onMyLocation,
+  onOpenStation,
 }) {
   const mapContainerRef = useRef(null);
   const stationLayerRef = useRef(null);
@@ -171,14 +174,35 @@ export default function MapView({
     message: "",
     state: "empty",
   });
+  const searchIndicator =
+    searchStatus.message &&
+    {
+      loading: {
+        icon: "fa-spinner fa-spin text-sky-700",
+      },
+      error: { icon: "fa-circle-exclamation text-red-600" },
+      empty: {
+        icon: "fa-circle-info text-amber-600",
+      },
+    }[searchStatus.state];
 
   useEffect(() => {
+    const mobileBreakpoint = window.matchMedia("(max-width: 767px)");
     const mapInstance = L.map(mapContainerRef.current, {
       center: [-23.5613, -46.7303],
       zoom: 14,
       zoomControl: false,
-      scrollWheelZoom: true,
+      scrollWheelZoom: !mobileBreakpoint.matches,
     });
+
+    const syncScrollWheelZoom = () => {
+      if (mobileBreakpoint.matches) {
+        mapInstance.scrollWheelZoom.disable();
+      } else {
+        mapInstance.scrollWheelZoom.enable();
+      }
+    };
+    window.addEventListener("resize", syncScrollWheelZoom);
 
     mapRef.current = mapInstance;
 
@@ -188,7 +212,7 @@ export default function MapView({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(mapInstance);
 
-    const floodRiskLayer = L.layerGroup().addTo(mapInstance);
+    const riverLayer = L.layerGroup().addTo(mapInstance);
     stationLayerRef.current = L.featureGroup().addTo(mapInstance);
 
     rivers.forEach((river) => {
@@ -198,7 +222,7 @@ export default function MapView({
         opacity: 0.9,
         lineCap: "round",
       })
-        .addTo(floodRiskLayer)
+        .addTo(riverLayer)
         .bindTooltip(river.name, {
           permanent: true,
           sticky: true,
@@ -210,24 +234,10 @@ export default function MapView({
         );
     });
 
-    floodZones.forEach((zone) => {
-      L.polygon(zone.coordinates, {
-        color: zone.color,
-        weight: 2,
-        dashArray: "5 5",
-        fillColor: zone.color,
-        fillOpacity: 0.22,
-      })
-        .addTo(floodRiskLayer)
-        .bindTooltip(zone.name, {
-          sticky: true,
-          className: "city-label",
-        });
-    });
-
     mapInstance.whenReady(() => mapInstance.invalidateSize());
 
     return () => {
+      window.removeEventListener("resize", syncScrollWheelZoom);
       stationRequestRef.current?.abort();
       stationLayerRef.current = null;
       mapRef.current = null;
@@ -278,6 +288,7 @@ export default function MapView({
       const stations = await listarEstacoes({
         texto: query,
         uf: selectedUf,
+        apenasTelemetricas: true,
         signal: request.signal,
       });
       if (request.signal.aborted) return;
@@ -302,7 +313,7 @@ export default function MapView({
 
       layer.clearLayers();
       stationsToShow.forEach((station) => {
-        const marker = stationMarker(station);
+        const marker = stationMarker(station, onOpenStation);
         if (marker) layer.addLayer(marker);
       });
 
@@ -349,14 +360,10 @@ export default function MapView({
     if (!map) return undefined;
 
     const markers = savedPlaces.map((place) => {
-      const riskLevel = getRiskLevel(place.center);
-      const riskDescription =
-        riskLevel === "safe"
-          ? "Sem risco indicado nas áreas simuladas"
-          : `Risco ${riskLevel.toLowerCase()} simulado`;
+      const situacao = situacoes[chaveLocal(place)];
 
       return L.marker(place.center, {
-        icon: savedPlaceIcon(riskLevel),
+        icon: savedPlaceIcon(situacao),
       })
         .addTo(map)
         .bindTooltip(escapeHtml(place.name), {
@@ -366,7 +373,7 @@ export default function MapView({
           className: "city-label",
         })
         .bindPopup(
-          `<strong>${escapeHtml(place.name)}</strong><br>${riskDescription}`,
+          `<strong>${escapeHtml(place.name)}</strong><br>${descreverSituacao(situacao)}<br><small>Maior severidade entre as estações da ANA próximas.</small>`,
         );
     });
 
@@ -375,7 +382,7 @@ export default function MapView({
         if (map.hasLayer(marker)) map.removeLayer(marker);
       });
     };
-  }, [mapRef, savedPlaces]);
+  }, [mapRef, savedPlaces, situacoes]);
 
   return (
     <main
@@ -402,13 +409,26 @@ export default function MapView({
               </option>
             ))}
           </select>
+          {!usaApiReal && (
+            <span
+              className="demo-data-badge"
+              title="Dados de demonstração: não representam alertas reais."
+              aria-label="Dados de demonstração"
+            >
+              DEMO
+            </span>
+          )}
         </div>
         <form
           role="search"
           className="map-search-form relative flex items-center"
           onSubmit={handleSearch}
         >
-          <i className="fa-solid fa-magnifying-glass absolute left-3.5 text-slate-400 text-sm"></i>
+          <i
+            className={`fa-solid ${searchIndicator?.icon || "fa-magnifying-glass text-slate-400"} absolute left-3.5 text-sm`}
+            title={searchIndicator ? searchStatus.message : undefined}
+            aria-hidden="true"
+          />
           <input
             ref={searchInputRef}
             type="text"
@@ -431,42 +451,24 @@ export default function MapView({
             type="submit"
             className="absolute right-2 rounded-xl bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800"
           >
-            Filtrar
+            Buscar
           </button>
         </form>
-        {searchStatus.message && (
-          <p
-            id="stationSearchStatus"
-            className="station-search-status mt-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-slate-600 shadow"
-            role="status"
-            aria-live="polite"
-            data-state={searchStatus.state}
-          >
-            {searchStatus.message}
-          </p>
-        )}
-      </div>
-      <div
-        className="risk-area-legend"
-        aria-label="Legenda das áreas simuladas"
-      >
-        <strong>Áreas ilustrativas</strong>
-        <span>
-          <i aria-hidden="true" className="risk-area-swatch risk-area-low" />
-          Baixo
-        </span>
-        <span>
-          <i
-            aria-hidden="true"
-            className="risk-area-swatch risk-area-moderate"
-          />
-          Moderado
-        </span>
-        <span>
-          <i aria-hidden="true" className="risk-area-swatch risk-area-high" />
-          Alto
-        </span>
-        <small>Não representam alertas oficiais</small>
+        {["loading", "error", "empty"].includes(searchStatus.state) &&
+          searchStatus.message && (
+            <output
+              className={`map-search-feedback map-search-feedback-${searchStatus.state}`}
+              aria-live={
+                searchStatus.state === "error" ? "assertive" : "polite"
+              }
+            >
+              <i
+                className={`fa-solid ${searchIndicator?.icon || "fa-circle-info"}`}
+                aria-hidden="true"
+              />
+              {searchStatus.message}
+            </output>
+          )}
       </div>
       <div
         ref={mapContainerRef}

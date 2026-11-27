@@ -1,0 +1,12 @@
+{
+  "status": "OK",
+  "items": {
+    "codigoestacao": "15400000",
+    "Estacao_Nome": "PORTO VELHO",
+    "Tipo_Estacao": "Fluviometrica",
+    "Latitude": "-8.7483",
+    "Longitude": "-63.9169",
+    "UF_Estacao": "SP",
+    "Municipio_Nome": "SÃO PAULO"
+  }
+}

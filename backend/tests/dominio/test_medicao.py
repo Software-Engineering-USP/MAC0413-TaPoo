@@ -7,6 +7,7 @@ from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao, SerieTemporal
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
@@ -88,7 +89,7 @@ def test_no_periodo() -> None:
 
 
 def test_estacao_mede() -> None:
-    fluvio = Estacao(1, "Rio X", TipoEstacao.FLUVIOMETRICA, Coordenada(0, 0), "sp", "Y")
+    fluvio = Estacao(1, "Rio X", TipoEstacao.FLUVIOMETRICA, Coordenada(0, 0), Municipio("Y", "sp"))
     assert fluvio.uf == "SP"
     assert fluvio.mede(Grandeza.NIVEL)
     assert fluvio.mede(Grandeza.CHUVA)  # telemétrica

@@ -24,6 +24,7 @@ from app.dominio.enums import (
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import MedicaoChuva, MedicaoNivel
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.persistencia.repositorios_sql import BancoDeDados
 
@@ -57,7 +58,9 @@ def repos(request) -> Iterator[Repositorios]:
 def estacao(codigo: int, uf: str = "SP", municipio: str = "São Paulo", **kw) -> Estacao:
     kw.setdefault("tipo", TipoEstacao.FLUVIOMETRICA)
     tipo = kw.pop("tipo")
-    return Estacao(codigo, f"Estação {codigo}", tipo, Coordenada(-23.5, -46.6), uf, municipio, **kw)
+    return Estacao(
+        codigo, f"Estação {codigo}", tipo, Coordenada(-23.5, -46.6), Municipio(municipio, uf), **kw
+    )
 
 
 # --- Estações ---------------------------------------------------------------------

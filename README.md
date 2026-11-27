@@ -52,6 +52,13 @@ npm install
 npm run dev
 ```
 
+The frontend calls the FastAPI server by default (`http://localhost:8000`). To
+use local mock responses for development, explicitly set `VITE_USAR_MOCKS=true`
+in `frontend/.env.local` when running Vite directly, or in the root `.env` when
+using Docker Compose. The interface displays a demonstration data warning in
+mock mode. `VITE_API_URL` is embedded into the frontend build; set it to the
+publicly reachable FastAPI base URL for deployments.
+
 Lint and format (the same checks run in CI):
 
 ```bash
@@ -102,7 +109,13 @@ README with the final public frontend and API URLs after deployment.
 ## Backend architecture
 
 The backend follows the layers described in `docs/diagramas-de-classe-ana.md`.
+The object-oriented concepts, station-modeling decision, and design patterns used by
+the backend are discussed in [the POO report](docs/relatorio-poo.md).
+Testing, refactoring examples, and a manual validation checklist are documented in
+[the test report](docs/relatorio-testes.md).
 Dependencies point inward: `dominio` imports nothing from the other layers.
+Modeling decisions (why `Estacao` uses `TipoEstacao` instead of subclasses, and why
+`Municipio` is a value object) are recorded in `docs/decisoes.md`.
 
 | Layer | Folder | Contents |
 |---|---|---|
@@ -139,12 +152,16 @@ TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pyt
 
 ### Data sources
 
-With blank ANA
-credentials, the backend uses `FonteFake` (fictional stations 9000000x). When
-`ANA_IDENTIFICADOR` and `ANA_SENHA` are set in the repository-root `.env`, it uses
-`FonteAna` to load the ANA inventory and fetch a station's adopted measurements
-when its time-series route is requested. The API token is cached until shortly
-before expiration. Do not commit `.env`; `.env.example` lists the required keys.
+`FONTE` selects the hydrological source: `ana` uses the ANA API and requires both
+`ANA_IDENTIFICADOR` and `ANA_SENHA`; `fake` and `simulada` use fictional stations
+9000000x. If `FONTE` is blank, the backend selects ANA when credentials are present
+and the simulated source otherwise. Unknown values fail at startup instead of silently
+choosing a source. Do not commit `.env`; `.env.example` lists the available settings.
+
+`FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
+its time-series route is requested. The API token is cached until shortly before
+expiration. Rainfall alerts also use hourly precipitation forecasts from Open-Meteo;
+forecast failures are logged and do not stop collection for other stations.
 
 The ANA inventory is fetched by UF on the first station-list request, not during
 startup, so a slow ANA response does not prevent the backend from becoming healthy.
@@ -163,6 +180,7 @@ in `America/Sao_Paulo` before converting them to UTC.
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
 | GET | `/estacoes/{codigo}/alertas?limite=50` | Alert history of one station (active and closed), newest first |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
+| GET | `/estacoes/{codigo}/chuva-mensal` | Rain accumulated in the current month (Brasília calendar) compared to the 1991–2020 INMET climatological normal of the nearest INMET station: `percentual` and `classificacao` (`ABAIXO` < 80%, `NORMAL` 80–120%, `ACIMA` > 120%). 400 if the station does not measure rain |
 | GET | `/alertas` | Active alerts, most severe first |
 | GET | `/municipios/{uf}/{nome}/situacao` | Worst severity among the municipality's stations (name matched ignoring accents and case; 404 if none) |
 
@@ -172,6 +190,22 @@ so the frontend can run without the backend. Both are generated from the running
 after changing a route or `backend/app/api/schemas.py`, run
 `uv run python -m scripts.gerar_contrato` in `backend/` (`tests/test_contrato.py`
 fails while they are out of date).
+
+### Climatological normals (INMET)
+
+`backend/app/infra/normais/dados/inmet-1991-2020-precipitacao.json` holds the monthly
+precipitation normals of 221 INMET stations, taken from the official spreadsheets at
+<https://portal.inmet.gov.br/normais> (`Normal-Climatologica-PREC.xlsx` and
+`Normal-Climatologica-ESTAÇÕES.xlsx`). To regenerate it:
+
+```bash
+cd backend
+uv run --with openpyxl python -m scripts.importar_normais_inmet PREC.xlsx ESTACOES.xlsx
+```
+
+The month in progress is compared with the full-month normal, so early in the month the
+classification tends to be `ABAIXO`; the comparison only uses rain readings the API
+could collect for the month.
 
 ## SonarQube
 

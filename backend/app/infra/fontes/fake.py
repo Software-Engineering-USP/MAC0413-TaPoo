@@ -18,11 +18,17 @@ from math import sin
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.aplicacao.portas import FonteDadosHidrologicos
-from app.dominio.alerta import RegraAlerta, RegraChuvaAcumulada, RegraCotaReferencia
-from app.dominio.enums import TipoEstacao
+from app.dominio.alerta import (
+    RegraAlerta,
+    RegraChuvaAcumulada,
+    RegraChuvaPrevisao,
+    RegraCotaReferencia,
+)
+from app.dominio.enums import OrigemDados, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import agora_utc, exigir_utc
 
@@ -63,8 +69,7 @@ def _estacoes_e_perfis() -> list[tuple[Estacao, dict[type[Medicao], Perfil]]]:
             nome,
             tipo,
             Coordenada(lat, lon),
-            uf,
-            municipio,
+            Municipio(municipio, uf),
             rio=rio,
             telemetrica=telemetrica,
         )
@@ -146,6 +151,14 @@ def regras_de_exemplo() -> list[RegraAlerta]:
             90000003, cota_atencao_cm=250, cota_alerta_cm=320, cota_inundacao_cm=400
         ),
         RegraChuvaAcumulada(90000004, **chuva_24h),
+        RegraChuvaPrevisao(
+            90000004,
+            Coordenada(-22.51, -43.18),
+            janela=timedelta(hours=24),
+            limite_moderado_mm=30,
+            limite_alto_mm=50,
+            limite_extremo_mm=80,
+        ),
     ]
 
 
@@ -154,6 +167,10 @@ class FonteFake(FonteDadosHidrologicos):
         agora = exigir_utc(agora or agora_utc())
         self._agora = agora.replace(minute=0, second=0, microsecond=0)
         self._dados = _estacoes_e_perfis()
+
+    @property
+    def origem_dados(self) -> OrigemDados:
+        return OrigemDados.SIMULADO
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]

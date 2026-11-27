@@ -1,11 +1,15 @@
+import logging
 from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from app.aplicacao.erros import EstacaoNaoEncontrada
 from app.aplicacao.monitoramento import MonitorarEstacoes
 from app.aplicacao.portas import EstacaoRepositorio, FonteDadosHidrologicos, MedicaoRepositorio
+from app.dominio.erros import FonteIndisponivel
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import agora_utc
+
+logger = logging.getLogger(__name__)
 
 
 class ColetarMedicoes:
@@ -40,7 +44,12 @@ class ColetarMedicoes:
         salvas = 0
         if desde is None or desde < agora:
             inicio = desde if desde is not None else agora - self._janela_inicial
-            novas = self._fonte.buscar_medicoes(codigo, Periodo(inicio, agora), desde)
+            try:
+                novas = self._fonte.buscar_medicoes(codigo, Periodo(inicio, agora), desde)
+            except FonteIndisponivel as erro:
+                # Falha da fonte: a coleta continua para as outras estações, sem parar.
+                logger.warning("coleta da estação %s falhou: %s", codigo, erro)
+                return 0
             salvas = self._medicoes.salvar_varias(novas)
         self._monitorar.executar(codigo)
         return salvas

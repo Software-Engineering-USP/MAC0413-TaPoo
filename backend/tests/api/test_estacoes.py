@@ -12,6 +12,48 @@ def test_health(client: TestClient) -> None:
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_metadados_informa_origem_simulada(client: TestClient) -> None:
+    resposta = client.get("/metadados")
+
+    assert resposta.status_code == 200
+    assert resposta.json() == {"origem_dados": "simulado"}
+
+
+def test_limites_da_estacao(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000001/limites")
+
+    assert resposta.status_code == 200
+    assert resposta.json() == [
+        {
+            "grandeza": "NIVEL",
+            "tipo": "COTA",
+            "descricao": "Cotas de referência do nível do rio",
+            "unidade": "cm",
+            "janela_horas": None,
+            "atencao": 300,
+            "alerta": 400,
+            "emergencia": 500,
+        }
+    ]
+
+
+def test_limites_separam_chuva_observada_e_prevista(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000004/limites")
+
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert [(item["grandeza"], item["tipo"]) for item in corpo] == [
+        ("CHUVA", "CHUVA_ACUMULADA"),
+        ("CHUVA", "CHUVA_PREVISTA"),
+    ]
+
+
+def test_limites_de_estacao_inexistente_retorna_404(client: TestClient) -> None:
+    resposta = client.get("/estacoes/1/limites")
+
+    assert resposta.status_code == 404
+
+
 def test_listar_todas(client: TestClient) -> None:
     resposta = client.get("/estacoes")
     assert resposta.status_code == 200
@@ -122,7 +164,10 @@ def test_serie_padrao_ultimas_24h(client: TestClient) -> None:
     assert (corpo["grandeza_rotulo"], corpo["unidade"]) == ("Nível", "cm")
     assert len(corpo["medicoes"]) == 25  # leituras horárias, intervalo fechado
     assert corpo["medicoes"][-1]["data_hora_utc"].startswith(AGORA.strftime("%Y-%m-%dT%H"))
-    assert corpo["medicoes"][-1]["valor"] == 440
+    ultima = corpo["medicoes"][-1]
+    assert ultima["valor"] == 440
+    assert ultima["origem"] == "TELEMETRICA"
+    assert ultima["atualizado_na_fonte_em"] is not None
 
 
 def test_serie_com_periodo(client: TestClient) -> None:
@@ -211,3 +256,21 @@ def test_busca_com_uf_sincroniza_so_o_estado() -> None:
         corpo = client.get("/estacoes", params={"q": "velhas", "uf": "mg"}).json()
         assert [e["codigo"] for e in corpo] == [90000003]
         assert fonte.listagens == ["mg"]
+
+
+def test_chuva_mensal_compara_com_normal_do_inmet(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000001/chuva-mensal")
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert (corpo["ano"], corpo["mes"]) == (2026, 1)
+    assert corpo["referencia"]["codigo"] == 83781  # São Paulo (Mirante de Santana)
+    assert corpo["referencia"]["fonte"].startswith("INMET")
+    assert corpo["normal_mm"] == 292.1
+    assert corpo["medicoes"] > 0
+    assert corpo["percentual"] == round(corpo["acumulado_mm"] / 292.1 * 100, 1)
+    assert corpo["classificacao"] in {"ABAIXO", "NORMAL", "ACIMA"}
+    assert corpo["classificacao_rotulo"]
+
+
+def test_chuva_mensal_de_estacao_inexistente(client: TestClient) -> None:
+    assert client.get("/estacoes/1/chuva-mensal").status_code == 404

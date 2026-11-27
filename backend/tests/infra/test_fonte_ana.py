@@ -1,6 +1,7 @@
 import json
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from typing import Self
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
@@ -10,9 +11,17 @@ import pytest
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.enums import Grandeza, NivelConsistencia, TipoEstacao
 from app.dominio.erros import DadoInvalido, FonteIndisponivel
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.fontes import ana
 from app.infra.fontes.ana import ErroFonteAna, FonteAna
+
+_FIXTURES_ANA = Path(__file__).parents[1] / "fixtures" / "ana"
+
+
+def carregar_fixture(nome: str) -> dict:
+    with (_FIXTURES_ANA / nome).open(encoding="utf-8") as arquivo:
+        return json.load(arquivo)
 
 
 class RespostaFake:
@@ -57,12 +66,14 @@ def test_mapeia_estacao_pluviometrica_com_campos_opcionais() -> None:
             "Longitude": "-46.6",
             "Data_Periodo_Telemetrica_Inicio": "0",
             "Operando": "0",
-        }
+        },
+        uf_padrao="sp",
     )
 
     assert estacao.tipo is TipoEstacao.PLUVIOMETRICA
     assert estacao.nome == "Estação 15400000"
-    assert estacao.municipio == "Não informado"
+    assert estacao.municipio.nome == "Não informado"
+    assert estacao.uf == "SP"
     assert not estacao.telemetrica
     assert not estacao.operando
 
@@ -97,25 +108,8 @@ def test_lista_estacoes_por_uf_e_reutiliza_token(monkeypatch) -> None:
     def abrir(requisicao, timeout):
         chamadas.append(requisicao)
         if requisicao.full_url.endswith("/OAUth/v1"):
-            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token-teste"}})
-        return RespostaFake(
-            {
-                "status": "OK",
-                "items": [
-                    {
-                        "codigoestacao": "15400000",
-                        "Estacao_Nome": "PORTO VELHO",
-                        "Tipo_Estacao": "Fluviometrica",
-                        "Latitude": "-8.7483",
-                        "Longitude": "-63.9169",
-                        "UF_Estacao": "RO",
-                        "Municipio_Nome": "PORTO VELHO",
-                        "Operando": "1",
-                        "Data_Periodo_Telemetrica_Inicio": "2001-06-01",
-                    }
-                ],
-            }
-        )
+            return RespostaFake(carregar_fixture("autenticacao.json"))
+        return RespostaFake(carregar_fixture("inventario-ro.json"))
 
     monkeypatch.setattr(ana, "urlopen", abrir)
     fonte = FonteAna("identificador", "senha")
@@ -146,20 +140,7 @@ def test_listagem_nacional_retorna_resultados_parciais_se_uma_uf_falhar(monkeypa
         if uf == "AC":
             raise HTTPError(requisicao.full_url, 500, "Unavailable", None, BytesIO())
         if uf == "SP":
-            return RespostaFake(
-                {
-                    "status": "OK",
-                    "items": {
-                        "codigoestacao": "15400000",
-                        "Estacao_Nome": "PORTO VELHO",
-                        "Tipo_Estacao": "Fluviometrica",
-                        "Latitude": "-8.7483",
-                        "Longitude": "-63.9169",
-                        "UF_Estacao": "SP",
-                        "Municipio_Nome": "SÃO PAULO",
-                    },
-                }
-            )
+            return RespostaFake(carregar_fixture("inventario-sp-item-unico.json"))
         return RespostaFake({"status": "OK", "items": []})
 
     monkeypatch.setattr(ana, "urlopen", abrir)
@@ -203,6 +184,34 @@ def test_listagem_uf_ignora_registros_malformados(monkeypatch) -> None:
     assert [estacao.codigo for estacao in estacoes] == [15400000]
 
 
+def test_listagem_uf_completa_uf_ausente_com_a_uf_consultada(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+    sem_uf = {
+        "codigoestacao": "15400000",
+        "Tipo_Estacao": "Fluviometrica",
+        "Latitude": "-8.7",
+        "Longitude": "-63.9",
+        "Municipio_Nome": "PORTO VELHO",
+    }
+    monkeypatch.setattr(fonte, "_get", lambda rota, parametros: {"items": [sem_uf]})
+
+    [estacao] = fonte.listar_estacoes(FiltroEstacoes(uf="RO"))
+
+    assert estacao.municipio == Municipio("Porto Velho", "RO")
+
+
+def test_estacao_sem_uf_e_dado_invalido() -> None:
+    with pytest.raises(DadoInvalido, match="UF"):
+        FonteAna._mapear_estacao(
+            {
+                "codigoestacao": "15400000",
+                "Tipo_Estacao": "Fluviometrica",
+                "Latitude": "-8.7",
+                "Longitude": "-63.9",
+            }
+        )
+
+
 def test_buscar_estacao_ignora_resposta_invalida_e_nao_encontrada(monkeypatch) -> None:
     fonte = FonteAna("id", "senha")
     outra_estacao = {
@@ -237,7 +246,31 @@ def test_busca_medicoes_com_periodo_maior_que_30_dias_faz_varias_consultas(monke
     assert sum(not chamada.full_url.endswith("/OAUth/v1") for chamada in chamadas) == 2
 
 
-@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "http", "status"])
+def test_busca_medicoes_em_30_dias_cobre_o_periodo_sem_lacunas(monkeypatch) -> None:
+    chamadas = []
+
+    def abrir(requisicao, timeout):
+        chamadas.append(requisicao)
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        return RespostaFake({"status": "OK", "items": []})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+    periodo = Periodo(datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 31, tzinfo=UTC))
+
+    assert FonteAna("id", "senha").buscar_medicoes(15400000, periodo) == []
+    consultas = [chamada for chamada in chamadas if not chamada.full_url.endswith("/OAUth/v1")]
+    assert len(consultas) == 2
+    consultas_por_data = {
+        parse_qs(urlparse(chamada.full_url).query)["Data de Busca (yyyy-MM-dd)"][0]: parse_qs(
+            urlparse(chamada.full_url).query
+        )["Range Intervalo de busca"][0]
+        for chamada in consultas
+    }
+    assert consultas_por_data == {"2026-01-30": "DIAS_30", "2025-12-31": "HORA_24"}
+
+
+@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "utf8", "http", "status"])
 def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> None:
     def abrir(requisicao, timeout):
         if requisicao.full_url.endswith("/OAUth/v1"):
@@ -248,6 +281,8 @@ def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> No
             raise OSError("sem rede")
         if falha == "json":
             return BytesIO(b"{")
+        if falha == "utf8":
+            return BytesIO(b"\xff")
         if falha == "http":
             raise HTTPError(requisicao.full_url, 500, "erro", None, BytesIO())
         return RespostaFake({"status": "ERRO", "items": []})
@@ -259,7 +294,7 @@ def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> No
         fonte.buscar_estacao(1)
 
 
-@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "sem-token"])
+@pytest.mark.parametrize("falha", ["timeout", "rede", "json", "utf8", "sem-token"])
 def test_autenticacao_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> None:
     def abrir(requisicao, timeout):
         if falha == "timeout":
@@ -268,6 +303,8 @@ def test_autenticacao_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -
             raise OSError("sem rede")
         if falha == "json":
             return BytesIO(b"{")
+        if falha == "utf8":
+            return BytesIO(b"\xff")
         return RespostaFake({"status": "OK", "items": []})
 
     monkeypatch.setattr(ana, "urlopen", abrir)
@@ -296,23 +333,8 @@ def test_busca_mapeia_grandezas_e_status_de_qualidade(monkeypatch) -> None:
     def abrir(requisicao, timeout):
         chamadas.append(requisicao)
         if requisicao.full_url.endswith("/OAUth/v1"):
-            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token-teste"}})
-        return RespostaFake(
-            {
-                "status": "OK",
-                "items": [
-                    {
-                        "Data_Hora_Medicao": "2026-11-16 12:00:00.0",
-                        "Data_Atualizacao": "2026-11-16 12:10:00.0",
-                        "Chuva_Adotada": "1.25",
-                        "Cota_Adotada": "781.00",
-                        "Cota_Adotada_Status": "1",
-                        "Vazao_Adotada": "13225.42",
-                        "Vazao_Adotada_Status": "0",
-                    }
-                ],
-            }
-        )
+            return RespostaFake(carregar_fixture("autenticacao.json"))
+        return RespostaFake(carregar_fixture("medicoes-adotadas.json"))
 
     monkeypatch.setattr(ana, "urlopen", abrir)
     fonte = FonteAna("identificador", "senha")
@@ -462,21 +484,7 @@ def test_ignora_registro_com_medicao_invalida(monkeypatch) -> None:
     def abrir(requisicao, timeout):
         if requisicao.full_url.endswith("/OAUth/v1"):
             return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
-        return RespostaFake(
-            {
-                "status": "OK",
-                "items": [
-                    {
-                        "Data_Hora_Medicao": "2026-11-16 12:00:00",
-                        "Cota_Adotada": "valor-invalido",
-                    },
-                    {
-                        "Data_Hora_Medicao": "2026-11-16 12:00:00",
-                        "Cota_Adotada": "781",
-                    },
-                ],
-            }
-        )
+        return RespostaFake(carregar_fixture("medicoes-com-registro-invalido.json"))
 
     monkeypatch.setattr(ana, "urlopen", abrir)
     periodo = Periodo(

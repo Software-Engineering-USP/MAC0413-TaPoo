@@ -19,6 +19,7 @@ from app.dominio.erros import DadoInvalido, FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import exigir_utc
 
@@ -151,7 +152,7 @@ class FonteAna(FonteDadosHidrologicos):
         estacoes = []
         for item in self._itens(resposta):
             try:
-                estacoes.append(self._mapear_estacao(item))
+                estacoes.append(self._mapear_estacao(item, uf_padrao=uf))
             except (KeyError, TypeError, ValueError):
                 # Registros incompletos ou sem coordenadas não vão ao mapa.
                 continue
@@ -165,11 +166,18 @@ class FonteAna(FonteDadosHidrologicos):
         medicoes: dict[tuple[int, str, datetime], Medicao] = {}
         cursor = periodo.fim
         while cursor >= periodo.inicio:
-            inicio_janela = max(periodo.inicio, cursor - timedelta(days=29))
             data_fim_ana = cursor.astimezone(_FUSO_ANA).date()
-            data_inicio_ana = inicio_janela.astimezone(_FUSO_ANA).date()
-            dias = max(1, (data_fim_ana - data_inicio_ana).days + 1)
-            range_busca = self._range_api(dias)
+            data_inicio_periodo = periodo.inicio.astimezone(_FUSO_ANA).date()
+            dias_necessarios = max(1, (data_fim_ana - data_inicio_periodo).days + 1)
+            range_busca = self._range_api(dias_necessarios)
+            dias_cobertos = self._dias_cobertos_range(range_busca)
+            data_inicio_janela = data_fim_ana - timedelta(days=dias_cobertos - 1)
+            inicio_janela = max(
+                periodo.inicio,
+                datetime.combine(
+                    data_inicio_janela, datetime.min.time(), tzinfo=_FUSO_ANA
+                ).astimezone(UTC),
+            )
             resposta = self._get(
                 "HidroinfoanaSerieTelemetricaAdotada/v1",
                 {
@@ -206,7 +214,7 @@ class FonteAna(FonteDadosHidrologicos):
                 raise ErroFonteAna(
                     f"A ANA não respondeu à consulta em {self._timeout:g} segundos."
                 ) from erro
-            except (OSError, json.JSONDecodeError) as erro:
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError) as erro:
                 raise ErroFonteAna("A consulta à API da ANA falhou.") from erro
             return self._validar_resposta(dados)
         raise ErroFonteAna("A consulta à API da ANA falhou após renovar a sessão.")
@@ -263,7 +271,7 @@ class FonteAna(FonteDadosHidrologicos):
             raise ErroFonteAna(
                 f"A ANA não respondeu à autenticação em {self._timeout:g} segundos."
             ) from erro
-        except (OSError, json.JSONDecodeError) as erro:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as erro:
             raise ErroFonteAna("Não foi possível autenticar na API da ANA.") from erro
 
         items = dados.get("items", {}) if isinstance(dados, dict) else {}
@@ -294,7 +302,8 @@ class FonteAna(FonteDadosHidrologicos):
         return []
 
     @staticmethod
-    def _mapear_estacao(item: dict[str, Any]) -> Estacao:
+    def _mapear_estacao(item: dict[str, Any], uf_padrao: str = "") -> Estacao:
+        """Sem `UF_Estacao`, usa `uf_padrao` (a UF consultada); sem nenhuma, é inválido."""
         tipo_texto = str(item.get("Tipo_Estacao", "")).casefold()
         if "fluvi" in tipo_texto:
             tipo = TipoEstacao.FLUVIOMETRICA
@@ -312,8 +321,10 @@ class FonteAna(FonteDadosHidrologicos):
             nome=str(item.get("Estacao_Nome") or f"Estação {codigo}").strip(),
             tipo=tipo,
             coordenada=Coordenada(latitude, longitude),
-            uf=str(item.get("UF_Estacao") or "").upper(),
-            municipio=str(item.get("Municipio_Nome") or "Não informado").strip(),
+            municipio=Municipio(
+                str(item.get("Municipio_Nome") or "Não informado"),
+                str(item.get("UF_Estacao") or uf_padrao),
+            ),
             rio=item.get("Rio_Nome") or item.get("Rio"),
             operando=str(item.get("Operando", "1")) == "1",
             telemetrica=telemetrica,
@@ -390,3 +401,7 @@ class FonteAna(FonteDadosHidrologicos):
         opcoes = (1, 2, 7, 14, 21, 30)
         dias_escolhidos = next((opcao for opcao in opcoes if opcao >= dias), 30)
         return "HORA_24" if dias_escolhidos == 1 else f"DIAS_{dias_escolhidos}"
+
+    @staticmethod
+    def _dias_cobertos_range(range_busca: str) -> int:
+        return 1 if range_busca == "HORA_24" else int(range_busca.removeprefix("DIAS_"))

@@ -1,0 +1,14 @@
+{
+  "status": "OK",
+  "items": [
+    {
+      "Data_Hora_Medicao": "2026-11-16 12:00:00.0",
+      "Data_Atualizacao": "2026-11-16 12:10:00.0",
+      "Chuva_Adotada": "1.25",
+      "Cota_Adotada": "781.00",
+      "Cota_Adotada_Status": "1",
+      "Vazao_Adotada": "13225.42",
+      "Vazao_Adotada_Status": "0"
+    }
+  ]
+}

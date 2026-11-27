@@ -1,11 +1,17 @@
 import { useEffect, useRef } from "react";
-import { getRiskLevel } from "../mapData";
+import {
+  chaveLocal,
+  classeSituacao,
+  descreverSituacao,
+} from "../situacaoLocal";
 
 export default function SavedPlacesCard({
   places,
+  situacoes = {},
   onSave,
   onSelect,
   onRemove,
+  variant = "sidebar",
 }) {
   const listRef = useRef(null);
   const previousPlaceCountRef = useRef(places.length);
@@ -16,17 +22,25 @@ export default function SavedPlacesCard({
     if (!placeWasAdded) return;
     if (places.length === 0 || !listRef.current) return;
 
-    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    const isMobile =
+      variant !== "panel" && window.matchMedia("(max-width: 767px)").matches;
     listRef.current.scrollTo({
       [isMobile ? "left" : "top"]: isMobile
         ? listRef.current.scrollWidth
         : listRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [places.length]);
+  }, [places.length, variant]);
 
   return (
-    <section className="saved-places-track" aria-labelledby="savedPlacesTitle">
+    <section
+      className={`saved-places-track ${
+        variant === "panel" ? "saved-places-panel" : ""
+      }`}
+      aria-labelledby={
+        variant === "panel" ? "mobileSavedPlacesTitle" : "savedPlacesTitle"
+      }
+    >
       <div className="saved-places-heading">
         <div className="flex items-center gap-2">
           <i
@@ -34,7 +48,11 @@ export default function SavedPlacesCard({
             aria-hidden="true"
           ></i>
           <h2
-            id="savedPlacesTitle"
+            id={
+              variant === "panel"
+                ? "mobileSavedPlacesTitle"
+                : "savedPlacesTitle"
+            }
             className="text-[13px] font-bold uppercase tracking-wider text-slate-700"
           >
             Meus Locais Salvos
@@ -54,11 +72,7 @@ export default function SavedPlacesCard({
         className="saved-locations-list location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
       >
         {places.map((place, index) => {
-          const riskLevel = getRiskLevel(place.center);
-          const riskDescription =
-            riskLevel === "safe"
-              ? "Sem risco simulado"
-              : `Risco ${riskLevel.toLowerCase()}`;
+          const situacao = situacoes[chaveLocal(place)];
 
           return (
             <div
@@ -77,9 +91,9 @@ export default function SavedPlacesCard({
                   {place.name}
                 </span>
                 <span
-                  className={`saved-place-risk text-[10px] font-medium truncate ${riskLevel === "safe" ? "text-slate-400" : "text-red-500"}`}
+                  className={`saved-place-risk situacao-${classeSituacao(situacao)} text-[10px] font-medium truncate`}
                 >
-                  {riskDescription}
+                  {descreverSituacao(situacao)}
                 </span>
               </button>
               <button

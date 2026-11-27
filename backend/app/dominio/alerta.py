@@ -1,8 +1,8 @@
 """Regras de alerta e alertas (docs/diagramas-de-classe-ana.md, seção 4).
 
 A ANA não fornece cotas de alerta nem severidade: isso é regra do TaPoo, configurada
-por estação. Cada regra é uma estratégia (padrão Strategy) que lê uma série temporal
-e devolve uma `Severidade`; o `AvaliadorAlertas` combina as regras.
+por estação. Cada regra é uma estratégia (padrão Strategy) que avalia evidências
+coletadas e devolve uma `Severidade`; o `AvaliadorAlertas` combina as regras.
 """
 
 from abc import ABC, abstractmethod
@@ -11,12 +11,41 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoRegraAlerta
 from app.dominio.erros import DadoInvalido
-from app.dominio.medicao import Medicao, SerieTemporal
-from app.dominio.tempo import exigir_utc
+from app.dominio.geografia import Coordenada
+from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
+from app.dominio.tempo import agora_utc, exigir_utc
 
 _ROTULO_ATENCAO = "atenção"
+
+
+@dataclass(frozen=True, slots=True)
+class ContextoAvaliacao:
+    """Dados já coletados que as regras usam para avaliar uma estação."""
+
+    series: Mapping[Grandeza, SerieTemporal]
+    agora: datetime
+    previsoes_chuva: tuple[PrevisaoChuva, ...] | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "agora", exigir_utc(self.agora, "agora"))
+        if self.previsoes_chuva is not None:
+            object.__setattr__(self, "previsoes_chuva", tuple(self.previsoes_chuva))
+
+
+@dataclass(frozen=True, slots=True)
+class LimitesClassificacao:
+    """Limites de severidade que podem ser apresentados ao usuário."""
+
+    grandeza: Grandeza
+    tipo: TipoRegraAlerta
+    descricao: str
+    unidade: str
+    atencao: float
+    alerta: float
+    emergencia: float
+    janela_horas: float | None = None
 
 
 class RegraAlerta(ABC):
@@ -28,13 +57,41 @@ class RegraAlerta(ABC):
     @property
     @abstractmethod
     def grandeza(self) -> Grandeza:
-        """Grandeza da série que a regra precisa ler."""
+        """Grandeza associada à regra."""
+
+    @property
+    def usa_serie(self) -> bool:
+        """Se a regra também precisa de uma série observada da estação."""
+        return True
 
     @abstractmethod
-    def avaliar(self, serie: SerieTemporal) -> Severidade: ...
+    def avaliar(self, entrada: SerieTemporal | ContextoAvaliacao) -> Severidade: ...
 
     @abstractmethod
-    def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str: ...
+    def descrever(
+        self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao
+    ) -> str: ...
+
+    @abstractmethod
+    def limites(self) -> LimitesClassificacao:
+        """Expõe os limites configurados sem acoplar a API à regra concreta."""
+
+    def possui_dados(self, entrada: SerieTemporal | ContextoAvaliacao) -> bool:
+        if isinstance(entrada, ContextoAvaliacao) and self.grandeza not in entrada.series:
+            return False
+        return not self._serie(entrada).vazia()
+
+    def medicao_gatilho(self, entrada: SerieTemporal | ContextoAvaliacao) -> Medicao | None:
+        return self._serie(entrada).ultimo()
+
+    def _serie(self, entrada: SerieTemporal | ContextoAvaliacao) -> SerieTemporal:
+        serie = (
+            entrada.series.get(self.grandeza) if isinstance(entrada, ContextoAvaliacao) else entrada
+        )
+        if serie is None:
+            raise DadoInvalido(f"série de {self.grandeza} ausente")
+        self._validar_serie(serie)
+        return serie
 
     def _validar_serie(self, serie: SerieTemporal) -> None:
         if serie.codigo_estacao != self.codigo_estacao or serie.grandeza != self.grandeza:
@@ -78,8 +135,8 @@ class RegraCotaReferencia(RegraAlerta):
     def grandeza(self) -> Grandeza:
         return Grandeza.NIVEL
 
-    def avaliar(self, serie: SerieTemporal) -> Severidade:
-        self._validar_serie(serie)
+    def avaliar(self, entrada: SerieTemporal | ContextoAvaliacao) -> Severidade:
+        serie = self._serie(entrada)
         ultimo = serie.ultimo()
         if ultimo is None:
             return Severidade.NORMAL
@@ -92,7 +149,19 @@ class RegraCotaReferencia(RegraAlerta):
             ],
         )
 
-    def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.COTA,
+            descricao="Cotas de referência do nível do rio",
+            unidade="cm",
+            atencao=self.cota_atencao_cm,
+            alerta=self.cota_alerta_cm,
+            emergencia=self.cota_inundacao_cm,
+        )
+
+    def descrever(self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao) -> str:
+        serie = self._serie(entrada)
         ultimo = serie.ultimo()
         if ultimo is None:
             return "Nível do rio sem leitura"
@@ -141,8 +210,8 @@ class RegraChuvaAcumulada(RegraAlerta):
     def grandeza(self) -> Grandeza:
         return Grandeza.CHUVA
 
-    def avaliar(self, serie: SerieTemporal) -> Severidade:
-        self._validar_serie(serie)
+    def avaliar(self, entrada: SerieTemporal | ContextoAvaliacao) -> Severidade:
+        serie = self._serie(entrada)
         return _classificar(
             serie.acumulado(self.janela),
             [
@@ -152,7 +221,20 @@ class RegraChuvaAcumulada(RegraAlerta):
             ],
         )
 
-    def descrever(self, severidade: Severidade, serie: SerieTemporal) -> str:
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_ACUMULADA,
+            descricao="Limites de chuva acumulada",
+            unidade="mm",
+            atencao=self.limite_moderado_mm,
+            alerta=self.limite_alto_mm,
+            emergencia=self.limite_extremo_mm,
+            janela_horas=self.janela.total_seconds() / 3600,
+        )
+
+    def descrever(self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao) -> str:
+        serie = self._serie(entrada)
         horas = self.janela.total_seconds() / 3600
         limites = {
             Severidade.NORMAL: (_ROTULO_ATENCAO, self.limite_moderado_mm),
@@ -164,6 +246,87 @@ class RegraChuvaAcumulada(RegraAlerta):
         return (
             f"Chuva acumulada de {serie.acumulado(self.janela):.1f} mm em {horas:.0f} h "
             f"(limite de {nome_limite}: {valor_limite:.1f} mm)"
+        )
+
+
+class RegraChuvaPrevisao(RegraAlerta):
+    """Compara a chuva prevista na janela com limiares moderado, alto e extremo."""
+
+    def __init__(
+        self,
+        codigo_estacao: int,
+        coordenada: Coordenada,
+        janela: timedelta,
+        limite_moderado_mm: float,
+        limite_alto_mm: float,
+        limite_extremo_mm: float,
+        *,
+        id: int | None = None,
+        ativa: bool = True,
+    ) -> None:
+        super().__init__(codigo_estacao, id=id, ativa=ativa)
+        if janela <= timedelta(0):
+            raise DadoInvalido("janela precisa ser positiva")
+        _validar_crescente(limite_moderado_mm, limite_alto_mm, limite_extremo_mm)
+        self.coordenada = coordenada
+        self.janela = janela
+        self.limite_moderado_mm = limite_moderado_mm
+        self.limite_alto_mm = limite_alto_mm
+        self.limite_extremo_mm = limite_extremo_mm
+
+    @property
+    def grandeza(self) -> Grandeza:
+        return Grandeza.CHUVA
+
+    @property
+    def usa_serie(self) -> bool:
+        return False
+
+    def possui_dados(self, entrada: SerieTemporal | ContextoAvaliacao) -> bool:
+        return isinstance(entrada, ContextoAvaliacao) and bool(entrada.previsoes_chuva)
+
+    def avaliar(self, entrada: SerieTemporal | ContextoAvaliacao) -> Severidade:
+        contexto = self._contexto(entrada)
+        return _classificar(
+            self._chuva_prevista(contexto),
+            [
+                (self.limite_moderado_mm, Severidade.ATENCAO),
+                (self.limite_alto_mm, Severidade.ALERTA),
+                (self.limite_extremo_mm, Severidade.EMERGENCIA),
+            ],
+        )
+
+    def descrever(self, severidade: Severidade, entrada: SerieTemporal | ContextoAvaliacao) -> str:
+        contexto = self._contexto(entrada)
+        horas = self.janela.total_seconds() / 3600
+        return f"Chuva prevista de {self._chuva_prevista(contexto):.1f} mm em {horas:.0f} h"
+
+    def limites(self) -> LimitesClassificacao:
+        return LimitesClassificacao(
+            grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_PREVISTA,
+            descricao="Limites de chuva prevista",
+            unidade="mm",
+            atencao=self.limite_moderado_mm,
+            alerta=self.limite_alto_mm,
+            emergencia=self.limite_extremo_mm,
+            janela_horas=self.janela.total_seconds() / 3600,
+        )
+
+    def medicao_gatilho(self, entrada: SerieTemporal | ContextoAvaliacao) -> Medicao | None:
+        return None
+
+    def _contexto(self, entrada: SerieTemporal | ContextoAvaliacao) -> ContextoAvaliacao:
+        if not isinstance(entrada, ContextoAvaliacao):
+            raise DadoInvalido("RegraChuvaPrevisao exige um ContextoAvaliacao")
+        return entrada
+
+    def _chuva_prevista(self, contexto: ContextoAvaliacao) -> float:
+        fim = contexto.agora + self.janela
+        return sum(
+            previsao.chuva_mm
+            for previsao in contexto.previsoes_chuva or ()
+            if contexto.agora <= previsao.data_hora_utc <= fim
         )
 
 
@@ -278,9 +441,10 @@ class AvaliadorAlertas:
         series: Mapping[Grandeza, SerieTemporal],
         ativo: Alerta | None,
         agora: datetime,
+        previsoes_chuva: Sequence[PrevisaoChuva] | None = None,
     ) -> Alerta | None:
         """Devolve o alerta criado/alterado/encerrado, ou None se nada mudou."""
-        resultado = self.avaliar_regras(series)
+        resultado = self.avaliar_regras(series, previsoes_chuva, agora)
         severidade = resultado.severidade
 
         if severidade is Severidade.NORMAL:
@@ -319,21 +483,30 @@ class AvaliadorAlertas:
             return ativo
         return None
 
-    def avaliar_regras(self, series: Mapping[Grandeza, SerieTemporal]) -> AvaliacaoDeSituacao:
+    def avaliar_regras(
+        self,
+        series: Mapping[Grandeza, SerieTemporal],
+        previsoes_chuva: Sequence[PrevisaoChuva] | None = None,
+        agora: datetime | None = None,
+    ) -> AvaliacaoDeSituacao:
         """Avalia regras ativas e devolve os fatores que contribuem para a situação."""
+        contexto = ContextoAvaliacao(
+            series,
+            agora or agora_utc(),
+            tuple(previsoes_chuva) if previsoes_chuva is not None else None,
+        )
         fatores = []
         for regra in self.regras:
-            serie = series.get(regra.grandeza)
-            if serie is None or serie.vazia():
+            if not regra.possui_dados(contexto):
                 continue
-            severidade = regra.avaliar(serie)
+            severidade = regra.avaliar(contexto)
             if severidade > Severidade.NORMAL:
                 fatores.append(
                     FatorAvaliacao(
-                        regra.descrever(severidade, serie),
+                        regra.descrever(severidade, contexto),
                         severidade,
                         regra.codigo_estacao,
-                        serie.ultimo(),
+                        regra.medicao_gatilho(contexto),
                     )
                 )
         return AvaliacaoDeSituacao(tuple(fatores))

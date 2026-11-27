@@ -11,14 +11,21 @@ from datetime import datetime
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.alerta import Alerta, RegraAlerta
-from app.dominio.enums import Grandeza
+from app.dominio.enums import Grandeza, OrigemDados
 from app.dominio.estacao import Estacao
-from app.dominio.medicao import Medicao, SerieTemporal
+from app.dominio.geografia import Coordenada
+from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
+from app.dominio.normal_climatologica import NormalClimatologica
 from app.dominio.periodo import Periodo
 
 
 class FonteDadosHidrologicos(ABC):
     carregar_na_inicializacao = True
+
+    @property
+    def origem_dados(self) -> OrigemDados:
+        """Identifica se a implementação entrega dados reais ou simulados."""
+        return OrigemDados.REAL
 
     @abstractmethod
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]: ...
@@ -45,6 +52,14 @@ class EstacaoRepositorio(ABC):
     @abstractmethod
     def monitoradas(self) -> list[Estacao]:
         """Estações operando e telemétricas, cujas medições são coletadas."""
+
+
+class FonteDePrevisao(ABC):
+    """Fonte de previsão de chuva por coordenada (a porta externa, Open-Meteo)."""
+
+    @abstractmethod
+    def buscar_previsao(self, coordenada: Coordenada) -> list[PrevisaoChuva]:
+        """Previsão de chuva por hora, em ordem cronológica."""
 
 
 class MedicaoRepositorio(ABC):
@@ -77,3 +92,10 @@ class AlertaRepositorio(ABC):
 class RegraRepositorio(ABC):
     @abstractmethod
     def da_estacao(self, codigo: int) -> list[RegraAlerta]: ...
+
+
+class NormaisClimatologicas(ABC):
+    """Base de referência de chuva esperada por mês (ex.: normais do INMET)."""
+
+    @abstractmethod
+    def todas(self) -> list[NormalClimatologica]: ...

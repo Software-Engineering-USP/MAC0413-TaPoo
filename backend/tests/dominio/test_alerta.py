@@ -6,13 +6,16 @@ from app.dominio.alerta import (
     Alerta,
     AvaliacaoDeSituacao,
     AvaliadorAlertas,
+    ContextoAvaliacao,
     FatorAvaliacao,
     RegraChuvaAcumulada,
+    RegraChuvaPrevisao,
     RegraCotaReferencia,
 )
 from app.dominio.enums import Grandeza, Severidade, StatusAlerta
 from app.dominio.erros import DadoInvalido
-from app.dominio.medicao import MedicaoChuva, MedicaoNivel, SerieTemporal
+from app.dominio.geografia import Coordenada
+from app.dominio.medicao import MedicaoChuva, MedicaoNivel, PrevisaoChuva, SerieTemporal
 
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 COD = 100
@@ -272,3 +275,18 @@ def test_avaliador_encerra_quando_normaliza() -> None:
 def test_avaliador_ignora_regras_inativas() -> None:
     inativa = RegraCotaReferencia(COD, 1, 2, 3, ativa=False)
     assert AvaliadorAlertas([inativa]).avaliar({Grandeza.NIVEL: serie_nivel(10)}, None, T0) is None
+
+
+def test_regra_chuva_previsao_usa_proximas_24_h_sem_serie_observada() -> None:
+    regra = RegraChuvaPrevisao(COD, Coordenada(-23, -46), timedelta(hours=24), 30, 60, 90)
+    previsoes = [PrevisaoChuva(T0 - timedelta(hours=1), 1000)] + [
+        PrevisaoChuva(T0 + timedelta(hours=i), 50 if i < 24 else 0) for i in range(168)
+    ]
+
+    alerta = AvaliadorAlertas([regra]).avaliar({}, None, T0, previsoes)
+    contexto = ContextoAvaliacao({}, T0, tuple(previsoes))
+
+    assert alerta is not None
+    assert alerta.severidade is Severidade.EMERGENCIA
+    assert alerta.medicao_gatilho is None
+    assert regra.descrever(alerta.severidade, contexto) == "Chuva prevista de 1200.0 mm em 24 h"

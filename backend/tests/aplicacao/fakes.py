@@ -30,7 +30,9 @@ class FonteStub(FonteDadosHidrologicos):
     def buscar_estacao(self, codigo: int) -> Estacao | None:
         return next((estacao for estacao in self.estacoes if estacao.codigo == codigo), None)
 
-    def buscar_medicoes(self, codigo, periodo, alteradas_desde=None) -> list[Medicao]:
+    def buscar_medicoes(
+        self, codigo: int, periodo: Periodo, alteradas_desde: datetime | None = None
+    ) -> list[Medicao]:
         self.chamadas.append((codigo, periodo, alteradas_desde))
         return [
             m
