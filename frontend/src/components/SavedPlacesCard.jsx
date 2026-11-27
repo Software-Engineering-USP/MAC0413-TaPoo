@@ -1,8 +1,13 @@
 import { useEffect, useRef } from "react";
-import { getRiskLevel } from "../mapData";
+import {
+  chaveLocal,
+  classeSituacao,
+  descreverSituacao,
+} from "../situacaoLocal";
 
 export default function SavedPlacesCard({
   places,
+  situacoes = {},
   onSave,
   onSelect,
   onRemove,
@@ -67,11 +72,7 @@ export default function SavedPlacesCard({
         className="saved-locations-list location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
       >
         {places.map((place, index) => {
-          const riskLevel = getRiskLevel(place.center);
-          const riskDescription =
-            riskLevel === "safe"
-              ? "Sem risco simulado"
-              : `Risco ${riskLevel.toLowerCase()}`;
+          const situacao = situacoes[chaveLocal(place)];
 
           return (
             <div
@@ -90,9 +91,9 @@ export default function SavedPlacesCard({
                   {place.name}
                 </span>
                 <span
-                  className={`saved-place-risk text-[10px] font-medium truncate ${riskLevel === "safe" ? "text-slate-400" : "text-red-500"}`}
+                  className={`saved-place-risk situacao-${classeSituacao(situacao)} text-[10px] font-medium truncate`}
                 >
-                  {riskDescription}
+                  {descreverSituacao(situacao)}
                 </span>
               </button>
               <button

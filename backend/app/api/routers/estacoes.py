@@ -9,6 +9,7 @@ from app.api.schemas import (
     ChuvaMensalOut,
     EstacaoOut,
     EstacaoProximaOut,
+    LimiteEstacaoOut,
     SerieOut,
 )
 from app.aplicacao.filtros import FiltroEstacoes
@@ -95,6 +96,15 @@ def chuva_do_mes(codigo: int, chuva: ChuvaDoMes, sincronizar: Sincronizar) -> Ch
     """Chuva acumulada no mês corrente comparada à normal do INMET mais próxima."""
     sincronizar.garantir(codigo)
     return ChuvaMensalOut.de(chuva.executar(codigo))
+
+
+@router.get("/{codigo}/limites")
+def limites_da_estacao(
+    codigo: int, consulta: Consulta, sincronizar: Sincronizar
+) -> list[LimiteEstacaoOut]:
+    """Limites cadastrados para avaliar a estação; lista vazia significa sem regra."""
+    sincronizar.garantir(codigo)
+    return [LimiteEstacaoOut.de(regra.limites()) for regra in consulta.regras_estacao(codigo)]
 
 
 @router.get("/{codigo}/alertas")

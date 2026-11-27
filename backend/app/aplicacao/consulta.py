@@ -2,8 +2,13 @@ from collections.abc import Iterable
 
 from app.aplicacao.erros import EstacaoNaoEncontrada, MunicipioNaoEncontrado
 from app.aplicacao.filtros import FiltroEstacoes
-from app.aplicacao.portas import AlertaRepositorio, EstacaoRepositorio, MedicaoRepositorio
-from app.dominio.alerta import Alerta
+from app.aplicacao.portas import (
+    AlertaRepositorio,
+    EstacaoRepositorio,
+    MedicaoRepositorio,
+    RegraRepositorio,
+)
+from app.dominio.alerta import Alerta, RegraAlerta
 from app.dominio.enums import Grandeza
 from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
@@ -21,10 +26,12 @@ class ConsultarDados:
         estacoes: EstacaoRepositorio,
         medicoes: MedicaoRepositorio,
         alertas: AlertaRepositorio,
+        regras: RegraRepositorio | None = None,
     ) -> None:
         self._estacoes = estacoes
         self._medicoes = medicoes
         self._alertas = alertas
+        self._regras = regras
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[SituacaoEstacao]:
         """Estações que atendem ao filtro, cada uma com a sua situação atual."""
@@ -46,9 +53,7 @@ class ConsultarDados:
         if not estacoes:
             raise MunicipioNaoEncontrado(uf, municipio)
         # Usa a grafia cadastrada, não a digitada pelo usuário.
-        return SituacaoMunicipio(
-            estacoes[0].uf, estacoes[0].municipio, tuple(self._com_situacao(estacoes))
-        )
+        return SituacaoMunicipio(estacoes[0].municipio, tuple(self._com_situacao(estacoes)))
 
     def estacoes_proximas(
         self, centro: Coordenada, raio_km: float
@@ -73,6 +78,13 @@ class ConsultarDados:
 
     def alertas_ativos(self) -> list[Alerta]:
         return sorted(self._alertas.ativos(), key=lambda a: a.severidade, reverse=True)
+
+    def regras_estacao(self, codigo: int) -> list[RegraAlerta]:
+        """Regras de classificação cadastradas para a estação, se houver."""
+        self.estacao(codigo)
+        if self._regras is None:
+            return []
+        return [regra for regra in self._regras.da_estacao(codigo) if regra.ativa]
 
     def historico_alertas(self, codigo: int, limite: int | None = None) -> list[Alerta]:
         """Alertas ativos e encerrados da estação, do mais recente para o mais antigo."""

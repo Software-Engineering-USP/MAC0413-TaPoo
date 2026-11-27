@@ -11,7 +11,7 @@ from datetime import datetime
 
 from app.aplicacao.filtros import FiltroEstacoes
 from app.dominio.alerta import Alerta, RegraAlerta
-from app.dominio.enums import Grandeza
+from app.dominio.enums import Grandeza, OrigemDados
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
@@ -21,6 +21,11 @@ from app.dominio.periodo import Periodo
 
 class FonteDadosHidrologicos(ABC):
     carregar_na_inicializacao = True
+
+    @property
+    def origem_dados(self) -> OrigemDados:
+        """Identifica se a implementação entrega dados reais ou simulados."""
+        return OrigemDados.REAL
 
     @abstractmethod
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]: ...
