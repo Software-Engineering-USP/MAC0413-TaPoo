@@ -1,0 +1,12 @@
+[
+  {
+    "grandeza": "NIVEL",
+    "tipo": "COTA",
+    "descricao": "Cotas de referência do nível do rio",
+    "unidade": "cm",
+    "janela_horas": null,
+    "atencao": 300.0,
+    "alerta": 400.0,
+    "emergencia": 500.0
+  }
+]

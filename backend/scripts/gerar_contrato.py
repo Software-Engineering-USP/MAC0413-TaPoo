@@ -66,6 +66,21 @@ EXEMPLOS = (
         "/estacoes/90000004/medicoes?grandeza=CHUVA",
         "Série de chuva das últimas 24 h.",
     ),
+    Exemplo(
+        "chuva-mensal.json",
+        "/estacoes/90000004/chuva-mensal",
+        "Chuva do mês corrente comparada à normal do INMET mais próxima.",
+    ),
+    Exemplo(
+        "limites-cota.json",
+        "/estacoes/90000001/limites",
+        "Limites de uma estação fluviométrica (cotas de referência).",
+    ),
+    Exemplo(
+        "limites-chuva.json",
+        "/estacoes/90000004/limites",
+        "Limites de uma estação pluviométrica (chuva acumulada e previsão).",
+    ),
     Exemplo("alertas.json", "/alertas", "Alertas ativos, do mais grave para o menos grave."),
     Exemplo(
         "alertas-estacao.json",
@@ -77,6 +92,7 @@ EXEMPLOS = (
         "/municipios/RJ/Petr%C3%B3polis/situacao",
         "Situação de um município: a pior entre as suas estações.",
     ),
+    Exemplo("metadados.json", "/metadados", "Origem dos dados servidos pela API."),
     Exemplo("erro-404.json", "/estacoes/1", "Recurso inexistente.", status=404),
     Exemplo(
         "erro-422.json",
