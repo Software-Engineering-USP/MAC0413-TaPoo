@@ -33,6 +33,17 @@ class OrigemDado(StrEnum):
     SATELITE = "SATELITE"
 
 
+class OrigemDados(StrEnum):
+    REAL = "real"
+    SIMULADO = "simulado"
+
+
+class TipoRegraAlerta(StrEnum):
+    COTA = "COTA"
+    CHUVA_ACUMULADA = "CHUVA_ACUMULADA"
+    CHUVA_PREVISTA = "CHUVA_PREVISTA"
+
+
 class NivelConsistencia(StrEnum):
     BRUTO = "BRUTO"
     CONSISTIDO = "CONSISTIDO"

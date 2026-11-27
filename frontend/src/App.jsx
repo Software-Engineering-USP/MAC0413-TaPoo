@@ -29,7 +29,8 @@ export default function App() {
   const navigate = useNavigate();
   const isInfoSheetOpen = location.pathname === "/informacoes";
   const isLocationsOpen = location.pathname === "/locais";
-  const isSheetOpen = isInfoSheetOpen || isLocationsOpen;
+  const isStationOpen = location.pathname.startsWith("/estacoes/");
+  const isSheetOpen = isInfoSheetOpen || isLocationsOpen || isStationOpen;
 
   useEffect(() => {
     try {
@@ -229,6 +230,7 @@ export default function App() {
         <Outlet
           context={{
             onCloseInfoSheet: closeInfoSheet,
+            onOpenStation: (codigo) => navigate(`/estacoes/${codigo}`),
             savedPlaces,
             onSavePlace: saveCurrentPlace,
             onSelectSavedPlace: selectSavedPlace,
@@ -245,6 +247,7 @@ export default function App() {
         onSearchChange={updateSearchQuery}
         onSearch={searchSavedPlaces}
         onMyLocation={showDefaultLocation}
+        onOpenStation={(codigo) => navigate(`/estacoes/${codigo}`)}
       />
       <MobileNavigation
         isInfoSheetOpen={isInfoSheetOpen}

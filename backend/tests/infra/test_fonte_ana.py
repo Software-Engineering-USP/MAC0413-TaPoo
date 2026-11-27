@@ -215,6 +215,30 @@ def test_busca_medicoes_com_periodo_maior_que_30_dias_faz_varias_consultas(monke
     assert sum(not chamada.full_url.endswith("/OAUth/v1") for chamada in chamadas) == 2
 
 
+def test_busca_medicoes_em_30_dias_cobre_o_periodo_sem_lacunas(monkeypatch) -> None:
+    chamadas = []
+
+    def abrir(requisicao, timeout):
+        chamadas.append(requisicao)
+        if requisicao.full_url.endswith("/OAUth/v1"):
+            return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
+        return RespostaFake({"status": "OK", "items": []})
+
+    monkeypatch.setattr(ana, "urlopen", abrir)
+    periodo = Periodo(datetime(2026, 1, 1, tzinfo=UTC), datetime(2026, 1, 31, tzinfo=UTC))
+
+    assert FonteAna("id", "senha").buscar_medicoes(15400000, periodo) == []
+    consultas = [chamada for chamada in chamadas if not chamada.full_url.endswith("/OAUth/v1")]
+    assert len(consultas) == 2
+    consultas_por_data = {
+        parse_qs(urlparse(chamada.full_url).query)["Data de Busca (yyyy-MM-dd)"][0]: parse_qs(
+            urlparse(chamada.full_url).query
+        )["Range Intervalo de busca"][0]
+        for chamada in consultas
+    }
+    assert consultas_por_data == {"2026-01-30": "DIAS_30", "2025-12-31": "HORA_24"}
+
+
 @pytest.mark.parametrize("falha", ["timeout", "rede", "json", "utf8", "http", "status"])
 def test_consulta_ana_converte_falhas_em_erro_da_fonte(monkeypatch, falha) -> None:
     def abrir(requisicao, timeout):

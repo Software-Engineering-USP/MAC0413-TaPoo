@@ -165,11 +165,18 @@ class FonteAna(FonteDadosHidrologicos):
         medicoes: dict[tuple[int, str, datetime], Medicao] = {}
         cursor = periodo.fim
         while cursor >= periodo.inicio:
-            inicio_janela = max(periodo.inicio, cursor - timedelta(days=29))
             data_fim_ana = cursor.astimezone(_FUSO_ANA).date()
-            data_inicio_ana = inicio_janela.astimezone(_FUSO_ANA).date()
-            dias = max(1, (data_fim_ana - data_inicio_ana).days + 1)
-            range_busca = self._range_api(dias)
+            data_inicio_periodo = periodo.inicio.astimezone(_FUSO_ANA).date()
+            dias_necessarios = max(1, (data_fim_ana - data_inicio_periodo).days + 1)
+            range_busca = self._range_api(dias_necessarios)
+            dias_cobertos = self._dias_cobertos_range(range_busca)
+            data_inicio_janela = data_fim_ana - timedelta(days=dias_cobertos - 1)
+            inicio_janela = max(
+                periodo.inicio,
+                datetime.combine(
+                    data_inicio_janela, datetime.min.time(), tzinfo=_FUSO_ANA
+                ).astimezone(UTC),
+            )
             resposta = self._get(
                 "HidroinfoanaSerieTelemetricaAdotada/v1",
                 {
@@ -390,3 +397,7 @@ class FonteAna(FonteDadosHidrologicos):
         opcoes = (1, 2, 7, 14, 21, 30)
         dias_escolhidos = next((opcao for opcao in opcoes if opcao >= dias), 30)
         return "HORA_24" if dias_escolhidos == 1 else f"DIAS_{dias_escolhidos}"
+
+    @staticmethod
+    def _dias_cobertos_range(range_busca: str) -> int:
+        return 1 if range_busca == "HORA_24" else int(range_busca.removeprefix("DIAS_"))

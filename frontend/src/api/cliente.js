@@ -1,6 +1,8 @@
 import {
   mockGetMunicipalitySituation,
   mockGetStation,
+  mockGetStationLimits,
+  mockGetMetadata,
   mockHealth,
   mockListActiveAlerts,
   mockListNearbyStations,
@@ -69,6 +71,13 @@ export function verificarSaude({ signal } = {}) {
   return usaApiReal ? getJson("/health", { signal }) : mockHealth({ signal });
 }
 
+/** GET /metadados */
+export function obterMetadados({ signal } = {}) {
+  return usaApiReal
+    ? getJson("/metadados", { signal })
+    : mockGetMetadata({ signal });
+}
+
 /** GET /estacoes */
 export function listarEstacoes({
   texto,
@@ -110,6 +119,14 @@ export function obterEstacao(codigo, { signal } = {}) {
   return usaApiReal
     ? getJson(path, { signal })
     : mockGetStation(codigo, { signal });
+}
+
+/** GET /estacoes/{codigo}/limites */
+export function obterLimitesEstacao(codigo, { signal } = {}) {
+  const path = `/estacoes/${encodeURIComponent(codigo)}/limites`;
+  return usaApiReal
+    ? getJson(path, { signal })
+    : mockGetStationLimits(codigo, { signal });
 }
 
 /** GET /estacoes/{codigo}/medicoes */
