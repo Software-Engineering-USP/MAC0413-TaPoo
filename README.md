@@ -178,8 +178,25 @@ in `America/Sao_Paulo` before converting them to UTC.
 | GET | `/estacoes/{codigo}` | One station (404 if missing) |
 | GET | `/estacoes/{codigo}/alertas?limite=50` | Alert history of one station (active and closed), newest first |
 | GET | `/estacoes/{codigo}/medicoes?grandeza=NIVEL&inicio=&fim=` | Time series (default: last 24 h, max 31 days, ISO 8601 with timezone) |
+| GET | `/estacoes/{codigo}/chuva-mensal` | Rain accumulated in the current month (Brasília calendar) compared to the 1991–2020 INMET climatological normal of the nearest INMET station: `percentual` and `classificacao` (`ABAIXO` < 80%, `NORMAL` 80–120%, `ACIMA` > 120%). 400 if the station does not measure rain |
 | GET | `/alertas` | Active alerts, most severe first |
 | GET | `/municipios/{uf}/{nome}/situacao` | Worst severity among the municipality's stations (name matched ignoring accents and case; 404 if none) |
+
+### Climatological normals (INMET)
+
+`backend/app/infra/normais/dados/inmet-1991-2020-precipitacao.json` holds the monthly
+precipitation normals of 221 INMET stations, taken from the official spreadsheets at
+<https://portal.inmet.gov.br/normais> (`Normal-Climatologica-PREC.xlsx` and
+`Normal-Climatologica-ESTAÇÕES.xlsx`). To regenerate it:
+
+```bash
+cd backend
+uv run --with openpyxl python -m scripts.importar_normais_inmet PREC.xlsx ESTACOES.xlsx
+```
+
+The month in progress is compared with the full-month normal, so early in the month the
+classification tends to be `ABAIXO`; the comparison only uses rain readings the API
+could collect for the month.
 
 ## SonarQube
 
