@@ -4,6 +4,7 @@ import SavedPlacesCard from "../components/SavedPlacesCard";
 export default function SavedPlacesRoute() {
   const {
     savedPlaces,
+    situacoes,
     onSavePlace,
     onSelectSavedPlace,
     onRequestRemovePlace,
@@ -29,6 +30,7 @@ export default function SavedPlacesRoute() {
       <SavedPlacesCard
         variant="panel"
         places={savedPlaces}
+        situacoes={situacoes}
         onSave={onSavePlace}
         onSelect={onSelectSavedPlace}
         onRemove={onRequestRemovePlace}

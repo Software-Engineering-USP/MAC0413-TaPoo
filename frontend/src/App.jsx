@@ -8,6 +8,7 @@ import {
 import MapView from "./components/MapView";
 import MobileNavigation from "./components/MobileNavigation";
 import Sidebar from "./components/Sidebar";
+import useSituacaoLocais from "./hooks/useSituacaoLocais";
 import { defaultSavedPlaces, loadSavedPlaces } from "./mapData";
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
   const [placeToRemove, setPlaceToRemove] = useState(null);
   const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
   const [searchQuery, setSearchQuery] = useState("");
+  const situacoes = useSituacaoLocais(savedPlaces);
   const location = useLocation();
   const navigate = useNavigate();
   const isInfoSheetOpen = location.pathname === "/informacoes";
@@ -220,6 +222,7 @@ export default function App() {
       <Sidebar
         onOpenAbout={() => setAboutDialogOpen(true)}
         savedPlaces={savedPlaces}
+        situacoes={situacoes}
         onSavePlace={saveCurrentPlace}
         onSelectPlace={(place) =>
           mapRef.current?.flyTo(place.center, place.zoom)
@@ -230,6 +233,7 @@ export default function App() {
           context={{
             onCloseInfoSheet: closeInfoSheet,
             savedPlaces,
+            situacoes,
             onSavePlace: saveCurrentPlace,
             onSelectSavedPlace: selectSavedPlace,
             onRequestRemovePlace: setPlaceToRemove,
@@ -240,6 +244,7 @@ export default function App() {
         mapRef={mapRef}
         mapViewRef={mapViewRef}
         savedPlaces={savedPlaces}
+        situacoes={situacoes}
         searchInputRef={searchInputRef}
         searchQuery={searchQuery}
         onSearchChange={updateSearchQuery}
