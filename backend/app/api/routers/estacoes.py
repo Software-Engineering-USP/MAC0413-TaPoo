@@ -3,9 +3,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
-from app.api.dependencias import Coletar, Consulta, Relogio, Sincronizar
+from app.api.dependencias import ChuvaDoMes, Coletar, Consulta, Relogio, Sincronizar
 from app.api.schemas import (
     AlertaOut,
+    ChuvaMensalOut,
     EstacaoOut,
     EstacaoProximaOut,
     LimiteEstacaoOut,
@@ -88,6 +89,13 @@ def serie_da_estacao(
     sincronizar.garantir(codigo)
     coletar.executar_periodo(codigo, periodo)
     return SerieOut.de(consulta.serie(codigo, grandeza, periodo), periodo)
+
+
+@router.get("/{codigo}/chuva-mensal")
+def chuva_do_mes(codigo: int, chuva: ChuvaDoMes, sincronizar: Sincronizar) -> ChuvaMensalOut:
+    """Chuva acumulada no mês corrente comparada à normal do INMET mais próxima."""
+    sincronizar.garantir(codigo)
+    return ChuvaMensalOut.de(chuva.executar(codigo))
 
 
 @router.get("/{codigo}/limites")

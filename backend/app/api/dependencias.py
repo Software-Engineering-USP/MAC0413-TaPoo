@@ -12,6 +12,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
+from app.aplicacao.chuva_mensal import CompararChuvaComNormal
 from app.aplicacao.coleta import ColetarMedicoes
 from app.aplicacao.consulta import ConsultarDados
 from app.aplicacao.monitoramento import MonitorarEstacoes
@@ -21,6 +22,7 @@ from app.aplicacao.portas import (
     FonteDadosHidrologicos,
     FonteDePrevisao,
     MedicaoRepositorio,
+    NormaisClimatologicas,
     RegraRepositorio,
 )
 from app.aplicacao.sincronizacao import SincronizarEstacoes
@@ -43,6 +45,7 @@ from app.infra.memoria.repositorios import (
     MedicaoRepositorioMemoria,
     RegraRepositorioMemoria,
 )
+from app.infra.normais.inmet import NormaisInmet
 from app.infra.persistencia.repositorios_sql import (
     AlertaRepositorioSql,
     BancoDeDados,
@@ -56,6 +59,7 @@ class Container:
     consulta: ConsultarDados
     sincronizar: SincronizarEstacoes
     coletar: ColetarMedicoes
+    chuva_mensal: CompararChuvaComNormal
     relogio: Callable[[], datetime]
     carregar_na_inicializacao: bool = True
     origem_dados: OrigemDados = OrigemDados.REAL
@@ -118,6 +122,7 @@ def montar_container(
     relogio: Callable[[], datetime] = agora_utc,
     fonte_previsao: FonteDePrevisao | None = None,
     repositorios: Repositorios | None = None,
+    normais: NormaisClimatologicas | None = None,
 ) -> Container:
     if fonte is None:
         fonte = criar_fonte(relogio)
@@ -131,6 +136,13 @@ def montar_container(
         fonte_previsao=fonte_previsao,
         relogio=relogio,
     )
+    coletar = ColetarMedicoes(
+        fonte,
+        repositorios.estacoes,
+        repositorios.medicoes,
+        monitorar,
+        relogio=relogio,
+    )
     return Container(
         consulta=ConsultarDados(
             repositorios.estacoes,
@@ -139,11 +151,12 @@ def montar_container(
             repositorios.regras,
         ),
         sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes, relogio=relogio),
-        coletar=ColetarMedicoes(
-            fonte,
+        coletar=coletar,
+        chuva_mensal=CompararChuvaComNormal(
             repositorios.estacoes,
             repositorios.medicoes,
-            monitorar,
+            normais or NormaisInmet(),
+            coletar,
             relogio=relogio,
         ),
         relogio=relogio,
@@ -188,7 +201,12 @@ def get_sincronizar(request: Request) -> SincronizarEstacoes:
     return _container(request).sincronizar
 
 
+def get_chuva_mensal(request: Request) -> CompararChuvaComNormal:
+    return _container(request).chuva_mensal
+
+
 Consulta = Annotated[ConsultarDados, Depends(get_consulta)]
 Relogio = Annotated[Callable[[], datetime], Depends(get_relogio)]
 Coletar = Annotated[ColetarMedicoes, Depends(get_coletar)]
 Sincronizar = Annotated[SincronizarEstacoes, Depends(get_sincronizar)]
+ChuvaDoMes = Annotated[CompararChuvaComNormal, Depends(get_chuva_mensal)]

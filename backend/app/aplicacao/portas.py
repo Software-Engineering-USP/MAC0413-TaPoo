@@ -15,6 +15,7 @@ from app.dominio.enums import Grandeza, OrigemDados
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
+from app.dominio.normal_climatologica import NormalClimatologica
 from app.dominio.periodo import Periodo
 
 
@@ -91,3 +92,10 @@ class AlertaRepositorio(ABC):
 class RegraRepositorio(ABC):
     @abstractmethod
     def da_estacao(self, codigo: int) -> list[RegraAlerta]: ...
+
+
+class NormaisClimatologicas(ABC):
+    """Base de referência de chuva esperada por mês (ex.: normais do INMET)."""
+
+    @abstractmethod
+    def todas(self) -> list[NormalClimatologica]: ...
