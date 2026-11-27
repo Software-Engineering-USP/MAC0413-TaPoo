@@ -5,7 +5,7 @@ por `FonteAna`, muda só este arquivo.
 """
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Annotated
@@ -33,11 +33,12 @@ from app.configuracao import (
     tipo_repositorio,
     url_banco,
 )
+from app.dominio.alerta import RegraAlerta
 from app.dominio.enums import OrigemDados
 from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
-from app.infra.fontes.fake import FonteFake, regras_de_exemplo
+from app.infra.fontes.fake import FonteFake
 from app.infra.fontes.openmeteo import FonteOpenMeteo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
@@ -94,26 +95,34 @@ def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrol
     return FonteFake(relogio())
 
 
-def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repositorios:
-    """Escolhe repositórios por `REPO=memoria|sql` e `DATABASE_URL` no caso SQL."""
+def criar_repositorios(
+    tipo: str | None = None,
+    url: str | None = None,
+    regras: Iterable[RegraAlerta] = (),
+) -> Repositorios:
+    """Escolhe repositórios por `REPO=memoria|sql` e `DATABASE_URL` no caso SQL.
+
+    `regras` são as regras de alerta iniciais, que vêm da fonte (`regras_iniciais`):
+    as de exemplo só fazem sentido com a fonte simulada.
+    """
     if (tipo or tipo_repositorio()) == "sql":
-        return repositorios_sql(BancoDeDados(url or url_banco()))
+        return repositorios_sql(BancoDeDados(url or url_banco()), regras)
     return Repositorios(
         EstacaoRepositorioMemoria(),
         MedicaoRepositorioMemoria(),
         AlertaRepositorioMemoria(),
-        RegraRepositorioMemoria(regras_de_exemplo()),
+        RegraRepositorioMemoria(regras),
     )
 
 
-def repositorios_sql(banco: BancoDeDados) -> Repositorios:
+def repositorios_sql(banco: BancoDeDados, regras: Iterable[RegraAlerta] = ()) -> Repositorios:
     """Repositórios SQL sobre `banco`, criando as tabelas que ainda não existem."""
     banco.criar_tabelas()
     return Repositorios(
         EstacaoRepositorioSql(banco),
         MedicaoRepositorioSql(banco),
         AlertaRepositorioSql(banco),
-        RegraRepositorioMemoria(regras_de_exemplo()),
+        RegraRepositorioMemoria(regras),
     )
 
 
@@ -128,7 +137,7 @@ def montar_container(
         fonte = criar_fonte(relogio)
         if fonte_previsao is None:
             fonte_previsao = FonteOpenMeteo()
-    repositorios = repositorios or criar_repositorios()
+    repositorios = repositorios or criar_repositorios(regras=fonte.regras_iniciais())
     monitorar = MonitorarEstacoes(
         repositorios.medicoes,
         repositorios.regras,

@@ -27,6 +27,10 @@ class FonteDadosHidrologicos(ABC):
         """Identifica se a implementação entrega dados reais ou simulados."""
         return OrigemDados.REAL
 
+    def regras_iniciais(self) -> list[RegraAlerta]:
+        """Regras de alerta que acompanham a fonte; fontes reais não trazem nenhuma."""
+        return []
+
     @abstractmethod
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]: ...
 
