@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { obterMetadados, usaApiReal } from "../api/cliente";
 import CivilDefenseWarning from "./CivilDefenseWarning";
 import { RAIO_LOCAL_KM } from "../situacaoLocal";
 
@@ -88,7 +89,42 @@ export function ConfirmDialog({ open, message, onConfirm, onClose }) {
   );
 }
 
+const ORIGENS = {
+  real: "Dados reais da ANA.",
+  simulado:
+    "Dados simulados: estações e alertas fictícios, só para demonstração.",
+};
+
+/** Origem dos dados da API (`/metadados`); `null` enquanto não se sabe. */
+function useOrigemDados(open) {
+  const [origem, setOrigem] = useState(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const controller = new AbortController();
+    obterMetadados({ signal: controller.signal })
+      .then((metadados) => {
+        if (!controller.signal.aborted) setOrigem(metadados.origem_dados);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setOrigem("desconhecida");
+      });
+    return () => controller.abort();
+  }, [open]);
+
+  return origem;
+}
+
+function descreverOrigem(origem) {
+  if (!usaApiReal) {
+    return "Modo demonstração: o front está usando dados fictícios embutidos, sem consultar a API.";
+  }
+  if (origem === null) return "Consultando a origem dos dados…";
+  return ORIGENS[origem] || "Não foi possível confirmar a origem dos dados.";
+}
+
 export function AboutDialog({ open, onClose }) {
+  const origem = useOrigemDados(open);
   if (!open) return null;
 
   return (
@@ -125,6 +161,9 @@ export function AboutDialog({ open, onClose }) {
             num raio de {RAIO_LOCAL_KM} km. Os rios desenhados no mapa são só
             referência visual (OpenStreetMap).
           </p>
+          <output className="block rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+            {descreverOrigem(origem)}
+          </output>
         </div>
         <CivilDefenseWarning />
         <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
