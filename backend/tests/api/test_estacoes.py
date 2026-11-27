@@ -256,3 +256,21 @@ def test_busca_com_uf_sincroniza_so_o_estado() -> None:
         corpo = client.get("/estacoes", params={"q": "velhas", "uf": "mg"}).json()
         assert [e["codigo"] for e in corpo] == [90000003]
         assert fonte.listagens == ["mg"]
+
+
+def test_chuva_mensal_compara_com_normal_do_inmet(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000001/chuva-mensal")
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert (corpo["ano"], corpo["mes"]) == (2026, 1)
+    assert corpo["referencia"]["codigo"] == 83781  # São Paulo (Mirante de Santana)
+    assert corpo["referencia"]["fonte"].startswith("INMET")
+    assert corpo["normal_mm"] == 292.1
+    assert corpo["medicoes"] > 0
+    assert corpo["percentual"] == round(corpo["acumulado_mm"] / 292.1 * 100, 1)
+    assert corpo["classificacao"] in {"ABAIXO", "NORMAL", "ACIMA"}
+    assert corpo["classificacao_rotulo"]
+
+
+def test_chuva_mensal_de_estacao_inexistente(client: TestClient) -> None:
+    assert client.get("/estacoes/1/chuva-mensal").status_code == 404

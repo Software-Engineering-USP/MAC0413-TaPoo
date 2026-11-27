@@ -24,6 +24,7 @@ from app.dominio.enums import (
     TipoRegraAlerta,
 )
 from app.dominio.medicao import Medicao, SerieTemporal
+from app.dominio.normal_climatologica import ChuvaMensal, ClassificacaoChuva
 from app.dominio.periodo import Periodo
 from app.dominio.situacao import SituacaoEstacao, SituacaoMunicipio
 
@@ -194,4 +195,53 @@ class SituacaoMunicipioOut(BaseModel):
             severidade=situacao.severidade,
             severidade_rotulo=situacao.severidade.rotulo,
             estacoes=[EstacaoOut.de(s) for s in situacao.estacoes],
+        )
+
+
+class NormalReferenciaOut(BaseModel):
+    """Estação do INMET cuja normal serve de régua para a chuva da estação da ANA."""
+
+    codigo: int
+    nome: str
+    uf: str
+    latitude: float
+    longitude: float
+    distancia_km: float
+    fonte: str = "INMET — Normais Climatológicas 1991–2020"
+
+
+class ChuvaMensalOut(BaseModel):
+    codigo_estacao: int
+    ano: int
+    mes: int
+    acumulado_mm: float
+    medicoes: int
+    normal_mm: float
+    percentual: float | None
+    classificacao: ClassificacaoChuva
+    classificacao_rotulo: str
+    referencia: NormalReferenciaOut
+
+    @classmethod
+    def de(cls, chuva: ChuvaMensal) -> "ChuvaMensalOut":
+        referencia = chuva.referencia
+        percentual = chuva.percentual
+        return cls(
+            codigo_estacao=chuva.codigo_estacao,
+            ano=chuva.ano,
+            mes=chuva.mes,
+            acumulado_mm=round(chuva.acumulado_mm, 1),
+            medicoes=chuva.medicoes,
+            normal_mm=chuva.normal_mm or 0.0,
+            percentual=None if percentual is None else round(percentual, 1),
+            classificacao=chuva.classificacao,
+            classificacao_rotulo=chuva.classificacao.rotulo,
+            referencia=NormalReferenciaOut(
+                codigo=referencia.codigo,
+                nome=referencia.nome,
+                uf=referencia.uf,
+                latitude=referencia.coordenada.latitude,
+                longitude=referencia.coordenada.longitude,
+                distancia_km=round(chuva.distancia_km, 1),
+            ),
         )
