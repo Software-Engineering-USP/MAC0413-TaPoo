@@ -32,9 +32,9 @@ export default function MonthlyRainCard({ codigo }) {
       .then((chuva) => {
         if (!controller.signal.aborted) setEstado({ status: "ok", chuva });
       })
-      .catch((erro) => {
+      .catch((error_) => {
         if (!controller.signal.aborted) {
-          setEstado({ status: "erro", mensagem: erro.message });
+          setEstado({ status: "erro", mensagem: error_.message });
         }
       });
 
@@ -69,9 +69,9 @@ export default function MonthlyRainCard({ codigo }) {
       {status === "carregando" && <output>Calculando chuva do mês...</output>}
 
       {status === "erro" && (
-        <p className="station-detail-muted" role="status">
+        <output className="station-detail-muted block">
           Comparação indisponível: {estado.mensagem}
-        </p>
+        </output>
       )}
 
       {status === "ok" && (

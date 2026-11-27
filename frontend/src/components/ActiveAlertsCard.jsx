@@ -45,9 +45,9 @@ export default function ActiveAlertsCard() {
           setEstado({ status: "ok", alertas: ordenarAlertas(alertas) });
         }
       })
-      .catch((erro) => {
+      .catch((error_) => {
         if (!controller.signal.aborted) {
-          setEstado({ status: "erro", alertas: [], mensagem: erro.message });
+          setEstado({ status: "erro", alertas: [], mensagem: error_.message });
         }
       });
 
@@ -79,13 +79,13 @@ export default function ActiveAlertsCard() {
       </div>
 
       {status === "carregando" && (
-        <p className="text-xs text-slate-500">
+        <output className="block text-xs text-slate-500">
           <i
             className="fa-solid fa-spinner fa-spin mr-1.5"
             aria-hidden="true"
           />
-          Consultando alertas…
-        </p>
+          <span>Consultando alertas…</span>
+        </output>
       )}
 
       {status === "erro" && (
