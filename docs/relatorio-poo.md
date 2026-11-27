@@ -354,29 +354,68 @@ critérios para revisão estão detalhados na seção “Decisão de modelagem: 
 
 ## Processo de desenvolvimento e revisão
 
-### Fluxo de mudanças
+### Issues, branches e pull requests
 
-O repositório organiza o trabalho em branches e pull requests direcionados à `main`.
-Uma revisão deve comparar a mudança com a issue, observar se o escopo está delimitado,
-examinar os casos de erro e verificar se os testes cobrem o comportamento alterado.
-Comentários devem apontar o arquivo e o cenário reproduzível; mudanças pedidas devem
-ser verificadas novamente na versão atualizada do PR.
+O trabalho é planejado em issues do GitHub. Cada entrega grande (ex.: #13, endpoints
+REST) é dividida em sub-issues pequenas (#74–#80), e a principal só é fechada quando
+todas as sub-issues estão fechadas. Cada mudança é feita numa branch própria, com o tipo
+no nome (`feat/`, `fix/`, `docs/`, `chore/`, `ci/`). O PR aponta a issue com
+`Closes #N`, e o GitHub fecha a issue quando o PR entra na `main`.
+
+A `main` é protegida por um *ruleset* do repositório:
+
+- não aceita push direto: toda mudança entra por pull request;
+- exige **1 aprovação** antes do merge;
+- bloqueia *force push* e a exclusão da branch.
+
+Os commits seguem *Conventional Commits* (`feat(api): …`, `fix: …`, `test: …`,
+`docs: …`, `refactor(api): …`). Quase todos os commits sem merge da `main` (120 dos 125
+mais recentes) usam esse formato. Isso deixa o histórico legível e ajuda a achar
+refatorações, como as citadas no relatório de testes (`83a1aa4`, `42322ac`).
+
+### Code review
+
+Em 27/11/2026, os 26 PRs mergeados na `main` tinham review. Todos foram aprovados, e
+10 deles tiveram comentários ou pedido de mudanças antes da aprovação. A revisão
+compara a mudança com a issue e procura casos de borda e efeitos em outras partes do
+código. Dois exemplos:
+
+- **#151 (busca `?q=`):** a revisão notou que um termo só com espaços (`q=%20%20%20`)
+  virava uma lista vazia de palavras. Como `all(...)` de uma lista vazia é `True`, a
+  busca devolvia todas as estações. O autor corrigiu no commit
+  `fix(api): busca só com espaços não retorna todas as estações` e incluiu um teste.
+- **#154 (persistência SQL):** a revisão achou um teste de contrato quebrado depois
+  que o #145 entrou na `main`. Ao corrigir, o autor viu outro efeito do mesmo merge: o
+  repositório SQL não gravava os `fatores` dos alertas. Isso também foi corrigido no PR.
+
+Os comentários apontam o arquivo e o cenário que reproduz o problema. As mudanças
+pedidas são conferidas de novo na versão atualizada do PR, antes da aprovação.
 
 ### Verificações automatizadas
 
-O workflow `.github/workflows/ci-cd.yml` executa os seguintes passos em pull requests
-para `main`:
+O workflow `.github/workflows/ci-cd.yml` roda em todo pull request e push para a `main`:
 
-| Parte | Verificações configuradas |
+| Job | Verificações |
 |---|---|
-| Backend | `uv sync --locked --extra dev`, `uv run ruff check .`, `uv run ruff format --check .` e `uv run pytest --cov=app` |
-| Frontend | `npm ci`, `npm run lint`, `npm run format:check` e `npm run build` |
-| Qualidade | SonarCloud roda depois dos jobs de backend e frontend; a cobertura mínima do backend é 80% |
+| `backend` | `uv sync --locked --extra dev`, `ruff check .`, `ruff format --check .` e `pytest --cov=app`, com um Postgres de verdade para os testes de contrato dos repositórios |
+| `frontend` | `npm ci`, `npm run lint` (ESLint, `--max-warnings 0`), `npm run format:check` (Prettier) e `npm run build` |
+| `sonarqube` | roda depois dos dois jobs; envia o código e o `coverage.xml` do backend ao SonarCloud |
 
-O Ruff verifica problemas estáticos e formatação Python; ESLint verifica problemas no
-JavaScript/React; Prettier confere formatação; pytest executa a suíte do backend; e o
-build confirma que o frontend pode ser empacotado. Essas verificações complementam a
-revisão de comportamento, mas não substituem a avaliação dos requisitos da issue.
+- **Ruff** (`line-length = 100`) cuida de erros estáticos e da formatação do Python.
+- **ESLint** cuida do JavaScript/React; qualquer aviso falha o job.
+- **Prettier** (`frontend/.prettierrc.json`) confere a formatação do frontend.
+- **pytest-cov** falha o job se a cobertura do backend ficar abaixo de 80%
+  (`fail_under` em `backend/pyproject.toml`).
+- **SonarCloud** comenta no PR os problemas que encontra. Um exemplo é o aviso
+  "Refactor this exception test to have only one invocation possibly throwing an
+  exception": ele pede uma só chamada que possa lançar a exceção dentro de cada
+  `pytest.raises`. Essa regra já aparecia no #140
+  (`test: keep a single raising call inside pytest.raises in situacao tests`) e foi
+  corrigida de novo no #171 (`test: um único ponto de exceção por pytest.raises`).
+
+Essas verificações não substituem a revisão humana. Elas tiram do review o que uma
+ferramenta resolve (formatação, erros óbvios, cobertura), e a pessoa que revisa fica
+com o comportamento e os requisitos da issue.
 
 ## Síntese
 
