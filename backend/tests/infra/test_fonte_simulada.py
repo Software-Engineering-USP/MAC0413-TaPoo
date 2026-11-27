@@ -72,3 +72,115 @@ def test_fonte_simulada_rejeita_lista_de_estacoes_com_tipo_invalido(tmp_path) ->
 
     with pytest.raises(TypeError, match="lista de estações"):
         FonteSimulada(AGORA, arquivo=arquivo)
+
+
+@pytest.mark.parametrize(
+    ("estacoes", "mensagem"),
+    [
+        ([{"codigo": 7}], "nome.*ausente"),
+        (
+            [
+                {
+                    "codigo": 7,
+                    "nome": "Teste",
+                    "tipo": "PLUVIOMETRICA",
+                    "latitude": 0,
+                    "longitude": 0,
+                    "uf": "SP",
+                    "municipio": "Teste",
+                    "perfis": {"chuva": {"tipo": "nao_existe"}},
+                }
+            ],
+            "tipo desconhecido",
+        ),
+        (
+            [
+                {
+                    "codigo": 7,
+                    "nome": "Teste",
+                    "tipo": "PLUVIOMETRICA",
+                    "latitude": 0,
+                    "longitude": 0,
+                    "uf": "SP",
+                    "municipio": "Teste",
+                    "perfis": {"chuva": {"tipo": "constante"}},
+                }
+            ],
+            "campo obrigatório 'valor' ausente",
+        ),
+        (
+            [
+                {
+                    "codigo": 7,
+                    "nome": "Teste",
+                    "tipo": "PLUVIOMETRICA",
+                    "latitude": 0,
+                    "longitude": 0,
+                    "uf": "SP",
+                    "municipio": "Teste",
+                    "telemetrica": "false",
+                }
+            ],
+            "esperado valor booleano",
+        ),
+    ],
+)
+def test_fonte_simulada_valida_cenario_antes_de_usar(
+    tmp_path, estacoes: list[dict], mensagem: str
+) -> None:
+    arquivo = tmp_path / "cenario.json"
+    arquivo.write_text(json.dumps({"estacoes": estacoes}), encoding="utf-8")
+
+    tipo_erro = TypeError if mensagem == "esperado valor booleano" else ValueError
+    with pytest.raises(tipo_erro, match=mensagem):
+        FonteSimulada(AGORA, arquivo=arquivo)
+
+
+def test_fonte_simulada_rejeita_codigos_duplicados(tmp_path) -> None:
+    arquivo = tmp_path / "cenario.json"
+    estacao = {
+        "codigo": 7,
+        "nome": "Teste",
+        "tipo": "PLUVIOMETRICA",
+        "latitude": 0,
+        "longitude": 0,
+        "uf": "SP",
+        "municipio": "Teste",
+    }
+    arquivo.write_text(json.dumps({"estacoes": [estacao, estacao]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="código duplicado"):
+        FonteSimulada(AGORA, arquivo=arquivo)
+
+
+def test_fonte_simulada_rejeita_perfil_de_vazao_circular(tmp_path) -> None:
+    arquivo = tmp_path / "cenario.json"
+    estacao = {
+        "codigo": 7,
+        "nome": "Teste",
+        "tipo": "FLUVIOMETRICA",
+        "latitude": 0,
+        "longitude": 0,
+        "uf": "SP",
+        "municipio": "Teste",
+        "perfis": {
+            "vazao": {
+                "tipo": "vazao_por_nivel",
+                "perfil_nivel": "vazao",
+                "coeficiente": 1,
+                "expoente": 1,
+            }
+        },
+    }
+    arquivo.write_text(json.dumps({"estacoes": [estacao]}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="perfil_nivel inválido"):
+        FonteSimulada(AGORA, arquivo=arquivo)
+
+
+def test_regras_de_exemplo_rejeita_regras_em_objeto(tmp_path) -> None:
+    arquivo = tmp_path / "regras.json"
+    arquivo.write_text('{"regras": {}}', encoding="utf-8")
+
+    with pytest.raises(TypeError, match="regras em uma lista"):
+        regras_de_exemplo(arquivo)
