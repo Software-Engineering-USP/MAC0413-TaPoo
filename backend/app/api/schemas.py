@@ -93,8 +93,8 @@ class EstacaoOut(BaseModel):
             tipo=estacao.tipo,
             latitude=estacao.coordenada.latitude,
             longitude=estacao.coordenada.longitude,
-            uf=estacao.uf,
-            municipio=estacao.municipio,
+            uf=estacao.municipio.uf,
+            municipio=estacao.municipio.nome,
             rio=estacao.rio,
             operando=estacao.operando,
             telemetrica=estacao.telemetrica,
@@ -189,8 +189,8 @@ class SituacaoMunicipioOut(BaseModel):
     @classmethod
     def de(cls, situacao: SituacaoMunicipio) -> "SituacaoMunicipioOut":
         return cls(
-            uf=situacao.uf,
-            municipio=situacao.municipio,
+            uf=situacao.municipio.uf,
+            municipio=situacao.municipio.nome,
             severidade=situacao.severidade,
             severidade_rotulo=situacao.severidade.rotulo,
             estacoes=[EstacaoOut.de(s) for s in situacao.estacoes],

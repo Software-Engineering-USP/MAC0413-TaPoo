@@ -6,6 +6,7 @@ from app.dominio.enums import Grandeza, Severidade, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import MedicaoChuva, MedicaoNivel
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
@@ -43,7 +44,9 @@ def test_estacoes_filtro_e_monitoradas() -> None:
     repo = EstacaoRepositorioMemoria()
 
     def estacao(codigo: int, uf: str, **kw) -> Estacao:
-        return Estacao(codigo, "x", TipoEstacao.PLUVIOMETRICA, Coordenada(0, 0), uf, "y", **kw)
+        return Estacao(
+            codigo, "x", TipoEstacao.PLUVIOMETRICA, Coordenada(0, 0), Municipio("y", uf), **kw
+        )
 
     repo.salvar_varias(
         [estacao(3, "SP"), estacao(1, "MG", telemetrica=False), estacao(2, "SP", operando=False)]

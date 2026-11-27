@@ -10,6 +10,7 @@ from app.dominio.alerta import Alerta
 from app.dominio.enums import Severidade
 from app.dominio.erros import DadoInvalido
 from app.dominio.estacao import Estacao
+from app.dominio.municipio import Municipio
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,13 +33,14 @@ class SituacaoEstacao:
 
 @dataclass(frozen=True, slots=True)
 class SituacaoMunicipio:
-    uf: str
-    municipio: str
+    municipio: Municipio
     estacoes: tuple[SituacaoEstacao, ...]
 
     def __post_init__(self) -> None:
         if not self.estacoes:
             raise DadoInvalido("município sem estações não tem situação")
+        if any(s.estacao.municipio != self.municipio for s in self.estacoes):
+            raise DadoInvalido(f"há estações de fora de {self.municipio}")
         # Da mais grave para a menos grave; empate pelo código, para ordem estável.
         ordenadas = sorted(self.estacoes, key=lambda s: (-s.severidade.nivel, s.estacao.codigo))
         object.__setattr__(self, "estacoes", tuple(ordenadas))

@@ -114,6 +114,8 @@ the backend are discussed in [the POO report](docs/relatorio-poo.md).
 Testing, refactoring examples, and a manual validation checklist are documented in
 [the test report](docs/relatorio-testes.md).
 Dependencies point inward: `dominio` imports nothing from the other layers.
+Modeling decisions (why `Estacao` uses `TipoEstacao` instead of subclasses, and why
+`Municipio` is a value object) are recorded in `docs/decisoes.md`.
 
 | Layer | Folder | Contents |
 |---|---|---|

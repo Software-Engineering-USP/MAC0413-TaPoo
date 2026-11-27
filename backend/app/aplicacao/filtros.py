@@ -1,19 +1,8 @@
-import unicodedata
 from dataclasses import dataclass
 
 from app.dominio.enums import TipoEstacao
 from app.dominio.estacao import Estacao
-
-
-def normalizar_nome(texto: str) -> str:
-    """Forma canônica para comparar nomes: sem acentos, minúsculas e espaços simples.
-
-    "São  Paulo", "sao paulo" e "SÃO PAULO" ficam todos "sao paulo".
-    """
-    sem_acento = "".join(
-        c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c)
-    )
-    return " ".join(sem_acento.casefold().split())
+from app.dominio.municipio import normalizar_nome
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,16 +21,11 @@ class FiltroEstacoes:
             return False
         if self.tipo is not None and estacao.tipo is not self.tipo:
             return False
-        if not self._aceita_municipio(estacao.municipio):
+        if self.municipio is not None and not estacao.municipio.corresponde(self.municipio):
             return False
         if not self._aceita_texto(estacao):
             return False
         return not (self.apenas_telemetricas and not estacao.telemetrica)
-
-    def _aceita_municipio(self, municipio: str) -> bool:
-        return self.municipio is None or normalizar_nome(municipio) == normalizar_nome(
-            self.municipio
-        )
 
     def _aceita_texto(self, estacao: Estacao) -> bool:
         if self.texto is None:
@@ -49,5 +33,5 @@ class FiltroEstacoes:
         palavras = normalizar_nome(self.texto).split()
         if not palavras:
             return False
-        onde = normalizar_nome(" ".join((estacao.nome, estacao.municipio, estacao.rio or "")))
+        onde = normalizar_nome(" ".join((estacao.nome, estacao.municipio.nome, estacao.rio or "")))
         return all(palavra in onde for palavra in palavras)

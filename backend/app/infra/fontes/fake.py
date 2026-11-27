@@ -28,6 +28,7 @@ from app.dominio.enums import OrigemDados, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import agora_utc, exigir_utc
 
@@ -68,8 +69,7 @@ def _estacoes_e_perfis() -> list[tuple[Estacao, dict[type[Medicao], Perfil]]]:
             nome,
             tipo,
             Coordenada(lat, lon),
-            uf,
-            municipio,
+            Municipio(municipio, uf),
             rio=rio,
             telemetrica=telemetrica,
         )
