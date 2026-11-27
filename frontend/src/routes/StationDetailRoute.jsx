@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useOutletContext, useParams } from "react-router";
+import { useOutletContext, useParams } from "react-router";
 import {
   obterEstacao,
   obterLimitesEstacao,
@@ -119,6 +119,10 @@ function MeasurementChart({ serie, limite }) {
           ))}
         </div>
       )}
+      <p className="station-detail-muted">
+        Os pontos são espaçados igualmente; intervalos sem leitura não aparecem
+        no eixo do tempo.
+      </p>
       {latest.atualizado_na_fonte_em && (
         <p className="station-detail-muted">
           Atualização informada pela fonte:{" "}
@@ -129,22 +133,30 @@ function MeasurementChart({ serie, limite }) {
   );
 }
 
-function LimitCards({ limites, grandeza }) {
-  const limite = limites.find((item) => item.grandeza === grandeza);
-  if (!limite) {
+function LimitCards({ limites, grandeza, indisponiveis }) {
+  const limitesDaGrandeza = limites.filter(
+    (item) => item.grandeza === grandeza,
+  );
+  if (!limitesDaGrandeza.length) {
     return (
       <p className="station-detail-empty">
-        Não há limites cadastrados para{" "}
-        {granularityLabels[grandeza]?.toLocaleLowerCase("pt-BR") ||
-          "esta medição"}{" "}
-        nesta estação. A severidade não pode ser calculada por uma cota não
-        cadastrada.
+        {indisponiveis ? (
+          "Não foi possível carregar os limites desta estação."
+        ) : (
+          <>
+            Não há limites cadastrados para{" "}
+            {granularityLabels[grandeza]?.toLocaleLowerCase("pt-BR") ||
+              "esta medição"}{" "}
+            nesta estação. A severidade não pode ser calculada por uma cota não
+            cadastrada.
+          </>
+        )}
       </p>
     );
   }
 
-  return (
-    <>
+  return limitesDaGrandeza.map((limite) => (
+    <div key={limite.tipo}>
       <p className="station-detail-muted">
         {limite.descricao}
         {limite.janela_horas ? ` · acumulado em ${limite.janela_horas} h` : ""}
@@ -155,14 +167,14 @@ function LimitCards({ limites, grandeza }) {
           ["Alerta", limite.alerta],
           ["Emergência", limite.emergencia],
         ].map(([label, value]) => (
-          <div className="station-limit-item" key={label}>
+          <div className="station-limit-item" key={`${limite.tipo}-${label}`}>
             <span>{label}</span>
             <strong>{formatValue(value, limite.unidade)}</strong>
           </div>
         ))}
       </div>
-    </>
-  );
+    </div>
+  ));
 }
 
 function chooseGranularity(current, granularities) {
@@ -177,12 +189,14 @@ function stationTypeLabel(station) {
 
 function dataOriginLabel(metadados) {
   if (metadados?.origem_dados === "simulado") return "Dados simulados";
-  return "Dados reais";
+  if (metadados?.origem_dados === "real") return "Dados reais";
+  return "Origem não informada";
 }
 
 function useStationDetails(codigo) {
   const [station, setStation] = useState(null);
   const [limites, setLimites] = useState([]);
+  const [limitesIndisponiveis, setLimitesIndisponiveis] = useState(false);
   const [metadados, setMetadados] = useState(null);
   const [grandeza, setGrandeza] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -192,6 +206,7 @@ function useStationDetails(codigo) {
     const controller = new AbortController();
     setStation(null);
     setLimites([]);
+    setLimitesIndisponiveis(false);
     setMetadados(null);
     setLoading(true);
     setError("");
@@ -207,13 +222,16 @@ function useStationDetails(codigo) {
           chooseGranularity(current, stationResult.grandezas),
         );
 
-        const [limitResult, metadataResult] = await Promise.all([
+        const [limitResult, metadataResult] = await Promise.allSettled([
           obterLimitesEstacao(codigo, { signal: controller.signal }),
           obterMetadados({ signal: controller.signal }),
         ]);
         if (controller.signal.aborted) return;
-        setLimites(limitResult);
-        setMetadados(metadataResult);
+        setLimites(limitResult.status === "fulfilled" ? limitResult.value : []);
+        setLimitesIndisponiveis(limitResult.status === "rejected");
+        setMetadados(
+          metadataResult.status === "fulfilled" ? metadataResult.value : null,
+        );
       } catch (requestError) {
         if (!controller.signal.aborted) setError(requestError.message);
       } finally {
@@ -225,7 +243,16 @@ function useStationDetails(codigo) {
     return () => controller.abort();
   }, [codigo]);
 
-  return { station, limites, metadados, grandeza, setGrandeza, loading, error };
+  return {
+    station,
+    limites,
+    limitesIndisponiveis,
+    metadados,
+    grandeza,
+    setGrandeza,
+    loading,
+    error,
+  };
 }
 
 function useStationMeasurements(codigo, station, grandeza, periodoHoras) {
@@ -290,11 +317,18 @@ function MeasurementResult({ loading, error, serie, limite }) {
 
 export default function StationDetailRoute() {
   const { codigo } = useParams();
-  const navigate = useNavigate();
   const { onCloseInfoSheet } = useOutletContext();
   const [periodoHoras, setPeriodoHoras] = useState(24);
-  const { station, limites, metadados, grandeza, setGrandeza, loading, error } =
-    useStationDetails(codigo);
+  const {
+    station,
+    limites,
+    limitesIndisponiveis,
+    metadados,
+    grandeza,
+    setGrandeza,
+    loading,
+    error,
+  } = useStationDetails(codigo);
   const measurements = useStationMeasurements(
     codigo,
     station,
@@ -308,7 +342,10 @@ export default function StationDetailRoute() {
   } = measurements;
 
   const matchingLimit = useMemo(
-    () => limites.find((item) => item.grandeza === grandeza),
+    () =>
+      limites.find(
+        (item) => item.grandeza === grandeza && item.tipo === "COTA",
+      ),
     [limites, grandeza],
   );
 
@@ -324,7 +361,7 @@ export default function StationDetailRoute() {
         <button
           type="button"
           className="station-back-button"
-          onClick={() => navigate(-1)}
+          onClick={onCloseInfoSheet}
         >
           ← Voltar
         </button>
@@ -480,7 +517,11 @@ export default function StationDetailRoute() {
           antes de usá-los para decisões de segurança.
         </p>
         {grandeza ? (
-          <LimitCards limites={limites} grandeza={grandeza} />
+          <LimitCards
+            limites={limites}
+            grandeza={grandeza}
+            indisponiveis={limitesIndisponiveis}
+          />
         ) : (
           <p className="station-detail-empty">
             Nenhuma medição ou regra disponível.
@@ -491,10 +532,9 @@ export default function StationDetailRoute() {
       <article className="station-detail-card">
         <h3>Previsão hidrológica</h3>
         <p className="station-detail-empty">
-          A previsão de chuva é considerada pelas regras de alerta quando há uma
-          fonte disponível. Se ela contribuir para um alerta, aparecerá nos
-          fatores acima. Esta tela ainda não apresenta a série horária completa
-          da previsão.
+          A previsão de chuva pode ser considerada pelas regras de alerta e
+          aparecerá nos fatores quando contribuir para um alerta. A série
+          horária de previsão ainda não é exibida nesta tela.
         </p>
       </article>
 

@@ -26,6 +26,7 @@ def test_limites_da_estacao(client: TestClient) -> None:
     assert resposta.json() == [
         {
             "grandeza": "NIVEL",
+            "tipo": "COTA",
             "descricao": "Cotas de referência do nível do rio",
             "unidade": "cm",
             "janela_horas": None,
@@ -33,6 +34,17 @@ def test_limites_da_estacao(client: TestClient) -> None:
             "alerta": 400,
             "emergencia": 500,
         }
+    ]
+
+
+def test_limites_separam_chuva_observada_e_prevista(client: TestClient) -> None:
+    resposta = client.get("/estacoes/90000004/limites")
+
+    assert resposta.status_code == 200
+    corpo = resposta.json()
+    assert [(item["grandeza"], item["tipo"]) for item in corpo] == [
+        ("CHUVA", "CHUVA_ACUMULADA"),
+        ("CHUVA", "CHUVA_PREVISTA"),
     ]
 
 
@@ -152,7 +164,10 @@ def test_serie_padrao_ultimas_24h(client: TestClient) -> None:
     assert (corpo["grandeza_rotulo"], corpo["unidade"]) == ("Nível", "cm")
     assert len(corpo["medicoes"]) == 25  # leituras horárias, intervalo fechado
     assert corpo["medicoes"][-1]["data_hora_utc"].startswith(AGORA.strftime("%Y-%m-%dT%H"))
-    assert corpo["medicoes"][-1]["valor"] == 440
+    ultima = corpo["medicoes"][-1]
+    assert ultima["valor"] == 440
+    assert ultima["origem"] == "TELEMETRICA"
+    assert ultima["atualizado_na_fonte_em"] is not None
 
 
 def test_serie_com_periodo(client: TestClient) -> None:

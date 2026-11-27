@@ -215,7 +215,7 @@ def test_busca_medicoes_com_periodo_maior_que_30_dias_faz_varias_consultas(monke
     assert sum(not chamada.full_url.endswith("/OAUth/v1") for chamada in chamadas) == 2
 
 
-def test_busca_medicoes_em_30_dias_faz_uma_consulta(monkeypatch) -> None:
+def test_busca_medicoes_em_30_dias_cobre_o_periodo_sem_lacunas(monkeypatch) -> None:
     chamadas = []
 
     def abrir(requisicao, timeout):
@@ -229,9 +229,14 @@ def test_busca_medicoes_em_30_dias_faz_uma_consulta(monkeypatch) -> None:
 
     assert FonteAna("id", "senha").buscar_medicoes(15400000, periodo) == []
     consultas = [chamada for chamada in chamadas if not chamada.full_url.endswith("/OAUth/v1")]
-    assert len(consultas) == 1
-    parametros = parse_qs(urlparse(consultas[0].full_url).query)
-    assert parametros["Range Intervalo de busca"] == ["DIAS_30"]
+    assert len(consultas) == 2
+    consultas_por_data = {
+        parse_qs(urlparse(chamada.full_url).query)["Data de Busca (yyyy-MM-dd)"][0]: parse_qs(
+            urlparse(chamada.full_url).query
+        )["Range Intervalo de busca"][0]
+        for chamada in consultas
+    }
+    assert consultas_por_data == {"2026-01-30": "DIAS_30", "2025-12-31": "HORA_24"}
 
 
 @pytest.mark.parametrize("falha", ["timeout", "rede", "json", "utf8", "http", "status"])

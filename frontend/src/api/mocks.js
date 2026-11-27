@@ -269,6 +269,7 @@ export function mockGetStationLimits(codigo, { signal } = {}) {
       90000001: [
         {
           grandeza: "NIVEL",
+          tipo: "COTA",
           descricao: "Cotas ilustrativas de referência",
           unidade: "cm",
           janela_horas: null,
@@ -280,6 +281,7 @@ export function mockGetStationLimits(codigo, { signal } = {}) {
       90000002: [
         {
           grandeza: "CHUVA",
+          tipo: "CHUVA_ACUMULADA",
           descricao: "Limites de chuva de demonstração",
           unidade: "mm",
           janela_horas: 24,
@@ -291,6 +293,7 @@ export function mockGetStationLimits(codigo, { signal } = {}) {
       90000003: [
         {
           grandeza: "NIVEL",
+          tipo: "COTA",
           descricao: "Cotas ilustrativas de referência",
           unidade: "cm",
           janela_horas: null,
@@ -302,7 +305,18 @@ export function mockGetStationLimits(codigo, { signal } = {}) {
       90000004: [
         {
           grandeza: "CHUVA",
-          descricao: "Limites de chuva de demonstração",
+          tipo: "CHUVA_ACUMULADA",
+          descricao: "Limites de chuva acumulada",
+          unidade: "mm",
+          janela_horas: 24,
+          atencao: 30,
+          alerta: 50,
+          emergencia: 80,
+        },
+        {
+          grandeza: "CHUVA",
+          tipo: "CHUVA_PREVISTA",
+          descricao: "Limites de chuva prevista",
           unidade: "mm",
           janela_horas: 24,
           atencao: 30,

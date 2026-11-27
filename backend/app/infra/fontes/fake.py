@@ -24,7 +24,7 @@ from app.dominio.alerta import (
     RegraChuvaPrevisao,
     RegraCotaReferencia,
 )
-from app.dominio.enums import TipoEstacao
+from app.dominio.enums import OrigemDados, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
@@ -163,14 +163,14 @@ def regras_de_exemplo() -> list[RegraAlerta]:
 
 
 class FonteFake(FonteDadosHidrologicos):
-    @property
-    def origem_dados(self) -> str:
-        return "simulado"
-
     def __init__(self, agora: datetime | None = None) -> None:
         agora = exigir_utc(agora or agora_utc())
         self._agora = agora.replace(minute=0, second=0, microsecond=0)
         self._dados = _estacoes_e_perfis()
+
+    @property
+    def origem_dados(self) -> OrigemDados:
+        return OrigemDados.SIMULADO
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]

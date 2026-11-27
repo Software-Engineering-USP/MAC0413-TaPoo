@@ -21,6 +21,7 @@ from app.dominio.enums import (
     Severidade,
     StatusAlerta,
     TipoEstacao,
+    TipoRegraAlerta,
 )
 from app.dominio.medicao import Medicao, SerieTemporal
 from app.dominio.periodo import Periodo
@@ -134,6 +135,7 @@ class MedicaoOut(BaseModel):
 
 class LimiteEstacaoOut(BaseModel):
     grandeza: Grandeza
+    tipo: TipoRegraAlerta
     descricao: str
     unidade: str
     janela_horas: float | None
@@ -145,6 +147,7 @@ class LimiteEstacaoOut(BaseModel):
     def de(cls, limites: LimitesClassificacao) -> "LimiteEstacaoOut":
         return cls(
             grandeza=limites.grandeza,
+            tipo=limites.tipo,
             descricao=limites.descricao,
             unidade=limites.unidade,
             janela_horas=limites.janela_horas,

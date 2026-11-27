@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
-from app.dominio.enums import Grandeza, Severidade, StatusAlerta
+from app.dominio.enums import Grandeza, Severidade, StatusAlerta, TipoRegraAlerta
 from app.dominio.erros import DadoInvalido
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, PrevisaoChuva, SerieTemporal
@@ -39,6 +39,7 @@ class LimitesClassificacao:
     """Limites de severidade que podem ser apresentados ao usuário."""
 
     grandeza: Grandeza
+    tipo: TipoRegraAlerta
     descricao: str
     unidade: str
     atencao: float
@@ -151,6 +152,7 @@ class RegraCotaReferencia(RegraAlerta):
     def limites(self) -> LimitesClassificacao:
         return LimitesClassificacao(
             grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.COTA,
             descricao="Cotas de referência do nível do rio",
             unidade="cm",
             atencao=self.cota_atencao_cm,
@@ -222,6 +224,7 @@ class RegraChuvaAcumulada(RegraAlerta):
     def limites(self) -> LimitesClassificacao:
         return LimitesClassificacao(
             grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_ACUMULADA,
             descricao="Limites de chuva acumulada",
             unidade="mm",
             atencao=self.limite_moderado_mm,
@@ -301,6 +304,7 @@ class RegraChuvaPrevisao(RegraAlerta):
     def limites(self) -> LimitesClassificacao:
         return LimitesClassificacao(
             grandeza=self.grandeza,
+            tipo=TipoRegraAlerta.CHUVA_PREVISTA,
             descricao="Limites de chuva prevista",
             unidade="mm",
             atencao=self.limite_moderado_mm,

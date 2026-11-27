@@ -31,6 +31,7 @@ from app.configuracao import (
     tipo_repositorio,
     url_banco,
 )
+from app.dominio.enums import OrigemDados
 from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
@@ -57,7 +58,7 @@ class Container:
     coletar: ColetarMedicoes
     relogio: Callable[[], datetime]
     carregar_na_inicializacao: bool = True
-    origem_dados: str = "real"
+    origem_dados: OrigemDados = OrigemDados.REAL
 
 
 @dataclass(frozen=True, slots=True)
