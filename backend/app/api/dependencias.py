@@ -131,7 +131,7 @@ def montar_container(
     )
     return Container(
         consulta=ConsultarDados(repositorios.estacoes, repositorios.medicoes, repositorios.alertas),
-        sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes),
+        sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes, relogio=relogio),
         coletar=ColetarMedicoes(
             fonte,
             repositorios.estacoes,
