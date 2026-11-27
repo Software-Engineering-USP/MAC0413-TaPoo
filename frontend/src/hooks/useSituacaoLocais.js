@@ -19,19 +19,26 @@ export default function useSituacaoLocais(places) {
       ),
     );
 
-    lista.forEach((chave) => {
+    const carregar = async (chave) => {
       const [lat, lon] = chave.split(",").map(Number);
-      listarEstacoesProximas({
-        lat,
-        lon,
-        raioKm: RAIO_LOCAL_KM,
-        signal: controller.signal,
-      })
-        .then(resumirSituacao, () => ({ estado: "erro" }))
-        .then((situacao) => {
-          if (controller.signal.aborted) return;
-          setSituacoes((atuais) => ({ ...atuais, [chave]: situacao }));
+      let situacao;
+      try {
+        const estacoes = await listarEstacoesProximas({
+          lat,
+          lon,
+          raioKm: RAIO_LOCAL_KM,
+          signal: controller.signal,
         });
+        situacao = resumirSituacao(estacoes);
+      } catch {
+        situacao = { estado: "erro" };
+      }
+      if (controller.signal.aborted) return;
+      setSituacoes((atuais) => ({ ...atuais, [chave]: situacao }));
+    };
+
+    lista.forEach((chave) => {
+      void carregar(chave);
     });
 
     return () => controller.abort();
