@@ -377,50 +377,311 @@ body {
   bottom: 1rem;
   z-index: 400;
   display: grid;
-  gap: 0.35rem;
+  gap: 1rem;
+  color: #0f172a;
+}
+
+.station-back-button {
+  justify-self: start;
+  border: 0;
+  padding: 0.3rem 0;
+  background: transparent;
+  color: #0369a1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.station-detail-header,
+.station-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.station-detail-header h2 {
+  margin: 0.2rem 0 0.35rem;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  font-weight: 800;
+}
+
+.station-detail-eyebrow {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.station-detail-muted {
+  margin-top: 0.35rem;
+  color: #64748b;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.station-detail-source {
+  margin-top: 0.4rem;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.station-demo-badge {
+  display: inline-flex;
+  margin-bottom: 0.55rem;
+}
+
+.station-detail-severity {
+  flex: none;
+  border-radius: 9999px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.station-detail-severity-normal {
+  background: #dcfce7;
+  color: #166534;
+}
+.station-detail-severity-attention {
+  background: #fef3c7;
+  color: #854d0e;
+}
+.station-detail-severity-alert {
+  background: #ffedd5;
+  color: #9a3412;
+}
+.station-detail-severity-emergency {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.station-detail-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: white;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.06);
+}
+
+.station-detail-card h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.station-detail-card > p:not(.station-detail-muted) {
+  margin-top: 0.55rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.station-alert-card {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.station-alert-card h3 {
+  color: #991b1b;
+}
+.station-alert-card h3 i {
+  margin-right: 0.35rem;
+}
+.station-alert-card ul {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.station-measure-select {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 7rem;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.station-measure-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.station-measure-select select {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.55rem;
+  padding: 0.4rem 0.5rem;
+  background: white;
+  color: #0f172a;
+  font-size: 0.8rem;
+}
+
+.station-chart-wrap {
+  height: 11rem;
+  margin-top: 1rem;
+  border-bottom: 1px solid #cbd5e1;
+  background: linear-gradient(to bottom, #f8fafc, white);
+}
+
+.station-chart-wrap svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.station-chart-grid {
+  stroke: #e2e8f0;
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+.station-chart-line {
+  fill: none;
+  stroke: #0284c7;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.station-chart-threshold {
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.station-chart-threshold-attention {
+  stroke: #ca8a04;
+}
+.station-chart-threshold-alert {
+  stroke: #ea580c;
+}
+.station-chart-threshold-emergency {
+  stroke: #dc2626;
+}
+
+.station-chart-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.station-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+  color: #475569;
+  font-size: 0.7rem;
+}
+
+.station-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.station-chart-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+.station-chart-dot-attention {
+  background: #ca8a04;
+}
+.station-chart-dot-alert {
+  background: #ea580c;
+}
+.station-chart-dot-emergency {
+  background: #dc2626;
+}
+
+.station-limit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.station-limit-item {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 0.65rem;
+  padding: 0.6rem;
+  background: #f8fafc;
+}
+
+.station-limit-item span {
+  color: #64748b;
+  font-size: 0.7rem;
+}
+.station-limit-item strong {
+  color: #0f172a;
+  font-size: 0.8rem;
+}
+.station-detail-empty {
+  margin-top: 0.75rem;
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.station-detail-error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+}
+
+.demo-data-badge {
+  flex: none;
+  border-radius: 9999px;
+  padding: 0.25rem 0.45rem;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.map-search-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.45rem 0 0;
   border: 1px solid #cbd5e1;
   border-radius: 0.75rem;
-  padding: 0.65rem 0.75rem;
-  background: rgb(255 255 255 / 0.95);
-  box-shadow: 0 1px 5px rgb(15 23 42 / 0.2);
+  padding: 0.5rem 0.65rem;
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: 0 1px 5px rgb(15 23 42 / 0.16);
   color: #334155;
-  font-size: 0.7rem;
-  pointer-events: none;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
-.risk-area-legend > strong {
-  font-size: 0.7rem;
+.map-search-feedback > i {
+  flex: none;
+  margin-top: 0.08rem;
 }
 
-.risk-area-legend > span {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
+.map-search-feedback-error {
+  border-color: #fecaca;
+  background: rgb(254 242 242 / 0.97);
+  color: #991b1b;
 }
 
-.risk-area-swatch {
-  width: 0.8rem;
-  height: 0.8rem;
-  border: 1px dashed #334155;
-  border-radius: 0.2rem;
+.map-search-feedback-loading > i {
+  color: #0369a1;
 }
 
-.risk-area-low {
-  background: rgb(234 179 8 / 0.35);
-}
-
-.risk-area-moderate {
-  background: rgb(249 115 22 / 0.35);
-}
-
-.risk-area-high {
-  background: rgb(220 38 38 / 0.3);
-}
-
-.risk-area-legend > small {
-  max-width: 12rem;
-  color: #475569;
-  line-height: 1.25;
+.map-search-feedback-empty > i {
+  color: #b45309;
 }
 
 .station-marker {
@@ -590,6 +851,23 @@ body {
 
 .saved-place-risk {
   display: block;
+  color: #94a3b8;
+}
+
+.saved-place-risk.situacao-normal {
+  color: #0369a1;
+}
+
+.saved-place-risk.situacao-atencao {
+  color: #a16207;
+}
+
+.saved-place-risk.situacao-alerta {
+  color: #c2410c;
+}
+
+.saved-place-risk.situacao-emergencia {
+  color: #dc2626;
 }
 
 @media (max-width: 767px) {
@@ -750,18 +1028,6 @@ body {
   .map-search-controls > * {
     margin-right: 0.75rem;
     margin-left: 0.75rem;
-  }
-
-  .risk-area-legend {
-    right: 0.75rem;
-    bottom: 5.5rem;
-    gap: 0.25rem;
-    padding: 0.5rem 0.6rem;
-    font-size: 0.65rem;
-  }
-
-  .risk-area-legend > small {
-    max-width: 9rem;
   }
 
   .app-sidebar > .saved-places-track {
@@ -967,22 +1233,6 @@ body {
   border-radius: 4px;
 }
 
-/* Map pulsing animations for risk hotspots */
-@keyframes pulse-red {
-  0%,
-  100% {
-    fill-opacity: 0.35;
-    stroke-opacity: 0.8;
-  }
-  50% {
-    fill-opacity: 0.6;
-    stroke-opacity: 1;
-  }
-}
-.pulse-zone-high {
-  animation: pulse-red 2.5s infinite ease-in-out;
-}
-
 /* Glassmorphic effect */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
@@ -1060,16 +1310,26 @@ body {
   border-width: 3px;
 }
 
-.leaflet-marker-icon.saved-place-marker.risk-low {
-  background: #eab308;
+.leaflet-marker-icon.saved-place-marker.situacao-normal {
+  background: #0369a1;
 }
 
-.leaflet-marker-icon.saved-place-marker.risk-moderate {
-  background: #f97316;
+.leaflet-marker-icon.saved-place-marker.situacao-atencao {
+  background: #facc15;
 }
 
-.leaflet-marker-icon.saved-place-marker.risk-high {
+.leaflet-marker-icon.saved-place-marker.situacao-alerta {
+  background: #c2410c;
+}
+
+.leaflet-marker-icon.saved-place-marker.situacao-emergencia {
   background: #dc2626;
+}
+
+.leaflet-marker-icon.saved-place-marker.situacao-carregando,
+.leaflet-marker-icon.saved-place-marker.situacao-sem-estacoes,
+.leaflet-marker-icon.saved-place-marker.situacao-erro {
+  background: #94a3b8;
 }
 
 .interactive-map .leaflet-control-attribution {

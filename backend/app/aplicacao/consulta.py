@@ -53,9 +53,7 @@ class ConsultarDados:
         if not estacoes:
             raise MunicipioNaoEncontrado(uf, municipio)
         # Usa a grafia cadastrada, não a digitada pelo usuário.
-        return SituacaoMunicipio(
-            estacoes[0].uf, estacoes[0].municipio, tuple(self._com_situacao(estacoes))
-        )
+        return SituacaoMunicipio(estacoes[0].municipio, tuple(self._com_situacao(estacoes)))
 
     def estacoes_proximas(
         self, centro: Coordenada, raio_km: float

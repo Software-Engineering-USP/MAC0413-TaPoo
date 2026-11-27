@@ -4,6 +4,7 @@ export default function Sidebar({
   children,
   onOpenAbout,
   savedPlaces,
+  situacoes,
   onSavePlace,
   onSelectPlace,
   onRequestRemovePlace,
@@ -35,6 +36,7 @@ export default function Sidebar({
 
       <SavedPlacesCard
         places={savedPlaces}
+        situacoes={situacoes}
         onSave={onSavePlace}
         onSelect={onSelectPlace}
         onRemove={onRequestRemovePlace}
