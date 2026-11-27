@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { listarEstacoes, usaApiReal } from "../api/cliente";
-import { floodZones, getRiskLevel, rivers } from "../mapData";
+import { rivers } from "../mapData";
+import {
+  chaveLocal,
+  classeSituacao,
+  descreverSituacao,
+} from "../situacaoLocal";
 
 const stationSeverities = {
   NORMAL: { abbreviation: "N", className: "normal" },
@@ -128,20 +133,9 @@ function stationSearchSummary(
   return `${shown} estação(ões) encontrada(s) em ${uf}. Selecione um marcador para ver os detalhes.`;
 }
 
-function savedPlaceIcon(riskLevel) {
-  const riskClasses = {
-    Baixo: "low",
-    Moderado: "moderate",
-    Alto: "high",
-  };
-  const riskClassName = riskClasses[riskLevel]
-    ? `risk-${riskClasses[riskLevel]}`
-    : "";
-
+function savedPlaceIcon(situacao) {
   return L.divIcon({
-    className: ["city-marker", "saved-place-marker", riskClassName]
-      .filter(Boolean)
-      .join(" "),
+    className: `city-marker saved-place-marker situacao-${classeSituacao(situacao)}`,
     iconSize: [20, 20],
     iconAnchor: [10, 10],
   });
@@ -164,6 +158,7 @@ export default function MapView({
   mapRef,
   mapViewRef,
   savedPlaces,
+  situacoes,
   searchInputRef,
   searchQuery,
   onSearchChange,
@@ -217,7 +212,7 @@ export default function MapView({
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(mapInstance);
 
-    const floodRiskLayer = L.layerGroup().addTo(mapInstance);
+    const riverLayer = L.layerGroup().addTo(mapInstance);
     stationLayerRef.current = L.featureGroup().addTo(mapInstance);
 
     rivers.forEach((river) => {
@@ -227,7 +222,7 @@ export default function MapView({
         opacity: 0.9,
         lineCap: "round",
       })
-        .addTo(floodRiskLayer)
+        .addTo(riverLayer)
         .bindTooltip(river.name, {
           permanent: true,
           sticky: true,
@@ -237,21 +232,6 @@ export default function MapView({
         .bindPopup(
           `<strong>${river.name}</strong><br><a href="https://www.openstreetmap.org/${river.osmId}" target="_blank" rel="noopener noreferrer">OpenStreetMap waterway</a>`,
         );
-    });
-
-    floodZones.forEach((zone) => {
-      L.polygon(zone.coordinates, {
-        color: zone.color,
-        weight: 2,
-        dashArray: "5 5",
-        fillColor: zone.color,
-        fillOpacity: 0.22,
-      })
-        .addTo(floodRiskLayer)
-        .bindTooltip(zone.name, {
-          sticky: true,
-          className: "city-label",
-        });
     });
 
     mapInstance.whenReady(() => mapInstance.invalidateSize());
@@ -380,14 +360,10 @@ export default function MapView({
     if (!map) return undefined;
 
     const markers = savedPlaces.map((place) => {
-      const riskLevel = getRiskLevel(place.center);
-      const riskDescription =
-        riskLevel === "safe"
-          ? "Sem risco indicado nas áreas simuladas"
-          : `Risco ${riskLevel.toLowerCase()} simulado`;
+      const situacao = situacoes[chaveLocal(place)];
 
       return L.marker(place.center, {
-        icon: savedPlaceIcon(riskLevel),
+        icon: savedPlaceIcon(situacao),
       })
         .addTo(map)
         .bindTooltip(escapeHtml(place.name), {
@@ -397,7 +373,7 @@ export default function MapView({
           className: "city-label",
         })
         .bindPopup(
-          `<strong>${escapeHtml(place.name)}</strong><br>${riskDescription}`,
+          `<strong>${escapeHtml(place.name)}</strong><br>${descreverSituacao(situacao)}<br><small>Maior severidade entre as estações da ANA próximas.</small>`,
         );
     });
 
@@ -406,7 +382,7 @@ export default function MapView({
         if (map.hasLayer(marker)) map.removeLayer(marker);
       });
     };
-  }, [mapRef, savedPlaces]);
+  }, [mapRef, savedPlaces, situacoes]);
 
   return (
     <main
@@ -493,28 +469,6 @@ export default function MapView({
               {searchStatus.message}
             </output>
           )}
-      </div>
-      <div
-        className="risk-area-legend"
-        aria-label="Legenda das áreas simuladas"
-      >
-        <strong>Áreas ilustrativas</strong>
-        <span>
-          <i aria-hidden="true" className="risk-area-swatch risk-area-low" />
-          Baixo
-        </span>
-        <span>
-          <i
-            aria-hidden="true"
-            className="risk-area-swatch risk-area-moderate"
-          />
-          Moderado
-        </span>
-        <span>
-          <i aria-hidden="true" className="risk-area-swatch risk-area-high" />
-          Alto
-        </span>
-        <small>Não representam alertas oficiais</small>
       </div>
       <div
         ref={mapContainerRef}

@@ -88,67 +88,6 @@ export const rivers = [
   },
 ];
 
-export const floodZones = [
-  {
-    name: "Margem do Rio Pinheiros — baixo risco ilustrativo",
-    coordinates: [
-      [-23.55, -46.721],
-      [-23.552, -46.717],
-      [-23.557, -46.716],
-      [-23.559, -46.72],
-      [-23.555, -46.723],
-    ],
-    color: "#eab308",
-    level: "Baixo",
-  },
-  {
-    name: "Várzea do Rio Pinheiros — risco ilustrativo",
-    coordinates: [
-      [-23.554, -46.711],
-      [-23.555, -46.707],
-      [-23.561, -46.705],
-      [-23.562, -46.709],
-      [-23.558, -46.713],
-    ],
-    color: "#f97316",
-    level: "Moderado",
-  },
-  {
-    name: "Baixo vale do Córrego Jaguaré — risco ilustrativo",
-    coordinates: [
-      [-23.558, -46.747],
-      [-23.561, -46.744],
-      [-23.566, -46.739],
-      [-23.57, -46.742],
-      [-23.565, -46.748],
-    ],
-    color: "#dc2626",
-    level: "Alto",
-  },
-];
-
-export function getRiskLevel(coordinates) {
-  const [latitude, longitude] = coordinates;
-  const containsPoint = (zone) => {
-    let inside = false;
-    for (
-      let i = 0, j = zone.coordinates.length - 1;
-      i < zone.coordinates.length;
-      j = i++
-    ) {
-      const [latI, lonI] = zone.coordinates[i];
-      const [latJ, lonJ] = zone.coordinates[j];
-      const crossesLatitude = latI > latitude !== latJ > latitude;
-      const boundaryLongitude =
-        ((lonJ - lonI) * (latitude - latI)) / (latJ - latI) + lonI;
-      if (crossesLatitude && longitude < boundaryLongitude) inside = !inside;
-    }
-    return inside;
-  };
-
-  return floodZones.find(containsPoint)?.level || "safe";
-}
-
 export function isValidPlace(place) {
   return (
     place &&
