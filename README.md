@@ -151,6 +151,13 @@ blank, the backend selects ANA when credentials are present and the simulated so
 otherwise. Unknown values fail at startup instead of silently choosing a source. Do
 not commit `.env`; `.env.example` lists the available settings.
 
+`CENARIO_SIMULADO` may point to a custom JSON file for the simulated stations and
+profiles. `REGRAS_ARQUIVO` points to a JSON file containing alert thresholds; when
+using ANA, set it to rules whose station codes match the ANA inventory. ANA starts
+with no rules if this setting is blank, so the fictional demo thresholds are never
+applied to real stations. A rules file contains a top-level `regras` list, following
+the format in `backend/app/infra/fontes/dados/cenario-demo.json`.
+
 `FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
 its time-series route is requested. The API token is cached until shortly before
 expiration. Rainfall alerts also use hourly precipitation forecasts from Open-Meteo;

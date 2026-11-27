@@ -17,6 +17,12 @@
 mantido como alias por compatibilidade. Sem `FONTE`, credenciais ANA completas
 selecionam a ANA e a ausência delas seleciona o cenário simulado.
 
+`CENARIO_SIMULADO` permite apontar para outro JSON de estações/perfis da fonte
+simulada. `REGRAS_ARQUIVO` configura os limiares. Ao usar a ANA, configure esse arquivo
+com regras que referenciem códigos de estações reais; sem ele, a aplicação carrega zero
+regras em vez de associar limites fictícios às estações da ANA. O arquivo precisa ter
+uma lista `regras` no formato do JSON de demonstração.
+
 ## Contrato e tratamento de falhas
 
 Os adaptadores convertem as respostas externas para as entidades do domínio e

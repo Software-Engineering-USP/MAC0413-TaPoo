@@ -73,6 +73,20 @@ def timeout_ana() -> float:
     return valor
 
 
+def arquivo_cenario_simulado() -> Path | None:
+    """Caminho opcional do JSON com estações e perfis da fonte simulada."""
+    _carregar_env_local()
+    caminho = os.getenv("CENARIO_SIMULADO", "").strip()
+    return Path(caminho).expanduser() if caminho else None
+
+
+def arquivo_regras() -> Path | None:
+    """Arquivo de regras; ANA não usa os limiares fictícios do cenário de demonstração."""
+    _carregar_env_local()
+    caminho = os.getenv("REGRAS_ARQUIVO", "").strip()
+    return Path(caminho).expanduser() if caminho else None
+
+
 REPOSITORIOS = ("memoria", "sql")
 
 
