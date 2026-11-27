@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { listarEstacoes, usaApiReal } from "../api/cliente";
-import { floodZones, getRiskLevel, rivers } from "../mapData";
+import { rivers } from "../mapData";
 import {
   chaveLocal,
   classeSituacao,
