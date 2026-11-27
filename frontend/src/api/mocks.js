@@ -165,6 +165,10 @@ export function mockHealth({ signal } = {}) {
   return mockResult(signal, () => ({ status: "ok" }));
 }
 
+export function mockGetMetadata({ signal } = {}) {
+  return mockResult(signal, () => ({ origem_dados: "simulado" }));
+}
+
 export function mockListStations({
   texto,
   uf,
@@ -257,6 +261,74 @@ export function mockGetStation(codigo, { signal } = {}) {
   });
 }
 
+export function mockGetStationLimits(codigo, { signal } = {}) {
+  return mockResult(signal, () => {
+    const station = mockStations.find((item) => item.codigo === Number(codigo));
+    if (!station) throw notFound(`Estação ${codigo} não encontrada.`);
+    const limitsByStation = {
+      90000001: [
+        {
+          grandeza: "NIVEL",
+          tipo: "COTA",
+          descricao: "Cotas ilustrativas de referência",
+          unidade: "cm",
+          janela_horas: null,
+          atencao: 300,
+          alerta: 400,
+          emergencia: 500,
+        },
+      ],
+      90000002: [
+        {
+          grandeza: "CHUVA",
+          tipo: "CHUVA_ACUMULADA",
+          descricao: "Limites de chuva de demonstração",
+          unidade: "mm",
+          janela_horas: 24,
+          atencao: 30,
+          alerta: 50,
+          emergencia: 80,
+        },
+      ],
+      90000003: [
+        {
+          grandeza: "NIVEL",
+          tipo: "COTA",
+          descricao: "Cotas ilustrativas de referência",
+          unidade: "cm",
+          janela_horas: null,
+          atencao: 250,
+          alerta: 320,
+          emergencia: 400,
+        },
+      ],
+      90000004: [
+        {
+          grandeza: "CHUVA",
+          tipo: "CHUVA_ACUMULADA",
+          descricao: "Limites de chuva acumulada",
+          unidade: "mm",
+          janela_horas: 24,
+          atencao: 30,
+          alerta: 50,
+          emergencia: 80,
+        },
+        {
+          grandeza: "CHUVA",
+          tipo: "CHUVA_PREVISTA",
+          descricao: "Limites de chuva prevista",
+          unidade: "mm",
+          janela_horas: 24,
+          atencao: 30,
+          alerta: 50,
+          emergencia: 80,
+        },
+      ],
+    };
+    return limitsByStation[station.codigo] || [];
+  });
+}
+
 export function mockListStationMeasurements(
   codigo,
   { grandeza, inicio, fim, signal } = {},
@@ -306,6 +378,8 @@ export function mockListStationMeasurements(
         valor: value,
         consistencia: index % 2 === 0 ? "CONSISTIDO" : "BRUTO",
         status_fonte: "DADO_FICTICIO",
+        origem: "TELEMETRICA",
+        atualizado_na_fonte_em: new Date(timestamp).toISOString(),
       });
     }
 

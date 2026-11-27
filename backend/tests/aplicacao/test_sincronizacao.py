@@ -8,11 +8,16 @@ from app.dominio.enums import TipoEstacao
 from app.dominio.erros import FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
+from app.dominio.municipio import Municipio
 from tests.aplicacao.fakes import Estacoes, FonteStub
 
 AGORA = datetime(2026, 1, 10, 12, tzinfo=UTC)
 ESTACAO = Estacao(
-    1, "Rio Pinheiros", TipoEstacao.FLUVIOMETRICA, Coordenada(-23.56, -46.72), "SP", "São Paulo"
+    1,
+    "Rio Pinheiros",
+    TipoEstacao.FLUVIOMETRICA,
+    Coordenada(-23.56, -46.72),
+    Municipio("São Paulo", "SP"),
 )
 
 

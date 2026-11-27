@@ -23,6 +23,7 @@ from app.dominio.enums import Grandeza, StatusAlerta
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, SerieTemporal, classe_de_medicao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.persistencia.modelos_orm import (
     AlertaModelo,
@@ -149,8 +150,8 @@ class EstacaoRepositorioSql(EstacaoRepositorio):
             "tipo": estacao.tipo,
             "latitude": estacao.coordenada.latitude,
             "longitude": estacao.coordenada.longitude,
-            "uf": estacao.uf,
-            "municipio": estacao.municipio,
+            "uf": estacao.municipio.uf,
+            "municipio": estacao.municipio.nome,
             "rio": estacao.rio,
             "operando": estacao.operando,
             "telemetrica": estacao.telemetrica,
@@ -164,8 +165,7 @@ class EstacaoRepositorioSql(EstacaoRepositorio):
             modelo.nome,
             modelo.tipo,
             Coordenada(modelo.latitude, modelo.longitude),
-            modelo.uf,
-            modelo.municipio,
+            Municipio(modelo.municipio, modelo.uf),
             rio=modelo.rio,
             operando=modelo.operando,
             telemetrica=modelo.telemetrica,

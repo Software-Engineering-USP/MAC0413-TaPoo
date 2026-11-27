@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.dependencias import Container, carga_inicial, criar_agendador, montar_container
@@ -25,6 +25,11 @@ def origens_cors() -> list[str]:
 
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def metadados(request: Request) -> dict[str, str]:
+    """Metadados da fonte ativa para distinguir dados reais de demonstração."""
+    return {"origem_dados": request.app.state.container.origem_dados}
 
 
 def create_app(
@@ -55,6 +60,7 @@ def create_app(
         allow_methods=["GET"],
     )
     app.add_api_route("/health", health, methods=["GET"], tags=["infra"])
+    app.add_api_route("/metadados", metadados, methods=["GET"], tags=["infra"])
     registrar_handlers(app)
     app.include_router(estacoes.router)
     app.include_router(alertas.router)
