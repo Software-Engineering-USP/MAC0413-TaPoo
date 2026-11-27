@@ -18,7 +18,9 @@ def test_cenario_json_define_estacoes_e_perfis() -> None:
     assert fonte.origem_dados is OrigemDados.SIMULADO
     estacoes_sp = fonte.listar_estacoes(FiltroEstacoes(uf="SP"))
     assert {estacao.codigo for estacao in estacoes_sp} == {90000001, 90000002}
-    assert fonte.buscar_estacao(90000001).rio == "Rio Tietê"
+    estacao_tiete = fonte.buscar_estacao(90000001)
+    assert estacao_tiete.rio == "Rio Tietê"
+    assert estacao_tiete.municipio.uf == "SP"
 
     periodo = Periodo.ultimos(timedelta(hours=1), ate=AGORA)
     medicoes = fonte.buscar_medicoes(90000001, periodo)

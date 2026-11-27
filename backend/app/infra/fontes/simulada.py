@@ -18,6 +18,7 @@ from app.dominio.enums import OrigemDados, TipoEstacao
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva, MedicaoNivel, MedicaoVazao
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.dominio.tempo import agora_utc, exigir_utc
 
@@ -130,8 +131,7 @@ class FonteSimulada(FonteDadosHidrologicos):
                     _converter(float, item["latitude"], f"Estação {codigo}, latitude"),
                     _converter(float, item["longitude"], f"Estação {codigo}, longitude"),
                 ),
-                uf=str(item["uf"]),
-                municipio=str(item["municipio"]),
+                municipio=Municipio(str(item["municipio"]), str(item["uf"])),
                 rio=item.get("rio"),
                 operando=_booleano(item.get("operando", True), f"Estação {codigo}, operando"),
                 telemetrica=_booleano(
