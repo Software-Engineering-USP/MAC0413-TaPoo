@@ -29,6 +29,14 @@ _CLASSES_MEDICAO = {
     "nivel": MedicaoNivel,
     "vazao": MedicaoVazao,
 }
+_CAMPOS_PERFIL = {
+    "linear": ("minimo", "valor_atual", "queda_por_hora"),
+    "senoide": ("amplitude", "periodo_horas"),
+    "senoide_positiva": ("amplitude", "periodo_horas"),
+    "recente": ("valor_recente", "horas_recentes", "valor_anterior"),
+    "constante": ("valor",),
+    "vazao_por_nivel": ("perfil_nivel", "coeficiente", "expoente"),
+}
 
 
 def _ler_cenario(
@@ -150,45 +158,8 @@ class FonteSimulada(FonteDadosHidrologicos):
 
     @staticmethod
     def _validar_perfis(codigo: int, perfis: dict[str, Perfil]) -> None:
-        campos = {
-            "linear": ("minimo", "valor_atual", "queda_por_hora"),
-            "senoide": ("amplitude", "periodo_horas"),
-            "senoide_positiva": ("amplitude", "periodo_horas"),
-            "recente": ("valor_recente", "horas_recentes", "valor_anterior"),
-            "constante": ("valor",),
-            "vazao_por_nivel": ("perfil_nivel", "coeficiente", "expoente"),
-        }
         for grandeza, perfil in perfis.items():
-            contexto = f"Estação {codigo}, perfil '{grandeza}'"
-            if not isinstance(perfil, dict):
-                raise TypeError(f"{contexto}: o perfil deve ser um objeto.")
-            tipo = _obter(perfil, "tipo", contexto)
-            if not isinstance(tipo, str) or tipo not in campos:
-                raise ValueError(f"{contexto}: tipo desconhecido '{tipo}'.")
-            for campo in campos[tipo]:
-                _obter(perfil, campo, contexto)
-            for campo in campos[tipo]:
-                if campo != "perfil_nivel":
-                    _converter(float, perfil[campo], f"{contexto}, campo '{campo}'")
-            if tipo == "senoide":
-                perfil.setdefault("base", 0)
-                _converter(float, perfil["base"], f"{contexto}, campo 'base'")
-            if "casas" in perfil:
-                _converter(int, perfil["casas"], f"{contexto}, campo 'casas'")
-            if tipo in ("senoide", "senoide_positiva"):
-                periodo = float(perfil["periodo_horas"])
-                if periodo == 0:
-                    raise ValueError(f"{contexto}: periodo_horas deve ser diferente de zero.")
-            if tipo == "vazao_por_nivel":
-                referencia = str(perfil["perfil_nivel"])
-                if referencia == grandeza or referencia not in perfis:
-                    raise ValueError(f"{contexto}: perfil_nivel inválido '{referencia}'.")
-                perfil_referenciado = perfis[referencia]
-                if (
-                    not isinstance(perfil_referenciado, dict)
-                    or perfil_referenciado.get("tipo") == "vazao_por_nivel"
-                ):
-                    raise ValueError(f"{contexto}: referência circular em perfil_nivel.")
+            _validar_perfil(codigo, grandeza, perfil, perfis)
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]
@@ -280,6 +251,61 @@ def _booleano(valor: Any, contexto: str) -> bool:
 def _validar_limites_chuva(item: dict[str, Any], contexto: str) -> None:
     for campo in ("limite_moderado_mm", "limite_alto_mm", "limite_extremo_mm"):
         _converter(float, _obter(item, campo, contexto), contexto)
+
+
+def _validar_perfil(
+    codigo: int,
+    grandeza: str,
+    perfil: Perfil,
+    perfis: dict[str, Perfil],
+) -> None:
+    contexto = f"Estação {codigo}, perfil '{grandeza}'"
+    if not isinstance(perfil, dict):
+        raise TypeError(f"{contexto}: o perfil deve ser um objeto.")
+    tipo = _obter(perfil, "tipo", contexto)
+    if not isinstance(tipo, str) or tipo not in _CAMPOS_PERFIL:
+        raise ValueError(f"{contexto}: tipo desconhecido '{tipo}'.")
+    _validar_campos_perfil(perfil, tipo, contexto)
+    _validar_parametros_senoidais(perfil, tipo, contexto)
+    if tipo == "vazao_por_nivel":
+        _validar_referencia_nivel(perfil, grandeza, perfis, contexto)
+
+
+def _validar_campos_perfil(perfil: Perfil, tipo: str, contexto: str) -> None:
+    campos = _CAMPOS_PERFIL[tipo]
+    for campo in campos:
+        _obter(perfil, campo, contexto)
+    for campo in campos:
+        if campo != "perfil_nivel":
+            _converter(float, perfil[campo], f"{contexto}, campo '{campo}'")
+
+
+def _validar_parametros_senoidais(perfil: Perfil, tipo: str, contexto: str) -> None:
+    if tipo == "senoide" and "base" in perfil:
+        _converter(float, perfil["base"], f"{contexto}, campo 'base'")
+    if "casas" in perfil:
+        _converter(int, perfil["casas"], f"{contexto}, campo 'casas'")
+    if tipo in ("senoide", "senoide_positiva"):
+        periodo = float(perfil["periodo_horas"])
+        if periodo == 0:
+            raise ValueError(f"{contexto}: periodo_horas deve ser diferente de zero.")
+
+
+def _validar_referencia_nivel(
+    perfil: Perfil,
+    grandeza: str,
+    perfis: dict[str, Perfil],
+    contexto: str,
+) -> None:
+    referencia = str(perfil["perfil_nivel"])
+    if referencia == grandeza or referencia not in perfis:
+        raise ValueError(f"{contexto}: perfil_nivel inválido '{referencia}'.")
+    perfil_referenciado = perfis[referencia]
+    if (
+        not isinstance(perfil_referenciado, dict)
+        or perfil_referenciado.get("tipo") == "vazao_por_nivel"
+    ):
+        raise ValueError(f"{contexto}: referência circular em perfil_nivel.")
 
 
 def _limites_chuva(item: dict[str, Any]) -> tuple[float, float, float]:
