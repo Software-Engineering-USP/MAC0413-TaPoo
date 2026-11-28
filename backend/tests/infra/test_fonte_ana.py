@@ -1,7 +1,9 @@
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
+from threading import Barrier
 from typing import Self
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlparse
@@ -126,9 +128,11 @@ def test_lista_estacoes_por_uf_e_reutiliza_token(monkeypatch) -> None:
     assert parse_qs(urlparse(chamadas[1].full_url).query) == {"Unidade Federativa": ["RO"]}
 
 
-def test_listagem_nacional_retorna_resultados_parciais_se_uma_uf_falhar(monkeypatch) -> None:
+def test_listagem_nacional_falha_se_uma_uf_falhar_e_tenta_so_ela_de_novo(monkeypatch) -> None:
+    """Inventário parcial faria a busca por raio dizer "nenhuma estação" (#176)."""
     autenticacoes = 0
     ufs_consultadas = []
+    ac_fora = True
 
     def abrir(requisicao, timeout):
         nonlocal autenticacoes
@@ -137,18 +141,48 @@ def test_listagem_nacional_retorna_resultados_parciais_se_uma_uf_falhar(monkeypa
             return RespostaFake({"status": "OK", "items": {"tokenautenticacao": "token"}})
         uf = parse_qs(urlparse(requisicao.full_url).query)["Unidade Federativa"][0]
         ufs_consultadas.append(uf)
-        if uf == "AC":
+        if uf == "AC" and ac_fora:
             raise HTTPError(requisicao.full_url, 500, "Unavailable", None, BytesIO())
         if uf == "SP":
             return RespostaFake(carregar_fixture("inventario-sp-item-unico.json"))
         return RespostaFake({"status": "OK", "items": []})
 
     monkeypatch.setattr(ana, "urlopen", abrir)
-    estacoes = FonteAna("id", "senha").listar_estacoes(FiltroEstacoes())
+    fonte = FonteAna("id", "senha")
+
+    with pytest.raises(ErroFonteAna, match="inventário da ANA para AC"):
+        fonte.listar_estacoes(FiltroEstacoes())
+    assert autenticacoes == 1
+    assert set(ufs_consultadas) == set(ana._UFS)
+
+    ufs_consultadas.clear()
+    ac_fora = False
+    estacoes = fonte.listar_estacoes(FiltroEstacoes())
 
     assert [estacao.codigo for estacao in estacoes] == [15400000]
-    assert autenticacoes == 1
-    assert len(ufs_consultadas) == len(ana._UFS)
+    assert ufs_consultadas == ["AC"]  # as UFs que deram certo ficaram no cache
+
+
+def test_listagens_simultaneas_baixam_cada_uf_uma_vez(monkeypatch) -> None:
+    fonte = FonteAna("id", "senha")
+    chamadas: list[str] = []
+    todas_comecaram = Barrier(4)
+
+    def carregar(uf):
+        chamadas.append(uf)
+        return []
+
+    monkeypatch.setattr(fonte, "_obter_token", lambda: "token")
+    monkeypatch.setattr(fonte, "_carregar_estacoes_uf", carregar)
+
+    def listar(_):
+        todas_comecaram.wait()
+        return fonte.listar_estacoes(FiltroEstacoes())
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        list(executor.map(listar, range(4)))
+
+    assert sorted(chamadas) == sorted(ana._UFS)
 
 
 def test_listagem_nacional_falha_se_todas_as_ufs_falharem(monkeypatch) -> None:

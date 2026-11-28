@@ -94,6 +94,9 @@ class FonteAna(FonteDadosHidrologicos):
         self._token_expira_em: datetime | None = None
         self._token_lock = Lock()
         self._estacoes_por_uf: dict[str, list[Estacao]] = {}
+        # Pedidos simultâneos (o front consulta vários locais de uma vez) esperam o mesmo
+        # download do inventário em vez de repeti-lo e sobrecarregar a ANA.
+        self._inventario_lock = Lock()
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         ufs = (filtro.uf.upper(),) if filtro.uf else _UFS
@@ -125,27 +128,40 @@ class FonteAna(FonteDadosHidrologicos):
         return None
 
     def _estacoes_de_todas_ufs(self, ufs: tuple[str, ...]) -> dict[str, list[Estacao]]:
-        pendentes = [uf for uf in ufs if uf not in self._estacoes_por_uf]
-        falhas = 0
-        if pendentes:
-            # Autentica antes da concorrência para que todos os pedidos reutilizem o token.
-            self._obter_token()
-            with ThreadPoolExecutor(max_workers=len(pendentes)) as executor:
-                tarefas = {executor.submit(self._carregar_estacoes_uf, uf): uf for uf in pendentes}
-                for tarefa in as_completed(tarefas):
-                    uf = tarefas[tarefa]
-                    try:
-                        self._estacoes_por_uf[uf] = tarefa.result()
-                    except ErroFonteAna:
-                        falhas += 1
-            if falhas == len(pendentes):
-                raise ErroFonteAna("Não foi possível consultar o inventário da ANA.")
-        return {uf: self._estacoes_por_uf[uf] for uf in ufs if uf in self._estacoes_por_uf}
+        """Inventário de cada UF; falha se alguma UF não puder ser consultada.
+
+        Devolver só parte do país faria uma busca por raio responder "nenhuma estação"
+        num lugar cheio delas. As UFs que deram certo ficam no cache, então a próxima
+        tentativa só repete as que falharam.
+        """
+        with self._inventario_lock:
+            pendentes = [uf for uf in ufs if uf not in self._estacoes_por_uf]
+            falhas: list[str] = []
+            if pendentes:
+                # Autentica antes da concorrência para que todos os pedidos reutilizem o token.
+                self._obter_token()
+                with ThreadPoolExecutor(max_workers=len(pendentes)) as executor:
+                    tarefas = {
+                        executor.submit(self._carregar_estacoes_uf, uf): uf for uf in pendentes
+                    }
+                    for tarefa in as_completed(tarefas):
+                        uf = tarefas[tarefa]
+                        try:
+                            self._estacoes_por_uf[uf] = tarefa.result()
+                        except ErroFonteAna:
+                            falhas.append(uf)
+            if falhas:
+                raise ErroFonteAna(
+                    "Não foi possível consultar o inventário da ANA para "
+                    f"{', '.join(sorted(falhas))}."
+                )
+            return {uf: self._estacoes_por_uf[uf] for uf in ufs}
 
     def _estacoes_da_uf(self, uf: str) -> list[Estacao]:
-        if uf not in self._estacoes_por_uf:
-            self._estacoes_por_uf[uf] = self._carregar_estacoes_uf(uf)
-        return self._estacoes_por_uf[uf]
+        with self._inventario_lock:
+            if uf not in self._estacoes_por_uf:
+                self._estacoes_por_uf[uf] = self._carregar_estacoes_uf(uf)
+            return self._estacoes_por_uf[uf]
 
     def _carregar_estacoes_uf(self, uf: str) -> list[Estacao]:
         resposta = self._get("HidroInventarioEstacoes/v1", {"Unidade Federativa": uf})

@@ -172,6 +172,9 @@ class FonteFake(FonteDadosHidrologicos):
     def origem_dados(self) -> OrigemDados:
         return OrigemDados.SIMULADO
 
+    def regras_iniciais(self) -> list[RegraAlerta]:
+        return regras_de_exemplo()
+
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]
 

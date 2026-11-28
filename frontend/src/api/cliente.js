@@ -1,4 +1,5 @@
 import {
+  mockGetMonthlyRain,
   mockGetMunicipalitySituation,
   mockGetStation,
   mockGetStationLimits,
@@ -127,6 +128,14 @@ export function obterLimitesEstacao(codigo, { signal } = {}) {
   return usaApiReal
     ? getJson(path, { signal })
     : mockGetStationLimits(codigo, { signal });
+}
+
+/** GET /estacoes/{codigo}/chuva-mensal */
+export function obterChuvaMensal(codigo, { signal } = {}) {
+  const path = `/estacoes/${encodeURIComponent(codigo)}/chuva-mensal`;
+  return usaApiReal
+    ? getJson(path, { signal })
+    : mockGetMonthlyRain(codigo, { signal });
 }
 
 /** GET /estacoes/{codigo}/medicoes */
