@@ -1,4 +1,5 @@
 import CivilDefenseWarning from "./CivilDefenseWarning";
+import ActiveAlertsPanel from "./ActiveAlertsPanel";
 
 const emergencyContacts = [
   { number: "112", service: "Emergência" },
@@ -26,24 +27,7 @@ export default function DashboardContent({ onCloseInfoSheet }) {
         </button>
       </div>
 
-      <div className="dashboard-card high-risk-warning bg-red-50/90 border border-red-200 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-        <div className="flex items-center justify-between mb-2">
-          <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-red-600 text-white shadow-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-white mr-2 animate-ping"></span>
-            ALTO RISCO DE ENCHENTE
-          </span>
-          <span className="text-[11px] uppercase font-bold text-red-700/60 tracking-wider">
-            Atualizado há 12m
-          </span>
-        </div>
-        <p className="text-[15px] font-bold text-slate-900 mt-2">
-          Bacia do Rio Itajaí-Açu (Blumenau)
-        </p>
-        <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-          Previsão de precipitação elevada acumulada nas próximas 24h. Risco de
-          transbordamento contínuo nas áreas de várzea.
-        </p>
-      </div>
+      <ActiveAlertsPanel />
 
       <CivilDefenseWarning />
 
@@ -144,27 +128,7 @@ export default function DashboardContent({ onCloseInfoSheet }) {
         </div>
       </div>
 
-      <div className="dashboard-grid grid grid-cols-2 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                Alertas Ativos
-              </span>
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-            </div>
-            <h4 className="text-[13px] font-bold text-slate-800">
-              1 Alerta Ativo
-            </h4>
-            <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-              Inundação gradual no bairro Vorstadt.
-            </p>
-          </div>
-          <button className="mt-4 w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-semibold text-[11px] rounded-xl transition border border-slate-200">
-            Ver detalhes
-          </button>
-        </div>
-
+      <div className="dashboard-grid grid gap-4">
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2.5">
