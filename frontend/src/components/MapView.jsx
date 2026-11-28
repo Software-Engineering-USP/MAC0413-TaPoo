@@ -540,9 +540,9 @@ export default function MapView({
             aria-label="Encontrar estações perto de mim"
           >
             <i
-            className={`fa-solid ${
-              isLocating ? "fa-spinner fa-spin" : "fa-location-arrow"
-            } text-xs`}
+              className={`fa-solid ${
+                isLocating ? "fa-spinner fa-spin" : "fa-location-arrow"
+              } text-xs`}
               aria-hidden="true"
             />
           </button>

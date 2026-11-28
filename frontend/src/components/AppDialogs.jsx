@@ -114,8 +114,8 @@ export function AboutDialog({ open, onClose }) {
         <p className="text-sm leading-relaxed text-slate-600">
           Os marcadores mostram as esta&ccedil;&otilde;es hidrol&oacute;gicas
           consultadas na API da ANA e a severidade informada. Os locais salvos
-          aparecem no mapa para facilitar o acesso &agrave;s posi&ccedil;&otilde;es
-          escolhidas.
+          aparecem no mapa para facilitar o acesso &agrave;s
+          posi&ccedil;&otilde;es escolhidas.
         </p>
         <CivilDefenseWarning />
         <div className="space-y-3 rounded-2xl border border-slate-200 p-4">

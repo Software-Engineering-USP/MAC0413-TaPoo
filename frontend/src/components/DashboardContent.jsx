@@ -10,7 +10,10 @@ const emergencyContacts = [
   { number: "199", service: "Defesa Civil" },
 ];
 
-export default function DashboardContent({ onCloseInfoSheet, selectedStation }) {
+export default function DashboardContent({
+  onCloseInfoSheet,
+  selectedStation,
+}) {
   return (
     <>
       <div className="mobile-sheet-handle">

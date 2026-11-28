@@ -35,11 +35,16 @@ export default function ActiveAlertsPanel() {
               (severityRank[a.severidade] ?? 0) ||
             new Date(b.emitido_em) - new Date(a.emitido_em),
         );
-        const codes = [...new Set(ordered.map((alert) => alert.codigo_estacao))];
+        const codes = [
+          ...new Set(ordered.map((alert) => alert.codigo_estacao)),
+        ];
         const stationEntries = await Promise.all(
           codes.map(async (code) => {
             try {
-              return [code, await obterEstacao(code, { signal: controller.signal })];
+              return [
+                code,
+                await obterEstacao(code, { signal: controller.signal }),
+              ];
             } catch (error) {
               if (error.name === "AbortError") throw error;
               return [code, null];
@@ -72,9 +77,7 @@ export default function ActiveAlertsPanel() {
   const riskClass = highRisk
     ? "bg-red-50/90 border-red-200 text-red-800"
     : "bg-amber-50 border-amber-200 text-amber-800";
-  const riskBadgeClass = highRisk
-    ? "bg-red-600"
-    : "bg-amber-600";
+  const riskBadgeClass = highRisk ? "bg-red-600" : "bg-amber-600";
 
   return (
     <>
@@ -112,7 +115,8 @@ export default function ActiveAlertsPanel() {
         {highRisk && (
           <p className="mt-2 text-xs opacity-75">
             {formatStationName(highRisk, stations[highRisk.codigo_estacao])}
-            {highRisk.emitido_em && ` \u00b7 Emitido em ${formatDate(highRisk.emitido_em)}`}
+            {highRisk.emitido_em &&
+              ` \u00b7 Emitido em ${formatDate(highRisk.emitido_em)}`}
           </p>
         )}
       </section>
@@ -135,7 +139,8 @@ export default function ActiveAlertsPanel() {
         )}
         {status === "error" && (
           <p className="text-sm text-amber-700">
-            N\u00e3o foi poss\u00edvel carregar os alertas. Tente novamente mais tarde.
+            N\u00e3o foi poss\u00edvel carregar os alertas. Tente novamente mais
+            tarde.
           </p>
         )}
         {status === "success" && alerts.length === 0 && (

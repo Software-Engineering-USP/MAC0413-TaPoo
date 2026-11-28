@@ -91,7 +91,9 @@ export default function SelectedStationStatus({ station }) {
           {"Situa\u00e7\u00e3o da esta\u00e7\u00e3o"}
         </h2>
         <p className="mt-2 text-sm text-slate-500">
-          {"Selecione uma esta\u00e7\u00e3o no mapa para consultar a condi\u00e7\u00e3o atual e o n\u00edvel do rio."}
+          {
+            "Selecione uma esta\u00e7\u00e3o no mapa para consultar a condi\u00e7\u00e3o atual e o n\u00edvel do rio."
+          }
         </p>
       </section>
     );
@@ -215,7 +217,9 @@ export default function SelectedStationStatus({ station }) {
 
       {measurements.status === "error" && (
         <p className="mt-3 text-xs text-amber-700" role="status">
-          {"N\u00e3o foi poss\u00edvel carregar as medi\u00e7\u00f5es recentes."}
+          {
+            "N\u00e3o foi poss\u00edvel carregar as medi\u00e7\u00f5es recentes."
+          }
         </p>
       )}
     </section>
