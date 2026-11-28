@@ -137,6 +137,17 @@ class EstacaoRepositorioSql(EstacaoRepositorio):
         )
         return list(self._listar(consulta))
 
+    def remover_varias(self, codigos: Iterable[int]) -> int:
+        """Apaga estações e dados dependentes; as tabelas filhas usam ON DELETE CASCADE."""
+        codigos = tuple(codigos)
+        if not codigos:
+            return 0
+        with self._sessoes.begin() as sessao:
+            resultado = sessao.execute(
+                delete(EstacaoModelo).where(EstacaoModelo.codigo.in_(codigos))
+            )
+            return resultado.rowcount or 0
+
     def _listar(self, consulta) -> Iterator[Estacao]:
         with self._sessoes() as sessao:
             modelos = sessao.scalars(consulta).all()

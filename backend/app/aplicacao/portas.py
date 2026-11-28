@@ -57,6 +57,14 @@ class EstacaoRepositorio(ABC):
     def monitoradas(self) -> list[Estacao]:
         """Estações operando e telemétricas, cujas medições são coletadas."""
 
+    @abstractmethod
+    def remover_varias(self, codigos: Iterable[int]) -> int:
+        """Remove as estações informadas.
+
+        A porta não promete remover dados dependentes; repositórios SQL aplicam a
+        cascata definida pelas chaves estrangeiras.
+        """
+
 
 class FonteDePrevisao(ABC):
     """Fonte de previsão de chuva por coordenada (a porta externa, Open-Meteo)."""

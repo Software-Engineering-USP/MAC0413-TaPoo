@@ -38,7 +38,7 @@ from app.dominio.enums import OrigemDados
 from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
-from app.infra.fontes.fake import FonteFake
+from app.infra.fontes.fake import CODIGOS_ESTACOES_SIMULADAS, FonteFake
 from app.infra.fontes.openmeteo import FonteOpenMeteo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
@@ -138,6 +138,8 @@ def montar_container(
         if fonte_previsao is None:
             fonte_previsao = FonteOpenMeteo()
     repositorios = repositorios or criar_repositorios(regras=fonte.regras_iniciais())
+    if fonte.origem_dados is OrigemDados.REAL:
+        repositorios.estacoes.remover_varias(CODIGOS_ESTACOES_SIMULADAS)
     monitorar = MonitorarEstacoes(
         repositorios.medicoes,
         repositorios.regras,

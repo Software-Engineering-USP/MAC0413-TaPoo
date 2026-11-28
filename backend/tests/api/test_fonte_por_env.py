@@ -1,8 +1,15 @@
 import pytest
 
+from app import configuracao
 from app.api.dependencias import criar_fonte
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake
+
+
+@pytest.fixture(autouse=True)
+def nao_carregar_env_local(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mantém os testes de seleção da fonte independentes do `.env` de quem os roda."""
+    monkeypatch.setattr(configuracao, "_carregar_env_local", lambda: None)
 
 
 def test_fonte_ana_exige_credencial(monkeypatch: pytest.MonkeyPatch) -> None:
