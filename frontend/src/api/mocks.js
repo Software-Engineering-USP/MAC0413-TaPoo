@@ -218,7 +218,7 @@ function distanceInKm(latitudeA, longitudeA, latitudeB, longitudeB) {
   return 6371 * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
-export function mockListNearbyStations({ lat, lon, raioKm = 50, signal } = {}) {
+export function mockListNearbyStations({ lat, lon, raioKm = 5, signal } = {}) {
   return mockResult(signal, () => {
     if (
       !Number.isFinite(Number(lat)) ||

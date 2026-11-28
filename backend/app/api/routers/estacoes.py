@@ -48,7 +48,7 @@ def estacoes_proximas(
     sincronizar: Sincronizar,
     lat: Annotated[float, Query(ge=-90, le=90)],
     lon: Annotated[float, Query(ge=-180, le=180)],
-    raio_km: Annotated[float, Query(gt=0, le=1000)] = 50,
+    raio_km: Annotated[float, Query(gt=0, le=1000)] = 5,
 ) -> list[EstacaoProximaOut]:
     sincronizar.executar(FiltroEstacoes())
     return [

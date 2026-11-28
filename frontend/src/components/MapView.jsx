@@ -13,6 +13,8 @@ const stationSeverities = {
   EMERGENCIA: { abbreviation: "E", className: "emergencia" },
 };
 
+const RAIO_BUSCA_PROXIMA_KM = 5;
+
 const stateOptions = [
   ["AC", "Acre"],
   ["AL", "Alagoas"],
@@ -340,7 +342,7 @@ export default function MapView({
         if (request.signal.aborted) return;
 
         setSearchStatus({
-          message: "Buscando estações em até 50 km…",
+          message: `Buscando estações em até ${RAIO_BUSCA_PROXIMA_KM} km…`,
           state: "loading",
         });
 
@@ -348,6 +350,7 @@ export default function MapView({
           const stations = await listarEstacoesProximas({
             lat: coords.latitude,
             lon: coords.longitude,
+            raioKm: RAIO_BUSCA_PROXIMA_KM,
             signal: request.signal,
           });
           if (request.signal.aborted) return;
@@ -394,8 +397,8 @@ export default function MapView({
           setSearchStatus({
             message:
               stationCount === 0
-                ? "Nenhuma estação encontrada em até 50 km da sua localização."
-                : `${stationCountLabel} ${stationCount === 1 ? "estação encontrada" : "estações encontradas"} em até 50 km da sua localização.`,
+                ? `Nenhuma estação encontrada em até ${RAIO_BUSCA_PROXIMA_KM} km da sua localização.`
+                : `${stationCountLabel} ${stationCount === 1 ? "estação encontrada" : "estações encontradas"} em até ${RAIO_BUSCA_PROXIMA_KM} km da sua localização.`,
             state: stationCount === 0 ? "empty" : "success",
           });
           searchInputRef.current?.blur();

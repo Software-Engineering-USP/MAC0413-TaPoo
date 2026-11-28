@@ -96,7 +96,7 @@ export function listarEstacoes({
 }
 
 /** GET /estacoes/proximas */
-export function listarEstacoesProximas({ lat, lon, raioKm = 50, signal } = {}) {
+export function listarEstacoesProximas({ lat, lon, raioKm = 5, signal } = {}) {
   const params = { lat, lon, raio_km: raioKm };
 
   return usaApiReal
