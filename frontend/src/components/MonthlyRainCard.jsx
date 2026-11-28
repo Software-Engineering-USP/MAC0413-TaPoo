@@ -42,8 +42,8 @@ export default function MonthlyRainCard({ codigo }) {
   }, [codigo]);
 
   const { status, chuva } = estado;
-  // Sem leituras no mês não há como comparar: 0 mm aqui é falta de dado, não seca.
-  const semLeituras = status === "ok" && chuva.medicoes === 0;
+  const semLeituras = status === "ok" && chuva.classificacao === "SEM_DADOS";
+  const fonteIndisponivel = status === "ok" && !chuva.atualizado;
   const mes = chuva && formatoMes.format(new Date(chuva.ano, chuva.mes - 1, 1));
 
   return (
@@ -76,11 +76,19 @@ export default function MonthlyRainCard({ codigo }) {
         </output>
       )}
 
+      {fonteIndisponivel && !semLeituras && (
+        <output className="station-detail-muted block">
+          Fonte indisponível; exibindo as leituras salvas disponíveis.
+        </output>
+      )}
+
       {semLeituras && (
         <output className="station-detail-muted block">
-          A fonte não tem leituras de chuva desta estação neste mês, então não
-          dá para comparar com a normal ({formatarMm(chuva.normal_mm)} no mês,
-          em {chuva.referencia.nome} — {chuva.referencia.uf}).
+          {chuva.atualizado
+            ? "A fonte respondeu, mas não retornou leituras de chuva desta estação neste mês."
+            : "A fonte está indisponível e não há leituras salvas de chuva desta estação neste mês."}{" "}
+          Não dá para comparar com a normal ({formatarMm(chuva.normal_mm)} no
+          mês, em {chuva.referencia.nome} — {chuva.referencia.uf}).
         </output>
       )}
 

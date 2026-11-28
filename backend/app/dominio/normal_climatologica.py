@@ -16,6 +16,7 @@ LIMITE_ACIMA_PERCENTUAL = 120.0
 
 
 class ClassificacaoChuva(StrEnum):
+    SEM_DADOS = "SEM_DADOS"
     ABAIXO = "ABAIXO"
     NORMAL = "NORMAL"
     ACIMA = "ACIMA"
@@ -34,6 +35,7 @@ class ClassificacaoChuva(StrEnum):
 
 
 _ROTULOS_CLASSIFICACAO = {
+    ClassificacaoChuva.SEM_DADOS: "Sem dados",
     ClassificacaoChuva.ABAIXO: "Abaixo do normal",
     ClassificacaoChuva.NORMAL: "Dentro do normal",
     ClassificacaoChuva.ACIMA: "Acima do normal",
@@ -77,6 +79,7 @@ class ChuvaMensal:
     medicoes: int
     referencia: NormalClimatologica
     distancia_km: float
+    atualizado: bool = True
 
     def __post_init__(self) -> None:
         if self.acumulado_mm < 0:
@@ -90,7 +93,9 @@ class ChuvaMensal:
 
     @property
     def percentual(self) -> float | None:
-        """Acumulado em relação à normal; `None` quando a normal do mês é 0 mm."""
+        """Acumulado em relação à normal, só quando há medições e normal positiva."""
+        if self.medicoes == 0:
+            return None
         normal = self.normal_mm
         if not normal:
             return None
@@ -98,6 +103,8 @@ class ChuvaMensal:
 
     @property
     def classificacao(self) -> ClassificacaoChuva:
+        if self.medicoes == 0:
+            return ClassificacaoChuva.SEM_DADOS
         percentual = self.percentual
         if percentual is None:
             # Mês em que historicamente não chove: qualquer chuva já está acima.

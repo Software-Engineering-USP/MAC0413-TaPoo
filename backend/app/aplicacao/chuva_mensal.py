@@ -51,9 +51,11 @@ class CompararChuvaComNormal:
         agora = self._relogio()
         local = agora.astimezone(FUSO_MES)
         periodo = periodo_do_mes(agora)
+        atualizado = True
         try:
             self._coletar.executar_periodo(codigo, periodo)
         except FonteIndisponivel as erro:
+            atualizado = False
             logger.warning("chuva do mês da estação %s sem atualizar: %s", codigo, erro)
 
         serie = self._medicoes.serie(codigo, Grandeza.CHUVA, periodo)
@@ -66,6 +68,7 @@ class CompararChuvaComNormal:
             medicoes=len(serie),
             referencia=referencia,
             distancia_km=distancia,
+            atualizado=atualizado,
         )
 
     def referencia(self, coordenada: Coordenada, mes: int) -> tuple[NormalClimatologica, float]:

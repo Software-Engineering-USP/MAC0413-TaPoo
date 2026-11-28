@@ -137,7 +137,26 @@ def test_fonte_fora_usa_medicoes_ja_salvas(caplog) -> None:
     ).executar(1)
     assert resultado.acumulado_mm == 40.0
     assert resultado.classificacao is ClassificacaoChuva.ABAIXO
+    assert resultado.atualizado is False
     assert "sem atualizar" in caplog.text
+
+
+def test_fonte_fora_sem_medicoes_nao_classifica_como_abaixo() -> None:
+    resultado = _servico(Fonte([], fora=True)).executar(1)
+
+    assert resultado.medicoes == 0
+    assert resultado.percentual is None
+    assert resultado.classificacao is ClassificacaoChuva.SEM_DADOS
+    assert resultado.atualizado is False
+
+
+def test_mes_sem_medicoes_tem_classificacao_sem_dados() -> None:
+    resultado = _servico(Fonte([])).executar(1)
+
+    assert resultado.medicoes == 0
+    assert resultado.percentual is None
+    assert resultado.classificacao is ClassificacaoChuva.SEM_DADOS
+    assert resultado.atualizado is True
 
 
 def test_estacao_inexistente_ou_sem_chuva() -> None:

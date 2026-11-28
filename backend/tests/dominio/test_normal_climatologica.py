@@ -30,6 +30,7 @@ def test_classificacao_pelos_limites_da_issue(percentual, esperada) -> None:
 
 
 def test_rotulos() -> None:
+    assert ClassificacaoChuva.SEM_DADOS.rotulo == "Sem dados"
     assert ClassificacaoChuva.ACIMA.rotulo == "Acima do normal"
     assert ClassificacaoChuva.NORMAL.rotulo == "Dentro do normal"
     assert ClassificacaoChuva.ABAIXO.rotulo == "Abaixo do normal"
@@ -57,6 +58,13 @@ def test_percentual_e_classificacao() -> None:
     assert acima.classificacao is ClassificacaoChuva.ACIMA
     assert chuva(200.0).classificacao is ClassificacaoChuva.NORMAL
     assert chuva(50.0).classificacao is ClassificacaoChuva.ABAIXO
+
+
+def test_sem_medicoes_nao_calcula_percentual_nem_classifica_como_abaixo() -> None:
+    sem_dados = ChuvaMensal(1, 2026, 1, 0.0, 0, normal(), 3.2)
+
+    assert sem_dados.percentual is None
+    assert sem_dados.classificacao is ClassificacaoChuva.SEM_DADOS
 
 
 def test_mes_com_normal_zero() -> None:

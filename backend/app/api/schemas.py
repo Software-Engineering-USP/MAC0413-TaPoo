@@ -220,6 +220,7 @@ class ChuvaMensalOut(BaseModel):
     percentual: float | None
     classificacao: ClassificacaoChuva
     classificacao_rotulo: str
+    atualizado: bool
     referencia: NormalReferenciaOut
 
     @classmethod
@@ -236,6 +237,7 @@ class ChuvaMensalOut(BaseModel):
             percentual=None if percentual is None else round(percentual, 1),
             classificacao=chuva.classificacao,
             classificacao_rotulo=chuva.classificacao.rotulo,
+            atualizado=chuva.atualizado,
             referencia=NormalReferenciaOut(
                 codigo=referencia.codigo,
                 nome=referencia.nome,

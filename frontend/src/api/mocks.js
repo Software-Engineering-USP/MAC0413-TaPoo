@@ -279,6 +279,7 @@ export function mockGetMonthlyRain(codigo, { signal } = {}) {
       percentual: 129.2,
       classificacao: "ACIMA",
       classificacao_rotulo: "Acima do normal",
+      atualizado: true,
       referencia: {
         codigo: "83781",
         nome: "SÃO PAULO (MIRANTE)",
