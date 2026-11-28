@@ -111,6 +111,15 @@ def test_monitoradas_sao_telemetricas_e_operando(repos: Repositorios) -> None:
     assert [e.codigo for e in repos.estacoes.monitoradas()] == [3]
 
 
+def test_remover_varias_apaga_apenas_os_codigos_informados(repos: Repositorios) -> None:
+    repos.estacoes.salvar_varias([estacao(90000001), estacao(90000002), estacao(62300600)])
+
+    assert repos.estacoes.remover_varias([90000001, 90000003]) == 1
+    assert sorted(e.codigo for e in repos.estacoes.buscar(FiltroEstacoes())) == [62300600, 90000002]
+    assert repos.estacoes.remover_varias([]) == 0
+    assert repos.estacoes.remover_varias([90000003]) == 0
+
+
 # --- Medições ---------------------------------------------------------------------
 
 
