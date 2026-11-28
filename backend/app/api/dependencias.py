@@ -54,6 +54,7 @@ from app.infra.persistencia.repositorios_sql import (
     MedicaoRepositorioSql,
 )
 
+
 @dataclass(frozen=True, slots=True)
 class Container:
     consulta: ConsultarDados
