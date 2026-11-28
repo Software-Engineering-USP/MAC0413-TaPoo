@@ -112,38 +112,16 @@ export function AboutDialog({ open, onClose }) {
           </button>
         </div>
         <p className="text-sm leading-relaxed text-slate-600">
-          Os marcadores mostram as estações hidrológicas consultadas na API da
-          ANA e a severidade informada. As linhas e áreas do mapa são
-          ilustrativas e representam riscos simulados.
+          Os marcadores mostram as esta&ccedil;&otilde;es hidrol&oacute;gicas
+          consultadas na API da ANA e a severidade informada. Os locais salvos
+          aparecem no mapa para facilitar o acesso &agrave;s posi&ccedil;&otilde;es
+          escolhidas.
         </p>
         <CivilDefenseWarning />
         <div className="space-y-3 rounded-2xl border border-slate-200 p-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Legenda do mapa
-          </h3>
-          <div className="flex items-center gap-3 text-sm text-slate-700">
-            <span className="h-1.5 w-6 rounded-full bg-sky-600"></span>
-            <span>Rios e córregos próximos</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-700">
-            <span className="h-3 w-3 rounded-full bg-sky-600"></span>
-            <span>Azul: sem risco simulado</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-700">
-            <span className="h-3 w-3 rounded-full bg-yellow-400"></span>
-            <span>Amarelo: risco baixo</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-700">
-            <span className="h-3 w-3 rounded-full bg-orange-500"></span>
-            <span>Laranja: risco moderado</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-slate-700">
-            <span className="h-3 w-3 rounded-full bg-red-600"></span>
-            <span>Vermelho: risco alto</span>
-          </div>
-          <h4 className="pt-2 text-xs font-bold uppercase tracking-wider text-slate-500">
             Severidade das estações ANA
-          </h4>
+          </h3>
           {[
             ["station-marker-normal", "N", "Normal — sem alerta ativo"],
             ["station-marker-atencao", "A", "Atenção"],

@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { getRiskLevel } from "../mapData";
 
 export default function SavedPlacesCard({
   places,
@@ -66,50 +65,37 @@ export default function SavedPlacesCard({
         ref={listRef}
         className="saved-locations-list location-chips flex w-full min-w-0 items-center gap-2 overflow-x-auto text-xs"
       >
-        {places.map((place, index) => {
-          const riskLevel = getRiskLevel(place.center);
-          const riskDescription =
-            riskLevel === "safe"
-              ? "Sem risco simulado"
-              : `Risco ${riskLevel.toLowerCase()}`;
-
-          return (
-            <div
-              key={`${place.name}-${place.center.join(",")}-${index}`}
-              className="saved-place-chip flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition group shadow-sm"
+        {places.map((place, index) => (
+          <div
+            key={`${place.name}-${place.center.join(",")}-${index}`}
+            className="saved-place-chip flex items-center justify-between bg-slate-50 border border-slate-100 px-3 py-2 rounded-xl hover:bg-slate-100 hover:border-slate-200 transition group shadow-sm"
+          >
+            <button
+              type="button"
+              onClick={() => onSelect(place)}
+              className="saved-place-select saved-place-details flex flex-col flex-1 min-w-0 text-left"
             >
-              <button
-                type="button"
-                onClick={() => onSelect(place)}
-                className="saved-place-select saved-place-details flex flex-col flex-1 min-w-0 text-left"
+              <span
+                className="saved-place-name text-xs font-bold text-slate-700 truncate"
+                title={place.name}
               >
-                <span
-                  className="saved-place-name text-xs font-bold text-slate-700 truncate"
-                  title={place.name}
-                >
-                  {place.name}
-                </span>
-                <span
-                  className={`saved-place-risk text-[10px] font-medium truncate ${riskLevel === "safe" ? "text-slate-400" : "text-red-500"}`}
-                >
-                  {riskDescription}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onRemove(index)}
-                className="saved-place-remove text-slate-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition focus:opacity-100 ml-2 rounded-lg hover:bg-red-50"
-                aria-label={`Remover ${place.name} dos locais salvos`}
-                title="Remover local"
-              >
-                <i
-                  className="fa-solid fa-trash text-[11px]"
-                  aria-hidden="true"
-                ></i>
-              </button>
-            </div>
-          );
-        })}
+                {place.name}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onRemove(index)}
+              className="saved-place-remove text-slate-300 hover:text-red-500 p-1.5 opacity-0 group-hover:opacity-100 transition focus:opacity-100 ml-2 rounded-lg hover:bg-red-50"
+              aria-label={`Remover ${place.name} dos locais salvos`}
+              title="Remover local"
+            >
+              <i
+                className="fa-solid fa-trash text-[11px]"
+                aria-hidden="true"
+              ></i>
+            </button>
+          </div>
+        ))}
         <button
           type="button"
           onClick={onSave}
