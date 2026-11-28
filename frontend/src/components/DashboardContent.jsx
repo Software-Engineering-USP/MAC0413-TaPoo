@@ -1,5 +1,6 @@
 import CivilDefenseWarning from "./CivilDefenseWarning";
 import ActiveAlertsPanel from "./ActiveAlertsPanel";
+import SelectedStationStatus from "./SelectedStationStatus";
 
 const emergencyContacts = [
   { number: "112", service: "Emergência" },
@@ -9,7 +10,7 @@ const emergencyContacts = [
   { number: "199", service: "Defesa Civil" },
 ];
 
-export default function DashboardContent({ onCloseInfoSheet }) {
+export default function DashboardContent({ onCloseInfoSheet, selectedStation }) {
   return (
     <>
       <div className="mobile-sheet-handle">
@@ -31,58 +32,7 @@ export default function DashboardContent({ onCloseInfoSheet }) {
 
       <CivilDefenseWarning />
 
-      <div className="dashboard-card bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-          <div className="flex items-center gap-2">
-            <i className="fa-solid fa-location-dot text-sky-600 text-lg"></i>
-            <h2
-              className="text-base font-bold text-slate-800"
-              id="selectedCityName"
-            >
-              Blumenau, SC
-            </h2>
-          </div>
-          <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">
-            Bacia Itajaí-Açu
-          </span>
-        </div>
-
-        <div className="dashboard-grid grid grid-cols-2 gap-4">
-          <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <span className="text-[11px] font-medium text-slate-400 block mb-1">
-              CONDIÇÃO ATUAL
-            </span>
-            <div className="flex items-center gap-3">
-              <i className="fa-solid fa-cloud-showers-heavy text-slate-600 text-2xl"></i>
-              <div>
-                <p className="text-sm font-bold text-slate-800">
-                  Chuva Intensa
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  48mm nas úl. 6h
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="dashboard-grid-card bg-slate-50 p-3 rounded-xl border border-slate-100">
-            <span className="text-[11px] font-medium text-slate-400 block mb-1">
-              NÍVEL DO RIO
-            </span>
-            <div className="flex items-center gap-3">
-              <i className="fa-solid fa-water text-sky-600 text-2xl"></i>
-              <div>
-                <p className="text-sm font-bold text-slate-800" id="riverLevel">
-                  8,42 metros
-                </p>
-                <p className="text-[11px] text-red-600 font-bold flex items-center mt-0.5">
-                  <i className="fa-solid fa-arrow-trend-up mr-1"></i> Emergência
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <SelectedStationStatus station={selectedStation} />
 
       <div className="dashboard-card bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">

@@ -25,6 +25,7 @@ export default function App() {
   const [placeToRemove, setPlaceToRemove] = useState(null);
   const [savedPlaces, setSavedPlaces] = useState(loadSavedPlaces);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedStation, setSelectedStation] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const isInfoSheetOpen = location.pathname === "/informacoes";
@@ -229,6 +230,7 @@ export default function App() {
             onSavePlace: saveCurrentPlace,
             onSelectSavedPlace: selectSavedPlace,
             onRequestRemovePlace: setPlaceToRemove,
+            selectedStation,
           }}
         />
       </Sidebar>
@@ -240,6 +242,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={updateSearchQuery}
         onSearch={searchSavedPlaces}
+        onSelectStation={setSelectedStation}
       />
       <MobileNavigation
         isInfoSheetOpen={isInfoSheetOpen}

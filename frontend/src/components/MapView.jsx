@@ -70,7 +70,7 @@ function stationCoordinates(station) {
   return invalidCoordinates ? null : [latitude, longitude];
 }
 
-function stationMarker(station) {
+function stationMarker(station, onSelectStation) {
   const coordinates = stationCoordinates(station);
   if (!coordinates) return null;
 
@@ -100,7 +100,9 @@ function stationMarker(station) {
     icon: stationIcon(station.severidade),
     title: `${name} — ${severity}`,
     alt: `${name}, severidade ${severity}`,
-  }).bindPopup(popup);
+  })
+    .bindPopup(popup)
+    .on("click", () => onSelectStation?.(station));
 }
 
 function stationSearchSummary(
@@ -155,6 +157,7 @@ export default function MapView({
   searchQuery,
   onSearchChange,
   onSearch,
+  onSelectStation,
 }) {
   const mapContainerRef = useRef(null);
   const stationLayerRef = useRef(null);
@@ -222,6 +225,7 @@ export default function MapView({
     setIsLocating(false);
 
     const query = searchQuery.trim();
+    onSelectStation?.(null);
     const normalizedQuery = query.toLocaleLowerCase("pt-BR");
     const matchingPlaces =
       query.length >= 2
@@ -285,7 +289,7 @@ export default function MapView({
 
       layer.clearLayers();
       stationsToShow.forEach((station) => {
-        const marker = stationMarker(station);
+        const marker = stationMarker(station, onSelectStation);
         if (marker) layer.addLayer(marker);
       });
 
@@ -316,6 +320,7 @@ export default function MapView({
 
   const handleNearbySearch = () => {
     stationRequestRef.current?.abort();
+    onSelectStation?.(null);
     setIsLocating(false);
     searchInputRef.current?.setCustomValidity("");
     onSearchChange("");
@@ -375,7 +380,7 @@ export default function MapView({
             stationCoordinates(station),
           );
           stationsWithCoordinates.forEach((station) => {
-            const marker = stationMarker(station);
+            const marker = stationMarker(station, onSelectStation);
             if (marker) {
               marker.bindTooltip(`${station.distancia_km} km`, {
                 direction: "top",
@@ -435,6 +440,7 @@ export default function MapView({
     const uf = event.target.value;
     setSelectedUf(uf);
     stationRequestRef.current?.abort();
+    onSelectStation?.(null);
     setIsLocating(false);
     stationLayerRef.current?.clearLayers();
     searchInputRef.current?.setCustomValidity("");
