@@ -8,7 +8,7 @@ import {
 import MapView from "./components/MapView";
 import MobileNavigation from "./components/MobileNavigation";
 import Sidebar from "./components/Sidebar";
-import { defaultSavedPlaces, loadSavedPlaces } from "./mapData";
+import { loadSavedPlaces } from "./mapData";
 
 export default function App() {
   const appShellRef = useRef(null);
@@ -206,10 +206,6 @@ export default function App() {
     setSearchQuery(value);
   };
 
-  const showDefaultLocation = () => {
-    mapRef.current?.flyTo(defaultSavedPlaces[0].center, 16);
-  };
-
   const selectSavedPlace = (place) => {
     mapRef.current?.flyTo(place.center, place.zoom);
     if (window.matchMedia("(max-width: 767px)").matches) navigate("/");
@@ -244,7 +240,6 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={updateSearchQuery}
         onSearch={searchSavedPlaces}
-        onMyLocation={showDefaultLocation}
       />
       <MobileNavigation
         isInfoSheetOpen={isInfoSheetOpen}

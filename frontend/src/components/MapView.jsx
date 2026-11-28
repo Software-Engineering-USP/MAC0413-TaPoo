@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { listarEstacoes, usaApiReal } from "../api/cliente";
+import {
+  listarEstacoes,
+  listarEstacoesProximas,
+  usaApiReal,
+} from "../api/cliente";
 import { floodZones, getRiskLevel, rivers } from "../mapData";
 
 const stationSeverities = {
@@ -161,7 +165,6 @@ export default function MapView({
   searchQuery,
   onSearchChange,
   onSearch,
-  onMyLocation,
 }) {
   const mapContainerRef = useRef(null);
   const stationLayerRef = useRef(null);
@@ -171,6 +174,7 @@ export default function MapView({
     message: "",
     state: "empty",
   });
+  const [isLocating, setIsLocating] = useState(false);
   const searchIndicator =
     searchStatus.message &&
     {
@@ -260,6 +264,7 @@ export default function MapView({
   const handleSearch = async (event) => {
     event.preventDefault();
     stationRequestRef.current?.abort();
+    setIsLocating(false);
 
     const query = searchQuery.trim();
     const normalizedQuery = query.toLocaleLowerCase("pt-BR");
@@ -354,10 +359,127 @@ export default function MapView({
     }
   };
 
+  const handleNearbySearch = () => {
+    stationRequestRef.current?.abort();
+    setIsLocating(false);
+    searchInputRef.current?.setCustomValidity("");
+    onSearchChange("");
+
+    if (!navigator.geolocation) {
+      setSearchStatus({
+        message: "Este navegador não oferece suporte à localização.",
+        state: "error",
+      });
+      return;
+    }
+
+    const request = new AbortController();
+    stationRequestRef.current = request;
+    setIsLocating(true);
+    setSearchStatus({
+      message: "Obtendo sua localização…",
+      state: "loading",
+    });
+    stationLayerRef.current?.clearLayers();
+
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        if (request.signal.aborted) return;
+
+        setSearchStatus({
+          message: "Buscando estações em até 50 km…",
+          state: "loading",
+        });
+
+        try {
+          const stations = await listarEstacoesProximas({
+            lat: coords.latitude,
+            lon: coords.longitude,
+            signal: request.signal,
+          });
+          if (request.signal.aborted) return;
+
+          const layer = stationLayerRef.current;
+          const map = mapRef.current;
+          if (!layer || !map) return;
+
+          const locationMarker = L.circleMarker(
+            [coords.latitude, coords.longitude],
+            {
+              radius: 8,
+              color: "#ffffff",
+              weight: 3,
+              fillColor: "#0284c7",
+              fillOpacity: 1,
+            },
+          ).bindPopup("Sua localização");
+          layer.addLayer(locationMarker);
+
+          const stationsWithCoordinates = stations.filter((station) =>
+            stationCoordinates(station),
+          );
+          stationsWithCoordinates.forEach((station) => {
+            const marker = stationMarker(station);
+            if (marker) {
+              marker.bindTooltip(`${station.distancia_km} km`, {
+                direction: "top",
+                offset: [0, -14],
+              });
+              layer.addLayer(marker);
+            }
+          });
+
+          const bounds = layer.getBounds();
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+          }
+
+          const stationCount = layer.getLayers().length - 1;
+          const stationCountLabel = new Intl.NumberFormat("pt-BR").format(
+            stationCount,
+          );
+          setSearchStatus({
+            message:
+              stationCount === 0
+                ? "Nenhuma estação encontrada em até 50 km da sua localização."
+                : `${stationCountLabel} ${stationCount === 1 ? "estação encontrada" : "estações encontradas"} em até 50 km da sua localização.`,
+            state: stationCount === 0 ? "empty" : "success",
+          });
+          searchInputRef.current?.blur();
+        } catch (error) {
+          if (error.name === "AbortError") return;
+          setSearchStatus({
+            message: `Não foi possível carregar as estações próximas: ${error.message}`,
+            state: "error",
+          });
+        } finally {
+          if (!request.signal.aborted) setIsLocating(false);
+        }
+      },
+      (error) => {
+        if (request.signal.aborted) return;
+
+        const messages = {
+          1: "Permita o acesso à localização para encontrar estações próximas.",
+          2: "Não foi possível determinar sua localização. Tente novamente.",
+          3: "A localização demorou demais. Tente novamente.",
+        };
+        setSearchStatus({
+          message:
+            messages[error.code] || "Não foi possível obter sua localização.",
+          state: "error",
+        });
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
+    );
+  };
+
   const handleUfChange = (event) => {
     const uf = event.target.value;
     setSelectedUf(uf);
     stationRequestRef.current?.abort();
+    setIsLocating(false);
     stationLayerRef.current?.clearLayers();
     searchInputRef.current?.setCustomValidity("");
     onSearchChange("");
@@ -457,11 +579,18 @@ export default function MapView({
           />
           <button
             type="button"
-            onClick={onMyLocation}
-            className="absolute right-20 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-sky-700"
-            title="Minha localização"
+            onClick={handleNearbySearch}
+            disabled={isLocating}
+            className="absolute right-20 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-sky-700 disabled:cursor-wait disabled:opacity-60"
+            title="Encontrar estações perto de mim"
+            aria-label="Encontrar estações perto de mim"
           >
-            <i className="fa-solid fa-location-arrow text-xs"></i>
+            <i
+            className={`fa-solid ${
+              isLocating ? "fa-spinner fa-spin" : "fa-location-arrow"
+            } text-xs`}
+              aria-hidden="true"
+            />
           </button>
           <button
             type="submit"
