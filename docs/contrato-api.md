@@ -349,6 +349,7 @@ Exemplo: `GET /estacoes/90000004/chuva-mensal`. Chuva do mês corrente comparada
   "percentual": 43.8,
   "classificacao": "ABAIXO",
   "classificacao_rotulo": "Abaixo do normal",
+  "atualizado": true,
   "referencia": {
     "codigo": 83744,
     "nome": "TERESOPOLIS",
@@ -602,13 +603,14 @@ Exemplo 422: `GET /estacoes/proximas?lat=200&lon=0` (`frontend/src/mocks/erro-42
 | `percentual` | `number` \| `null` | sim |
 | `classificacao` | [`ClassificacaoChuva`](#classificacaochuva) | sim |
 | `classificacao_rotulo` | `string` | sim |
+| `atualizado` | `boolean` | sim |
 | `referencia` | [`NormalReferenciaOut`](#normalreferenciaout) | sim |
 
 <a id="classificacaochuva"></a>
 
 ### `ClassificacaoChuva`
 
-Valores: `ABAIXO`, `NORMAL`, `ACIMA`.
+Valores: `SEM_DADOS`, `ABAIXO`, `NORMAL`, `ACIMA`.
 
 <a id="estacaoout"></a>
 
