@@ -1,8 +1,4 @@
-"""Composição da aplicação: liga as portas às implementações concretas.
-
-É o único lugar que conhece `app.infra`. Trocar memória por SQL (`REPO`), ou `FonteFake`
-por `FonteAna`, muda só este arquivo.
-"""
+"""Composição da aplicação: liga as portas às implementações concretas."""
 
 import os
 from collections.abc import Callable
@@ -27,6 +23,8 @@ from app.aplicacao.portas import (
 )
 from app.aplicacao.sincronizacao import SincronizarEstacoes
 from app.configuracao import (
+    arquivo_cenario_simulado,
+    arquivo_regras,
     base_url_ana,
     credenciais_ana,
     timeout_ana,
@@ -37,8 +35,8 @@ from app.dominio.enums import OrigemDados
 from app.dominio.tempo import agora_utc
 from app.infra.agendador import AgendadorColeta
 from app.infra.fontes.ana import FonteAna
-from app.infra.fontes.fake import FonteFake, regras_de_exemplo
 from app.infra.fontes.openmeteo import FonteOpenMeteo
+from app.infra.fontes.simulada import ARQUIVO_CENARIO, FonteSimulada, regras_de_exemplo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
     EstacaoRepositorioMemoria,
@@ -76,7 +74,7 @@ class Repositorios:
 def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrologicos:
     """Escolhe a `FonteDadosHidrologicos` pela variável de ambiente `FONTE`.
 
-    `FONTE=ana` exige credenciais. `FONTE=fake`/`simulada` usa dados fictícios.
+    `FONTE=ana` exige credenciais. `FONTE=fake`/`simulada` usa o cenário JSON.
     Sem `FONTE`, mantém o comportamento anterior: ANA com credenciais, simulada sem.
     """
     credencial = credenciais_ana()
@@ -88,10 +86,10 @@ def criar_fonte(relogio: Callable[[], datetime] = agora_utc) -> FonteDadosHidrol
             raise RuntimeError("FONTE=ana exige ANA_IDENTIFICADOR e ANA_SENHA.")
         return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
     if var in ("fake", "simulada"):
-        return FonteFake(relogio())
+        return FonteSimulada(relogio(), arquivo=arquivo_cenario_simulado() or ARQUIVO_CENARIO)
     if credencial is not None:
         return FonteAna(*credencial, base_url=base_url_ana(), timeout=timeout_ana())
-    return FonteFake(relogio())
+    return FonteSimulada(relogio(), arquivo=arquivo_cenario_simulado() or ARQUIVO_CENARIO)
 
 
 def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repositorios:
@@ -102,7 +100,7 @@ def criar_repositorios(tipo: str | None = None, url: str | None = None) -> Repos
         EstacaoRepositorioMemoria(),
         MedicaoRepositorioMemoria(),
         AlertaRepositorioMemoria(),
-        RegraRepositorioMemoria(regras_de_exemplo()),
+        RegraRepositorioMemoria(_carregar_regras()),
     )
 
 
@@ -113,8 +111,18 @@ def repositorios_sql(banco: BancoDeDados) -> Repositorios:
         EstacaoRepositorioSql(banco),
         MedicaoRepositorioSql(banco),
         AlertaRepositorioSql(banco),
-        RegraRepositorioMemoria(regras_de_exemplo()),
+        RegraRepositorioMemoria(_carregar_regras()),
     )
+
+
+def _carregar_regras():
+    arquivo = arquivo_regras()
+    if arquivo is not None:
+        return regras_de_exemplo(arquivo)
+    fonte = (os.getenv("FONTE") or "").strip().casefold()
+    if fonte == "ana" or (not fonte and credenciais_ana() is not None):
+        return []
+    return regras_de_exemplo(arquivo_cenario_simulado() or ARQUIVO_CENARIO)
 
 
 def montar_container(

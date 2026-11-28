@@ -12,6 +12,7 @@ from app.dominio.erros import FonteIndisponivel
 from app.dominio.estacao import Estacao
 from app.dominio.geografia import Coordenada
 from app.dominio.medicao import Medicao, MedicaoChuva
+from app.dominio.municipio import Municipio
 from app.dominio.periodo import Periodo
 from app.infra.memoria.repositorios import (
     AlertaRepositorioMemoria,
@@ -24,7 +25,7 @@ T0 = datetime(2026, 1, 10, 12, tzinfo=UTC)
 
 
 def estacao() -> Estacao:
-    return Estacao(1, "E", TipoEstacao.PLUVIOMETRICA, Coordenada(0, 0), "SP", "X")
+    return Estacao(1, "E", TipoEstacao.PLUVIOMETRICA, Coordenada(0, 0), Municipio("X", "SP"))
 
 
 class FonteStub(FonteDadosHidrologicos):
@@ -62,7 +63,7 @@ def test_executar_salva_medicoes_quando_fonte_funciona() -> None:
 
 
 def test_executar_todas_continua_quando_fonte_falha(caplog) -> None:
-    segunda = Estacao(2, "E2", TipoEstacao.PLUVIOMETRICA, Coordenada(1, 1), "SP", "Y")
+    segunda = Estacao(2, "E2", TipoEstacao.PLUVIOMETRICA, Coordenada(1, 1), Municipio("Y", "SP"))
     medicoes = MedicaoRepositorioMemoria()
     coletar = _coletar(FonteStub(falhar_em={1}), [estacao(), segunda], medicoes)
 

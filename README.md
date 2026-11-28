@@ -137,8 +137,9 @@ Modeling decisions (why `Estacao` uses `TipoEstacao` instead of subclasses, and 
 implements the same ports as the in-memory repositories (`EstacaoRepositorioSql`,
 `MedicaoRepositorioSql`, `AlertaRepositorioSql`). Measurements are upserted by their
 natural key `(codigo_estacao, grandeza, data_hora_utc, origem)`, and dates are stored
-in UTC. Tables are created on startup if missing; there are no migrations yet. Alert
-rules still come from `regras_de_exemplo()` in memory until the seed (#67).
+in UTC. Tables are created on startup if missing; there are no migrations yet. The
+simulated stations, measurement profiles, and alert thresholds are loaded from
+`backend/app/infra/fontes/dados/cenario-demo.json`.
 
 The repository contract tests (`tests/infra/test_repositorios_contrato.py`) run
 against memory and SQLite, and also against PostgreSQL when `TEST_DATABASE_URL` is
@@ -154,9 +155,17 @@ TEST_DATABASE_URL=postgresql://tapoo:tapoo@localhost:5432/tapoo_teste uv run pyt
 
 `FONTE` selects the hydrological source: `ana` uses the ANA API and requires both
 `ANA_IDENTIFICADOR` and `ANA_SENHA`; `fake` and `simulada` use fictional stations
-9000000x. If `FONTE` is blank, the backend selects ANA when credentials are present
-and the simulated source otherwise. Unknown values fail at startup instead of silently
-choosing a source. Do not commit `.env`; `.env.example` lists the available settings.
+9000000x from the JSON scenario. `fake` remains an alias for `simulada`. If `FONTE` is
+blank, the backend selects ANA when credentials are present and the simulated source
+otherwise. Unknown values fail at startup instead of silently choosing a source. Do
+not commit `.env`; `.env.example` lists the available settings.
+
+`CENARIO_SIMULADO` may point to a custom JSON file for the simulated stations and
+profiles. `REGRAS_ARQUIVO` points to a JSON file containing alert thresholds; when
+using ANA, set it to rules whose station codes match the ANA inventory. ANA starts
+with no rules if this setting is blank, so the fictional demo thresholds are never
+applied to real stations. A rules file contains a top-level `regras` list, following
+the format in `backend/app/infra/fontes/dados/cenario-demo.json`.
 
 `FonteAna` loads the ANA inventory and fetches a station's adopted measurements when
 its time-series route is requested. The API token is cached until shortly before

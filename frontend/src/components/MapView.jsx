@@ -471,6 +471,28 @@ export default function MapView({
           )}
       </div>
       <div
+        className="risk-area-legend"
+        aria-label="Legenda das áreas simuladas"
+      >
+        <strong>Áreas ilustrativas</strong>
+        <span>
+          <i aria-hidden="true" className="risk-area-swatch risk-area-low" />{" "}
+          Baixo
+        </span>
+        <span>
+          <i
+            aria-hidden="true"
+            className="risk-area-swatch risk-area-moderate"
+          />{" "}
+          Moderado
+        </span>
+        <span>
+          <i aria-hidden="true" className="risk-area-swatch risk-area-high" />{" "}
+          Alto
+        </span>
+        <small>Não representam alertas oficiais</small>
+      </div>
+      <div
         ref={mapContainerRef}
         className="interactive-map"
         role="application"

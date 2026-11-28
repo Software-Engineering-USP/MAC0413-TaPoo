@@ -1,0 +1,81 @@
+{
+  "estacoes": [
+    {
+      "codigo": 90000001,
+      "nome": "Rio Tietê - São Paulo (exemplo)",
+      "tipo": "FLUVIOMETRICA",
+      "latitude": -23.52,
+      "longitude": -46.63,
+      "uf": "SP",
+      "municipio": "São Paulo",
+      "rio": "Rio Tietê",
+      "telemetrica": true,
+      "operando": true,
+      "perfis": {
+        "nivel": {"tipo": "linear", "valor_atual": 440, "minimo": 250, "queda_por_hora": 4},
+        "vazao": {"tipo": "vazao_por_nivel", "perfil_nivel": "nivel", "coeficiente": 0.002, "expoente": 1.5},
+        "chuva": {"tipo": "senoide_positiva", "amplitude": 0.6, "periodo_horas": 3, "casas": 1}
+      }
+    },
+    {
+      "codigo": 90000002,
+      "nome": "Campinas (exemplo)",
+      "tipo": "PLUVIOMETRICA",
+      "latitude": -22.91,
+      "longitude": -47.06,
+      "uf": "SP",
+      "municipio": "Campinas",
+      "telemetrica": true,
+      "operando": true,
+      "perfis": {"chuva": {"tipo": "senoide_positiva", "amplitude": 0.6, "periodo_horas": 3, "casas": 1}}
+    },
+    {
+      "codigo": 90000003,
+      "nome": "Rio das Velhas - Belo Horizonte (exemplo)",
+      "tipo": "FLUVIOMETRICA",
+      "latitude": -19.92,
+      "longitude": -43.94,
+      "uf": "MG",
+      "municipio": "Belo Horizonte",
+      "rio": "Rio das Velhas",
+      "telemetrica": true,
+      "operando": true,
+      "perfis": {
+        "nivel": {"tipo": "senoide", "base": 150, "amplitude": 5, "periodo_horas": 6},
+        "vazao": {"tipo": "vazao_por_nivel", "perfil_nivel": "nivel", "coeficiente": 0.002, "expoente": 1.5},
+        "chuva": {"tipo": "constante", "valor": 0}
+      }
+    },
+    {
+      "codigo": 90000004,
+      "nome": "Petrópolis (exemplo)",
+      "tipo": "PLUVIOMETRICA",
+      "latitude": -22.51,
+      "longitude": -43.18,
+      "uf": "RJ",
+      "municipio": "Petrópolis",
+      "telemetrica": true,
+      "operando": true,
+      "perfis": {"chuva": {"tipo": "recente", "valor_recente": 4, "horas_recentes": 24, "valor_anterior": 0.2}}
+    },
+    {
+      "codigo": 90000005,
+      "nome": "Ouro Preto (exemplo)",
+      "tipo": "PLUVIOMETRICA",
+      "latitude": -20.39,
+      "longitude": -43.5,
+      "uf": "MG",
+      "municipio": "Ouro Preto",
+      "telemetrica": false,
+      "operando": true,
+      "perfis": {"chuva": {"tipo": "constante", "valor": 0}}
+    }
+  ],
+  "regras": [
+    {"tipo": "cota_referencia", "codigo_estacao": 90000001, "cota_atencao_cm": 300, "cota_alerta_cm": 400, "cota_inundacao_cm": 500},
+    {"tipo": "chuva_acumulada", "codigo_estacao": 90000002, "janela_horas": 24, "limite_moderado_mm": 30, "limite_alto_mm": 50, "limite_extremo_mm": 80},
+    {"tipo": "cota_referencia", "codigo_estacao": 90000003, "cota_atencao_cm": 250, "cota_alerta_cm": 320, "cota_inundacao_cm": 400},
+    {"tipo": "chuva_acumulada", "codigo_estacao": 90000004, "janela_horas": 24, "limite_moderado_mm": 30, "limite_alto_mm": 50, "limite_extremo_mm": 80},
+    {"tipo": "chuva_previsao", "codigo_estacao": 90000004, "latitude": -22.51, "longitude": -43.18, "janela_horas": 24, "limite_moderado_mm": 30, "limite_alto_mm": 50, "limite_extremo_mm": 80}
+  ]
+}

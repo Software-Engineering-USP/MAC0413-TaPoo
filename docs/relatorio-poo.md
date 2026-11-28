@@ -210,7 +210,7 @@ futura estratégia desse tipo.
 
 `criar_repositorios()` escolhe a implementação por `REPO=memoria|sql`. Os serviços usam
 a mesma porta nos dois casos. Com `REPO=sql`, estações, medições e alertas usam SQL; as
-regras de alerta continuam em `RegraRepositorioMemoria`, carregadas por
+regras de alerta usam `RegraRepositorioMemoria` e são carregadas do cenário JSON por
 `regras_de_exemplo()`. O contrato comum é exercitado contra memória, SQLite e, quando
 `TEST_DATABASE_URL` está definida, PostgreSQL em
 `backend/tests/infra/test_repositorios_contrato.py`.
@@ -221,7 +221,7 @@ regras de alerta continuam em `RegraRepositorioMemoria`, carregadas por
 |---|---|
 | Problema | Converter APIs e dados externos para as entidades e medições do domínio. |
 | Contrato | `FonteDadosHidrologicos`. |
-| Implementações | `FonteAna` adapta o HidroWeb; `FonteFake` fornece dados de exemplo usando o mesmo contrato. |
+| Implementações | `FonteAna` adapta o HidroWeb; `FonteSimulada` carrega o cenário fictício de JSON usando o mesmo contrato. `FonteFake` continua como alias compatível. |
 | Alternativas | Fazer cada serviço entender os formatos da ANA ou espalhar conversões pelas rotas. |
 | Trade-off | O restante do sistema recebe modelos próprios e pode usar outra fonte; o adaptador precisa acompanhar mudanças no formato externo. |
 | Onde fica | Porta em `backend/app/aplicacao/portas.py`; adaptadores em `backend/app/infra/fontes/`. |
@@ -231,27 +231,24 @@ regras de alerta continuam em `RegraRepositorioMemoria`, carregadas por
 | Ficha | Descrição |
 |---|---|
 | Problema | Decidir em um lugar quais implementações concretas compõem a aplicação e entregar cada dependência ao serviço que precisa dela. |
-| Mecanismo | `montar_container` seleciona `FonteAna` ou `FonteFake`, chama `criar_repositorios()` e injeta as portas nos serviços. FastAPI entrega os serviços às rotas por dependências. |
+| Mecanismo | `criar_fonte()` seleciona `FonteAna` ou `FonteSimulada` pela variável `FONTE`; `montar_container` chama `criar_repositorios()` e injeta as portas nos serviços. FastAPI entrega os serviços às rotas por dependências. |
 | Alternativas | Instanciar dependências dentro de cada rota ou serviço. |
 | Trade-off | A composição explícita facilita testes e substituição; o arquivo de composição conhece as implementações concretas e precisa ser atualizado quando a configuração muda. |
 | Onde fica | `backend/app/api/dependencias.py` e `backend/app/main.py`. |
 
 ### Factory — construção de regras de exemplo
 
-`regras_de_exemplo()` em `backend/app/infra/fontes/fake.py` centraliza a criação das
-regras e cotas usadas pela fonte de demonstração. É uma função fábrica pequena: esconde
-os detalhes de construção e devolve uma coleção pronta. `criar_repositorios()` em
-`backend/app/api/dependencias.py` também centraliza a escolha entre repositórios em
-memória e SQL. Nenhuma dessas funções é uma fábrica geral de fontes: a seleção entre
-`FonteAna` e `FonteFake` ainda ocorre diretamente em `montar_container`, sem uma
-`FonteFactory` separada.
+`regras_de_exemplo()` em `backend/app/infra/fontes/simulada.py` carrega do cenário JSON
+as regras e cotas da demonstração e as converte em objetos de domínio.
+`criar_repositorios()` centraliza a escolha entre memória e SQL; `criar_fonte()` faz
+a seleção da fonte pela configuração, sem uma classe de fábrica separada.
 
 | Ficha | Descrição |
 |---|---|
 | Problema | Criar um conjunto coerente de regras de demonstração sem repetir sua construção. |
 | Alternativas | Construir cada regra no ponto de uso ou criar uma fábrica extensível para vários perfis de configuração. |
 | Trade-off | A função é simples e suficiente para os dados de exemplo; se surgirem múltiplos perfis configuráveis, uma fábrica explícita poderá ser mais adequada. |
-| Onde fica | `backend/app/infra/fontes/fake.py`; uso em `backend/app/api/dependencias.py`. |
+| Onde fica | Dados em `backend/app/infra/fontes/dados/cenario-demo.json`; carregamento em `backend/app/infra/fontes/simulada.py`; composição em `backend/app/api/dependencias.py`. |
 
 ## Princípios de projeto e boas práticas
 

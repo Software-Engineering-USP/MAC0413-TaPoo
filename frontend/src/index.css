@@ -371,6 +371,16 @@ body {
   color: #b45309;
 }
 
+.risk-area-legend {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 400;
+  display: grid;
+  gap: 1rem;
+  color: #0f172a;
+}
+
 .station-marker {
   border: 0;
   background: transparent;
