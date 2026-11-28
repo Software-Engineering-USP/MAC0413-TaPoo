@@ -94,17 +94,33 @@ unless it is upgraded.
    `ANA_IDENTIFICADOR` and `ANA_SENHA` when prompted to enable live ANA data, and
    set `CORS_ORIGENS` to the Vercel production origin (for example,
    `https://tapoo.vercel.app`). Keep these values in Render's environment settings.
-3. Copy the Render service URL (for example, `https://tapoo-api.onrender.com`) into
-   Vercel's `VITE_API_URL` environment variable for Production, then redeploy the
-   frontend. Vite embeds this URL into the frontend at build time.
-4. Check `https://<render-service>.onrender.com/health`, then use the deployed
-   frontend to confirm it can search stations through the API.
+3. Set Vercel's `VITE_API_URL` Production environment variable to
+   `https://tapoo-api.onrender.com`, then redeploy the frontend. Vite embeds this
+   URL into the frontend at build time.
+4. Verify the API healthcheck:
+   ```bash
+   API_URL="https://tapoo-api.onrender.com"
+   curl --fail --show-error --max-time 90 "$API_URL/health"
+   ```
+   It must return HTTP 200 and `{"status":"ok"}`. The first request may take
+   about one minute while the free Render service wakes from an idle state. Then
+   use the deployed frontend to confirm it can search stations through the API.
 
 For Vercel Preview deployments, add their origins to `CORS_ORIGENS` if they should
 be allowed to call the production API, and set `VITE_API_URL` for the Preview
-environment too. `CORS_ORIGENS` accepts comma-separated exact origins. The Render
-service health check is configured as `/health` in the Blueprint. Update this
-README with the final public frontend and API URLs after deployment.
+environment too. `CORS_ORIGENS` accepts comma-separated exact origins.
+
+### Production URLs and healthcheck
+
+| Service | Production address |
+|---|---|
+| Frontend (Vercel) | Pending deployment confirmation |
+| API (Render) | <https://tapoo-api.onrender.com> |
+| API documentation | <https://tapoo-api.onrender.com/docs> |
+| API healthcheck | <https://tapoo-api.onrender.com/health> → HTTP 200, `{"status":"ok"}` |
+
+After confirming the frontend deployment, replace its pending entry with the
+actual URL.
 
 ## Backend architecture
 
