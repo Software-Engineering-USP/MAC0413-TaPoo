@@ -150,7 +150,7 @@ def montar_container(
             repositorios.alertas,
             repositorios.regras,
         ),
-        sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes),
+        sincronizar=SincronizarEstacoes(fonte, repositorios.estacoes, relogio=relogio),
         coletar=coletar,
         chuva_mensal=CompararChuvaComNormal(
             repositorios.estacoes,
