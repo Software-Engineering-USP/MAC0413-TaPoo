@@ -8,6 +8,7 @@ import {
   usaApiReal,
 } from "../api/cliente";
 import CivilDefenseWarning from "../components/CivilDefenseWarning";
+import MonthlyRainCard from "../components/MonthlyRainCard";
 
 const granularityLabels = { CHUVA: "Chuva", NIVEL: "Nível", VAZAO: "Vazão" };
 const severityClasses = {
@@ -508,6 +509,10 @@ export default function StationDetailRoute() {
           </p>
         )}
       </article>
+
+      {station.grandezas.includes("CHUVA") && (
+        <MonthlyRainCard codigo={station.codigo} />
+      )}
 
       <article className="station-detail-card">
         <h3>Limites cadastrados</h3>

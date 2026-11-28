@@ -27,6 +27,10 @@ class FonteDadosHidrologicos(ABC):
         """Identifica se a implementação entrega dados reais ou simulados."""
         return OrigemDados.REAL
 
+    def regras_iniciais(self) -> list[RegraAlerta]:
+        """Regras de alerta que acompanham a fonte; fontes reais não trazem nenhuma."""
+        return []
+
     @abstractmethod
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]: ...
 
@@ -52,6 +56,14 @@ class EstacaoRepositorio(ABC):
     @abstractmethod
     def monitoradas(self) -> list[Estacao]:
         """Estações operando e telemétricas, cujas medições são coletadas."""
+
+    @abstractmethod
+    def remover_varias(self, codigos: Iterable[int]) -> int:
+        """Remove as estações informadas.
+
+        A porta não promete remover dados dependentes; repositórios SQL aplicam a
+        cascata definida pelas chaves estrangeiras.
+        """
 
 
 class FonteDePrevisao(ABC):

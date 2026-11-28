@@ -107,10 +107,13 @@ EXEMPLOS = (
 
 
 def _cliente() -> TestClient:
+    def container():
+        fonte = FonteFake(AGORA)
+        repositorios = criar_repositorios("memoria", regras=fonte.regras_iniciais())
+        return montar_container(fonte, relogio=lambda: AGORA, repositorios=repositorios)
+
     app = create_app(
-        lambda: montar_container(
-            FonteFake(AGORA), relogio=lambda: AGORA, repositorios=criar_repositorios("memoria")
-        ),
+        container,
         intervalo=lambda: None,
         origens=[],
     )
