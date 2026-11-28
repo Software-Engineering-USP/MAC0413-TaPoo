@@ -104,6 +104,7 @@ def test_regras_de_exemplo_so_acompanham_a_fonte_simulada(monkeypatch) -> None:
     """Com a ANA, as cotas fictícias das estações 9000000x não podem ser carregadas (#175)."""
     agora = datetime(2026, 11, 18, tzinfo=UTC)
     monkeypatch.setenv("REPO", "memoria")
+    monkeypatch.setenv("FONTE", "ana")
     monkeypatch.setattr(dependencias, "credenciais_ana", lambda: ("id-teste", "senha-teste"))
 
     com_ana = dependencias.montar_container(relogio=lambda: agora)

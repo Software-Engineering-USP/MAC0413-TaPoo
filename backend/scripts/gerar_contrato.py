@@ -107,9 +107,12 @@ EXEMPLOS = (
 
 
 def _cliente() -> TestClient:
+    fonte = FonteFake(AGORA)
     app = create_app(
         lambda: montar_container(
-            FonteFake(AGORA), relogio=lambda: AGORA, repositorios=criar_repositorios("memoria")
+            fonte,
+            relogio=lambda: AGORA,
+            repositorios=criar_repositorios("memoria", regras=fonte.regras_iniciais()),
         ),
         intervalo=lambda: None,
         origens=[],
