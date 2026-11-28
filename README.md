@@ -184,6 +184,13 @@ in `America/Sao_Paulo` before converting them to UTC.
 | GET | `/alertas` | Active alerts, most severe first |
 | GET | `/municipios/{uf}/{nome}/situacao` | Worst severity among the municipality's stations (name matched ignoring accents and case; 404 if none) |
 
+The response formats, with parameters, fields and examples, are in
+`docs/contrato-api.md`. The same examples, complete, are in `frontend/src/mocks/*.json`
+so the frontend can run without the backend. Both are generated from the running API:
+after changing a route or `backend/app/api/schemas.py`, run
+`uv run python -m scripts.gerar_contrato` in `backend/` (`tests/test_contrato.py`
+fails while they are out of date).
+
 ### Climatological normals (INMET)
 
 `backend/app/infra/normais/dados/inmet-1991-2020-precipitacao.json` holds the monthly

@@ -1,0 +1,36 @@
+{
+  "codigo": 90000001,
+  "nome": "Rio Tietê - São Paulo (exemplo)",
+  "tipo": "FLUVIOMETRICA",
+  "latitude": -23.52,
+  "longitude": -46.63,
+  "uf": "SP",
+  "municipio": "São Paulo",
+  "rio": "Rio Tietê",
+  "operando": true,
+  "telemetrica": true,
+  "grandezas": [
+    "CHUVA",
+    "NIVEL",
+    "VAZAO"
+  ],
+  "severidade": "ALERTA",
+  "severidade_rotulo": "Alerta",
+  "alerta": {
+    "id": "00000000-0000-0000-0000-000000000001",
+    "codigo_estacao": 90000001,
+    "severidade": "ALERTA",
+    "severidade_rotulo": "Alerta",
+    "status": "ATIVO",
+    "mensagem": "Rio acima da cota de alerta (440 cm, limite 400 cm)",
+    "fatores": [
+      {
+        "descricao": "Rio acima da cota de alerta (440 cm, limite 400 cm)",
+        "severidade": "ALERTA",
+        "severidade_rotulo": "Alerta"
+      }
+    ],
+    "emitido_em": "2026-01-10T12:00:00Z",
+    "encerrado_em": null
+  }
+}

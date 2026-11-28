@@ -1,0 +1,22 @@
+[
+  {
+    "grandeza": "CHUVA",
+    "tipo": "CHUVA_ACUMULADA",
+    "descricao": "Limites de chuva acumulada",
+    "unidade": "mm",
+    "janela_horas": 24.0,
+    "atencao": 30.0,
+    "alerta": 50.0,
+    "emergencia": 80.0
+  },
+  {
+    "grandeza": "CHUVA",
+    "tipo": "CHUVA_PREVISTA",
+    "descricao": "Limites de chuva prevista",
+    "unidade": "mm",
+    "janela_horas": 24.0,
+    "atencao": 30.0,
+    "alerta": 50.0,
+    "emergencia": 80.0
+  }
+]
