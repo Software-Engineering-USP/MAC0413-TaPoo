@@ -261,6 +261,36 @@ export function mockGetStation(codigo, { signal } = {}) {
   });
 }
 
+export function mockGetMonthlyRain(codigo, { signal } = {}) {
+  return mockResult(signal, () => {
+    const station = mockStations.find((item) => item.codigo === Number(codigo));
+    if (!station) throw notFound(`Estação ${codigo} não encontrada.`);
+    if (!station.grandezas.includes("CHUVA")) {
+      throw validationError(`A estação ${codigo} não mede chuva.`);
+    }
+    const agora = new Date();
+    return {
+      codigo_estacao: station.codigo,
+      ano: agora.getFullYear(),
+      mes: agora.getMonth() + 1,
+      acumulado_mm: 182.4,
+      medicoes: 640,
+      normal_mm: 141.2,
+      percentual: 129.2,
+      classificacao: "ACIMA",
+      classificacao_rotulo: "Acima do normal",
+      referencia: {
+        codigo: "83781",
+        nome: "SÃO PAULO (MIRANTE)",
+        uf: "SP",
+        latitude: -23.5,
+        longitude: -46.62,
+        distancia_km: 3.2,
+      },
+    };
+  });
+}
+
 export function mockGetStationLimits(codigo, { signal } = {}) {
   return mockResult(signal, () => {
     const station = mockStations.find((item) => item.codigo === Number(codigo));

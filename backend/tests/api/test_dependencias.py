@@ -53,7 +53,9 @@ def test_trocar_fonte_simulada_por_ana_remove_dados_ficticios_do_sql(monkeypatch
     monkeypatch.setenv("REPO", "sql")
     monkeypatch.setenv("DATABASE_URL", url)
 
-    repos_simulados = dependencias.criar_repositorios("sql", url)
+    repos_simulados = dependencias.criar_repositorios(
+        "sql", url, regras=FonteFake(agora).regras_iniciais()
+    )
     container_simulado = dependencias.montar_container(
         FonteFake(agora), relogio=lambda: agora, repositorios=repos_simulados
     )
@@ -96,3 +98,21 @@ def test_trocar_fonte_simulada_por_ana_remove_dados_ficticios_do_sql(monkeypatch
 def test_repo_memoria_e_o_padrao() -> None:
     repos = dependencias.criar_repositorios()
     assert isinstance(repos.estacoes, EstacaoRepositorioMemoria)
+
+
+def test_regras_de_exemplo_so_acompanham_a_fonte_simulada(monkeypatch) -> None:
+    """Com a ANA, as cotas fictícias das estações 9000000x não podem ser carregadas (#175)."""
+    agora = datetime(2026, 11, 18, tzinfo=UTC)
+    monkeypatch.setenv("REPO", "memoria")
+    monkeypatch.setattr(dependencias, "credenciais_ana", lambda: ("id-teste", "senha-teste"))
+
+    com_ana = dependencias.montar_container(relogio=lambda: agora)
+    simulado = dependencias.montar_container(FonteFake(agora), relogio=lambda: agora)
+
+    assert com_ana.consulta._regras.da_estacao(90000001) == []
+    assert simulado.consulta._regras.da_estacao(90000001)
+
+
+def test_fonte_real_nao_traz_regras_iniciais() -> None:
+    assert FonteAna("id", "senha").regras_iniciais() == []
+    assert FonteFake().regras_iniciais()

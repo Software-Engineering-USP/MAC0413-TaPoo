@@ -34,6 +34,19 @@ from app.dominio.tempo import agora_utc, exigir_utc
 
 HISTORICO = timedelta(days=7)
 
+CODIGO_ESTACAO_TIETE = 90000001
+CODIGO_ESTACAO_CAMPINAS = 90000002
+CODIGO_ESTACAO_VELHAS = 90000003
+CODIGO_ESTACAO_PETROPOLIS = 90000004
+CODIGO_ESTACAO_OURO_PRETO = 90000005
+CODIGOS_ESTACOES_SIMULADAS = (
+    CODIGO_ESTACAO_TIETE,
+    CODIGO_ESTACAO_CAMPINAS,
+    CODIGO_ESTACAO_VELHAS,
+    CODIGO_ESTACAO_PETROPOLIS,
+    CODIGO_ESTACAO_OURO_PRETO,
+)
+
 # Perfis: função de "horas antes de agora" -> valor.
 Perfil = Callable[[float], float]
 
@@ -78,7 +91,7 @@ def _estacoes_e_perfis() -> list[tuple[Estacao, dict[type[Medicao], Perfil]]]:
     return [
         (
             estacao(
-                90000001,
+                CODIGO_ESTACAO_TIETE,
                 "Rio Tietê - São Paulo (exemplo)",
                 fluvio,
                 -23.52,
@@ -94,12 +107,20 @@ def _estacoes_e_perfis() -> list[tuple[Estacao, dict[type[Medicao], Perfil]]]:
             },
         ),
         (
-            estacao(90000002, "Campinas (exemplo)", pluvio, -22.91, -47.06, "SP", "Campinas"),
+            estacao(
+                CODIGO_ESTACAO_CAMPINAS,
+                "Campinas (exemplo)",
+                pluvio,
+                -22.91,
+                -47.06,
+                "SP",
+                "Campinas",
+            ),
             {MedicaoChuva: _chuva_fraca},
         ),
         (
             estacao(
-                90000003,
+                CODIGO_ESTACAO_VELHAS,
                 "Rio das Velhas - Belo Horizonte (exemplo)",
                 fluvio,
                 -19.92,
@@ -115,12 +136,20 @@ def _estacoes_e_perfis() -> list[tuple[Estacao, dict[type[Medicao], Perfil]]]:
             },
         ),
         (
-            estacao(90000004, "Petrópolis (exemplo)", pluvio, -22.51, -43.18, "RJ", "Petrópolis"),
+            estacao(
+                CODIGO_ESTACAO_PETROPOLIS,
+                "Petrópolis (exemplo)",
+                pluvio,
+                -22.51,
+                -43.18,
+                "RJ",
+                "Petrópolis",
+            ),
             {MedicaoChuva: _chuva_forte_recente},
         ),
         (
             estacao(
-                90000005,
+                CODIGO_ESTACAO_OURO_PRETO,
                 "Ouro Preto (exemplo)",
                 pluvio,
                 -20.39,
@@ -144,15 +173,15 @@ def regras_de_exemplo() -> list[RegraAlerta]:
     }
     return [
         RegraCotaReferencia(
-            90000001, cota_atencao_cm=300, cota_alerta_cm=400, cota_inundacao_cm=500
+            CODIGO_ESTACAO_TIETE, cota_atencao_cm=300, cota_alerta_cm=400, cota_inundacao_cm=500
         ),
-        RegraChuvaAcumulada(90000002, **chuva_24h),
+        RegraChuvaAcumulada(CODIGO_ESTACAO_CAMPINAS, **chuva_24h),
         RegraCotaReferencia(
-            90000003, cota_atencao_cm=250, cota_alerta_cm=320, cota_inundacao_cm=400
+            CODIGO_ESTACAO_VELHAS, cota_atencao_cm=250, cota_alerta_cm=320, cota_inundacao_cm=400
         ),
-        RegraChuvaAcumulada(90000004, **chuva_24h),
+        RegraChuvaAcumulada(CODIGO_ESTACAO_PETROPOLIS, **chuva_24h),
         RegraChuvaPrevisao(
-            90000004,
+            CODIGO_ESTACAO_PETROPOLIS,
             Coordenada(-22.51, -43.18),
             janela=timedelta(hours=24),
             limite_moderado_mm=30,
@@ -171,6 +200,9 @@ class FonteFake(FonteDadosHidrologicos):
     @property
     def origem_dados(self) -> OrigemDados:
         return OrigemDados.SIMULADO
+
+    def regras_iniciais(self) -> list[RegraAlerta]:
+        return regras_de_exemplo()
 
     def listar_estacoes(self, filtro: FiltroEstacoes) -> list[Estacao]:
         return [estacao for estacao, _ in self._dados if filtro.aceita(estacao)]
