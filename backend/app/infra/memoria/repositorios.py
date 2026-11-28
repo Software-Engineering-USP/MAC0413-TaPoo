@@ -47,6 +47,12 @@ class EstacaoRepositorioMemoria(EstacaoRepositorio):
     def monitoradas(self) -> list[Estacao]:
         return [e for e in self.buscar(FiltroEstacoes(apenas_telemetricas=True)) if e.operando]
 
+    def remover_varias(self, codigos: Iterable[int]) -> int:
+        removidos = [codigo for codigo in codigos if codigo in self._por_codigo]
+        for codigo in removidos:
+            del self._por_codigo[codigo]
+        return len(removidos)
+
 
 class MedicaoRepositorioMemoria(MedicaoRepositorio):
     def __init__(self) -> None:
