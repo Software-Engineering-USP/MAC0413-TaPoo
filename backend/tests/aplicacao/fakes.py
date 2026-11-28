@@ -61,6 +61,12 @@ class Estacoes(EstacaoRepositorio):
     def monitoradas(self) -> list[Estacao]:
         return [e for e in self.dados.values() if e.operando and e.telemetrica]
 
+    def remover_varias(self, codigos: Iterable[int]) -> int:
+        removidos = [codigo for codigo in codigos if codigo in self.dados]
+        for codigo in removidos:
+            del self.dados[codigo]
+        return len(removidos)
+
 
 class Medicoes(MedicaoRepositorio):
     def __init__(self) -> None:

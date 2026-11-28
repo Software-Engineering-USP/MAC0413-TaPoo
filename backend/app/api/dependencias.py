@@ -53,6 +53,9 @@ from app.infra.persistencia.repositorios_sql import (
     MedicaoRepositorioSql,
 )
 
+# Faixa reservada aos códigos fictícios dos cenários de demonstração.
+_CODIGOS_ESTACOES_SIMULADAS = range(90000000, 90000010)
+
 
 @dataclass(frozen=True, slots=True)
 class Container:
@@ -129,6 +132,8 @@ def montar_container(
         if fonte_previsao is None:
             fonte_previsao = FonteOpenMeteo()
     repositorios = repositorios or criar_repositorios()
+    if fonte.origem_dados is OrigemDados.REAL:
+        repositorios.estacoes.remover_varias(_CODIGOS_ESTACOES_SIMULADAS)
     monitorar = MonitorarEstacoes(
         repositorios.medicoes,
         repositorios.regras,

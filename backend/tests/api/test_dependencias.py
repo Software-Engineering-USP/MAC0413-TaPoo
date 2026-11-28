@@ -1,6 +1,12 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.api import dependencias
+from app.aplicacao.filtros import FiltroEstacoes
+from app.dominio.enums import Grandeza, TipoEstacao
+from app.dominio.estacao import Estacao
+from app.dominio.geografia import Coordenada
+from app.dominio.municipio import Municipio
+from app.dominio.periodo import Periodo
 from app.infra.fontes.ana import FonteAna
 from app.infra.fontes.fake import FonteFake
 from app.infra.memoria.repositorios import EstacaoRepositorioMemoria
@@ -8,6 +14,7 @@ from app.infra.memoria.repositorios import EstacaoRepositorioMemoria
 
 def test_monta_container_com_fonte_ana_quando_credenciais_estao_configuradas(monkeypatch) -> None:
     agora = datetime(2026, 11, 18, tzinfo=UTC)
+    monkeypatch.setenv("FONTE", "ana")
     monkeypatch.setattr(dependencias, "credenciais_ana", lambda: ("id-teste", "senha-teste"))
     monkeypatch.setattr(dependencias, "base_url_ana", lambda: "https://ana.example/api")
     monkeypatch.setattr(dependencias, "timeout_ana", lambda: 5.0)
@@ -38,6 +45,52 @@ def test_repo_sql_guarda_os_dados_entre_reinicios(monkeypatch, tmp_path) -> None
     assert all(
         monitorar.executar(a.codigo_estacao) is None for a in primeiro.consulta.alertas_ativos()
     )
+
+
+def test_trocar_fonte_simulada_por_ana_remove_dados_ficticios_do_sql(monkeypatch, tmp_path) -> None:
+    agora = datetime(2026, 1, 10, 12, tzinfo=UTC)
+    url = f"sqlite:///{tmp_path / 'troca-fonte.db'}"
+    monkeypatch.setenv("REPO", "sql")
+    monkeypatch.setenv("DATABASE_URL", url)
+
+    repos_simulados = dependencias.criar_repositorios("sql", url)
+    container_simulado = dependencias.montar_container(
+        FonteFake(agora), relogio=lambda: agora, repositorios=repos_simulados
+    )
+    dependencias.carga_inicial(container_simulado)
+    assert any(
+        situacao.estacao.codigo == 90000001
+        for situacao in container_simulado.consulta.listar_estacoes(FiltroEstacoes())
+    )
+    assert container_simulado.consulta.alertas_ativos()
+    periodo = Periodo(agora - timedelta(days=30), agora)
+    assert repos_simulados.medicoes.serie(90000001, Grandeza.NIVEL, periodo).medicoes
+
+    estacao_real = Estacao(
+        62300600,
+        "Estação USP",
+        TipoEstacao.FLUVIOMETRICA,
+        Coordenada(-23.56, -46.73),
+        Municipio("São Paulo", "SP"),
+        atualizado_em=agora,
+    )
+    repos_simulados.estacoes.salvar_varias([estacao_real])
+
+    # Outro container e repositório simulam o reinício da API.
+    repos_ana = dependencias.criar_repositorios("sql", url)
+    container_ana = dependencias.montar_container(
+        FonteAna("id-teste", "senha-teste"),
+        relogio=lambda: agora,
+        repositorios=repos_ana,
+    )
+
+    codigos = {
+        situacao.estacao.codigo
+        for situacao in container_ana.consulta.listar_estacoes(FiltroEstacoes())
+    }
+    assert codigos == {62300600}
+    assert container_ana.consulta.alertas_ativos() == []
+    assert repos_ana.medicoes.serie(90000001, Grandeza.NIVEL, periodo).medicoes == []
 
 
 def test_repo_memoria_e_o_padrao() -> None:
